@@ -12,21 +12,15 @@ export default async function PaginaMaterias() {
 
   return (
     <main>
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex items-baseline justify-between gap-3">
         <h1 className="text-2xl font-extrabold tracking-[-0.015em]">Materias</h1>
-        {/* Placeholder: el modal de nueva materia llega en Fase 5. */}
-        <button
-          type="button"
-          aria-disabled="true"
-          className="min-h-[44px] cursor-default rounded-xl bg-acc-bg px-4 text-sm font-bold text-acc-fg"
-        >
-          + Nueva
-        </button>
+        {/* Las materias vienen del sync con el aula virtual — no hay alta manual. */}
+        <span className="font-mono text-[11px] text-tx4">del aula virtual</span>
       </header>
 
       {materias.length === 0 ? (
         <div className="mt-5 rounded-2xl border border-dashed border-bor px-5 py-7 text-center text-[13.5px] text-tx3">
-          Todavía no cargaste materias. Empezá por acá arriba.
+          Tus materias llegan del aula virtual con la primera sincronización.
         </div>
       ) : (
         <div className="mt-5 grid grid-cols-[repeat(auto-fill,minmax(165px,1fr))] gap-3">
@@ -47,13 +41,17 @@ export default async function PaginaMaterias() {
                   />
                   <span className="text-[15px] leading-[1.3] font-bold">{m.nombre}</span>
                 </span>
-                <span className="flex flex-col gap-[3px]">
-                  {m.horarios.map((h) => (
-                    <span key={h.id} className="font-mono text-[11.5px] text-tx2">
-                      {nombreDia(h.dia).slice(0, 3)} {h.inicio}–{h.fin}
-                    </span>
-                  ))}
-                </span>
+                {m.horarios.length === 0 ? (
+                  <span className="font-mono text-[11.5px] text-tx4">sin horarios todavía</span>
+                ) : (
+                  <span className="flex flex-col gap-[3px]">
+                    {m.horarios.map((h) => (
+                      <span key={h.id} className="font-mono text-[11.5px] text-tx2">
+                        {nombreDia(h.dia).slice(0, 3)} {h.inicio}–{h.fin}
+                      </span>
+                    ))}
+                  </span>
+                )}
                 <span className="mt-auto font-mono text-[11px] text-tx3">
                   {nTxt(notas, 'nota', 'notas')} · {nTxt(m.archivos.length, 'arch.', 'arch.')} ·{' '}
                   <span className={pendientes > 0 ? 'text-acc' : ''}>

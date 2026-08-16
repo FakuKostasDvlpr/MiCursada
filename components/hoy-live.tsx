@@ -20,6 +20,7 @@ type Props = {
   materias: Materia[];
   avisos: Aviso[];
   iniciales: string;
+  avatarUrl?: string | null;
   /** Instante del render en el server, para hidratar sin desajuste. */
   inicialIso: string;
 };
@@ -29,7 +30,7 @@ type Props = {
  * próximos avisos). Un tick de 30s recalcula countdown y estados; los datos
  * llegan serializados del server.
  */
-export function HoyLive({ materias, avisos, iniciales, inicialIso }: Props) {
+export function HoyLive({ materias, avisos, iniciales, avatarUrl = null, inicialIso }: Props) {
   const [ahora, setAhora] = useState(() => new Date(inicialIso));
 
   useEffect(() => {
@@ -59,9 +60,14 @@ export function HoyLive({ materias, avisos, iniciales, inicialIso }: Props) {
           <Link
             href="/perfil"
             aria-label="Tu perfil"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#fbbf24] text-[13px] font-extrabold !text-[#221a00]"
+            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-[#fbbf24] text-[13px] font-extrabold !text-[#221a00]"
           >
-            {iniciales || '·'}
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              iniciales || '·'
+            )}
           </Link>
         </div>
       </header>
@@ -99,17 +105,8 @@ export function HoyLive({ materias, avisos, iniciales, inicialIso }: Props) {
             </span>
           </Link>
         ) : (
-          <div className="col-span-full rounded-2xl border border-bor bg-sup px-5 py-[26px] text-center">
-            <div className="text-base font-bold">Cargá tus materias</div>
-            <div className="mt-[6px] text-[13.5px] text-tx2">
-              Armá tu semana con horarios, notas y avisos.
-            </div>
-            <Link
-              href="/materias"
-              className="mt-4 inline-flex min-h-[46px] items-center rounded-xl bg-acc-bg px-5 text-sm font-bold !text-acc-fg"
-            >
-              Nueva materia
-            </Link>
+          <div className="col-span-full rounded-2xl border border-dashed border-bor px-5 py-[26px] text-center text-[13.5px] text-tx3">
+            Tus materias llegan del aula virtual con la primera sincronización.
           </div>
         )}
 

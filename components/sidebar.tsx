@@ -15,13 +15,14 @@ const ITEMS = [
 type Props = {
   nombre: string;
   iniciales: string;
+  avatarUrl?: string | null;
 };
 
 /**
  * Nav lateral fija de 232px (>640px). En móvil la reemplaza BottomNav.
  * No se muestra en /login ni /perfil.
  */
-export function Sidebar({ nombre, iniciales }: Props) {
+export function Sidebar({ nombre, iniciales, avatarUrl = null }: Props) {
   const pathname = usePathname();
   if (pathname.startsWith('/login') || pathname.startsWith('/perfil')) return null;
 
@@ -65,12 +66,22 @@ export function Sidebar({ nombre, iniciales }: Props) {
           href="/perfil"
           className="flex min-h-12 items-center gap-[11px] rounded-[11px] px-3 !text-tx"
         >
-          <span
-            aria-hidden
-            className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full bg-acc-bg text-[11px] font-extrabold text-acc-fg"
-          >
-            {iniciales || '·'}
-          </span>
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              aria-hidden
+              className="h-[30px] w-[30px] shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <span
+              aria-hidden
+              className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full bg-acc-bg text-[11px] font-extrabold text-acc-fg"
+            >
+              {iniciales || '·'}
+            </span>
+          )}
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13px] font-bold">{nombre || 'Sin nombre'}</span>
             <span className="block truncate text-[11px] text-tx3">Tu perfil</span>

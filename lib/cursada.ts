@@ -229,6 +229,11 @@ export function estadoAviso(aviso: Aviso, ahora: Date): EstadoAviso {
   return 'pendiente';
 }
 
+/** 'YYYY-MM-DD' de hoy en Buenos Aires (default de los date inputs). */
+export function hoyISO(ahora: Date): string {
+  return isoDe(enBA(ahora));
+}
+
 /** Hasta 2 iniciales en mayúscula ("Facundo Costas" → "FC"). */
 export function iniciales(nombre: string): string {
   return nombre
