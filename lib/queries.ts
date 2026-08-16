@@ -2,6 +2,7 @@
 // Mapean filas snake_case de Supabase a los tipos de dominio (camelCase) de lib/types.ts.
 // Sin cache: lecturas directas, las páginas son dynamic.
 
+import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { createClient } from '@/lib/supabase/server';
 import type {
   Archivo,
@@ -155,8 +156,21 @@ const SELECT_MATERIA = `
 
 // --- Queries ---
 
+let avisoSinConfigurar = false;
+
+/** True si Supabase está configurado; si no, avisa una sola vez por proceso. */
+function conSupabase(): boolean {
+  if (supabaseConfigurado()) return true;
+  if (!avisoSinConfigurar) {
+    avisoSinConfigurar = true;
+    console.warn('Supabase sin configurar — usando datos vacíos');
+  }
+  return false;
+}
+
 /** Materias del usuario con horarios, bloques (por orden) y archivos anidados. */
 export async function getMaterias(): Promise<Materia[]> {
+  if (!conSupabase()) return [];
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('materias')
@@ -174,6 +188,7 @@ export async function getMaterias(): Promise<Materia[]> {
 
 /** Una materia con todo anidado, o null si no existe. */
 export async function getMateria(id: string): Promise<Materia | null> {
+  if (!conSupabase()) return null;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('materias')
@@ -192,6 +207,7 @@ export async function getMateria(id: string): Promise<Materia | null> {
 
 /** Todos los avisos del usuario, ordenados por fecha ascendente. */
 export async function getAvisos(): Promise<Aviso[]> {
+  if (!conSupabase()) return [];
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('avisos')
@@ -207,6 +223,7 @@ export async function getAvisos(): Promise<Aviso[]> {
 
 /** Perfil del usuario o null si todavía no lo creó. */
 export async function getPerfil(): Promise<Perfil | null> {
+  if (!conSupabase()) return null;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('perfil')
@@ -224,6 +241,7 @@ export async function getPerfil(): Promise<Perfil | null> {
 
 /** Última corrida del scraper o null si nunca corrió. */
 export async function getUltimaSync(): Promise<UltimaSync | null> {
+  if (!conSupabase()) return null;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('sync_log')

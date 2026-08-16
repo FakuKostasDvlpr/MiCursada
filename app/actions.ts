@@ -5,8 +5,10 @@
 // Estrategia de revalidación consistente: revalidatePath('/', 'layout') — cubre
 // '/', '/semana', '/materias', '/materias/[id]' y '/avisos' de una.
 
+import type { User } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { createClient } from '@/lib/supabase/server';
 import { normalizarUrl } from '@/lib/urls';
 import { COLORES_MATERIA, ESTADOS_BLOQUE, TIPOS_BLOQUE } from '@/lib/types';
@@ -14,6 +16,7 @@ import { COLORES_MATERIA, ESTADOS_BLOQUE, TIPOS_BLOQUE } from '@/lib/types';
 export type ResultadoAction = { ok: true } | { ok: false; error: string };
 
 const ERROR_SESION = 'No pudimos verificar tu sesión. Entrá de nuevo.';
+const ERROR_SIN_CONFIG = 'Falta configurar Supabase (.env.local).';
 const ERROR_GUARDAR = 'No se pudo guardar. Probá de nuevo.';
 const ERROR_NO_EXISTE = 'Eso ya no existe.';
 const ERROR_DATOS = 'Datos inválidos.';
@@ -22,12 +25,21 @@ function revalidarTodo() {
   revalidatePath('/', 'layout');
 }
 
-/** Crea el server client y verifica que haya usuario autenticado. */
-async function conUsuario() {
+type ConUsuario =
+  | { supabase: Awaited<ReturnType<typeof createClient>>; user: User; error?: undefined }
+  | { supabase: null; user: null; error: string };
+
+/**
+ * Crea el server client y verifica que haya usuario autenticado.
+ * Si Supabase no está configurado (sin .env.local), corta antes del auth check.
+ */
+async function conUsuario(): Promise<ConUsuario> {
+  if (!supabaseConfigurado()) return { supabase: null, user: null, error: ERROR_SIN_CONFIG };
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user) return { supabase: null, user: null, error: ERROR_SESION };
   return { supabase, user };
 }
 
@@ -78,8 +90,9 @@ function validarMateria(
 }
 
 export async function crearMateria(input: MateriaInput): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   const validacion = validarMateria(input);
   if (!validacion.ok) return validacion;
@@ -105,8 +118,9 @@ export async function actualizarMateria(
   id: string,
   input: MateriaInput
 ): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   const validacion = validarMateria(input);
   if (!validacion.ok) return validacion;
@@ -133,8 +147,9 @@ export async function actualizarMateria(
 }
 
 export async function eliminarMateria(id: string): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   // Cascade se lleva horarios/bloques/archivos; avisos quedan como "General".
   const { data, error } = await supabase.from('materias').delete().eq('id', id).select('id');
@@ -161,8 +176,9 @@ export async function crearArchivo(
   materiaId: string,
   input: { nombre: string; url: string }
 ): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   const parsed = archivoSchema.safeParse(input);
   if (!parsed.success) {
@@ -184,8 +200,9 @@ export async function crearArchivo(
 }
 
 export async function eliminarArchivo(id: string): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   const { data, error } = await supabase.from('archivos').delete().eq('id', id).select('id');
 
@@ -225,8 +242,9 @@ export async function crearAviso(input: {
   materiaId: string | null;
   fecha: string;
 }): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   const parsed = avisoSchema.safeParse(input);
   if (!parsed.success) {
@@ -254,8 +272,9 @@ export async function crearAviso(input: {
 }
 
 export async function toggleAviso(id: string, hecho: boolean): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   const { data, error } = await supabase
     .from('avisos')
@@ -273,8 +292,9 @@ export async function toggleAviso(id: string, hecho: boolean): Promise<Resultado
 }
 
 export async function eliminarAviso(id: string): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   const { data, error } = await supabase.from('avisos').delete().eq('id', id).select('id');
 
@@ -300,8 +320,9 @@ export async function guardarPerfil(input: {
   nombre: string;
   instituto: string;
 }): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   const parsed = perfilSchema.safeParse(input);
   if (!parsed.success) {
@@ -310,7 +331,7 @@ export async function guardarPerfil(input: {
 
   const { error } = await supabase.from('perfil').upsert(
     {
-      user_id: user.id,
+      user_id: sesion.user.id,
       nombre: parsed.data.nombre,
       instituto: parsed.data.instituto || null,
     },
@@ -339,8 +360,9 @@ export async function crearBloque(
   materiaId: string,
   input: { tipo: (typeof TIPOS_BLOQUE)[number]; texto?: string; url?: string }
 ): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   const parsed = bloqueNuevoSchema.safeParse(input);
   if (!parsed.success) {
@@ -390,8 +412,9 @@ const bloquePatchSchema = z.object({
 export type BloquePatch = z.input<typeof bloquePatchSchema>;
 
 export async function actualizarBloque(id: string, patch: BloquePatch): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   const parsed = bloquePatchSchema.safeParse(patch);
   if (!parsed.success) {
@@ -417,8 +440,9 @@ export async function actualizarBloque(id: string, patch: BloquePatch): Promise<
 }
 
 export async function eliminarBloque(id: string): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   const { data, error } = await supabase.from('bloques').delete().eq('id', id).select('id');
 
@@ -441,8 +465,9 @@ const reordenarSchema = z.array(
 export async function reordenarBloques(
   items: { id: string; orden: number }[]
 ): Promise<ResultadoAction> {
-  const { supabase, user } = await conUsuario();
-  if (!user) return { ok: false, error: ERROR_SESION };
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
 
   const parsed = reordenarSchema.safeParse(items);
   if (!parsed.success) {
