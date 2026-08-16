@@ -1,10 +1,16 @@
 'use client';
 
-import { ArrowUpRight, Check, FileText } from 'lucide-react';
+import { ArrowUpRight, Check, FileText, Trash2 } from 'lucide-react';
 import { useOptimistic, useState, useTransition } from 'react';
-import { crearArchivo, crearAviso, toggleAviso } from '@/app/actions';
+import {
+  crearArchivo,
+  crearAviso,
+  eliminarArchivo,
+  eliminarAviso,
+  toggleAviso,
+} from '@/app/actions';
 import { estadoAviso, hoyISO } from '@/lib/cursada';
-import type { Aviso, Bloque, Materia } from '@/lib/types';
+import { esManual, type Aviso, type Bloque, type Materia } from '@/lib/types';
 
 /** 'YYYY-MM-DD' → 'dd/mm'. */
 const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
@@ -165,6 +171,12 @@ function TabArchivos({ materia }: { materia: Materia }) {
     setUrl('');
   };
 
+  const borrar = async (id: string) => {
+    setError('');
+    const resultado = await eliminarArchivo(id);
+    if (!resultado.ok) setError(resultado.error);
+  };
+
   return (
     <div className="mt-4">
       <div className="flex flex-col gap-2">
@@ -200,22 +212,37 @@ function TabArchivos({ materia }: { materia: Materia }) {
       ) : (
         <div className="mt-[14px] flex flex-col gap-2">
           {materia.archivos.map((f) => (
-            <a
+            <div
               key={f.id}
-              href={f.url}
-              target="_blank"
-              rel="noopener"
-              className="flex min-h-[54px] items-center gap-3 rounded-xl border border-bor bg-sup px-[14px] py-3"
+              className="flex min-h-[54px] items-center rounded-xl border border-bor bg-sup"
             >
-              <FileText size={16} strokeWidth={2} aria-hidden className="shrink-0 text-tx3" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-acc">{f.nombre}</span>
-                <span className="mt-[2px] block truncate font-mono text-[11px] text-tx3">
-                  {f.url}
+              <a
+                href={f.url}
+                target="_blank"
+                rel="noopener"
+                className="flex min-w-0 flex-1 items-center gap-3 px-[14px] py-3"
+              >
+                <FileText size={16} strokeWidth={2} aria-hidden className="shrink-0 text-tx3" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-acc">{f.nombre}</span>
+                  <span className="mt-[2px] block truncate font-mono text-[11px] text-tx3">
+                    {f.url}
+                  </span>
                 </span>
-              </span>
-              <ArrowUpRight size={15} strokeWidth={2} aria-hidden className="shrink-0 text-tx3" />
-            </a>
+                <ArrowUpRight size={15} strokeWidth={2} aria-hidden className="shrink-0 text-tx3" />
+              </a>
+              {/* Los archivos del aula virtual los regenera el sync: no se borran. */}
+              {esManual(f.id) && (
+                <button
+                  type="button"
+                  onClick={() => borrar(f.id)}
+                  aria-label={`Eliminar ${f.nombre}`}
+                  className="tactil mr-[6px] grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-xl text-tx3"
+                >
+                  <Trash2 size={15} strokeWidth={2} aria-hidden />
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -268,16 +295,25 @@ function TabAvisos({ materiaId, avisos }: { materiaId: string; avisos: Aviso[] }
     setFecha(hoyISO(new Date()));
   };
 
+  const borrar = async (id: string) => {
+    setError('');
+    const resultado = await eliminarAviso(id);
+    if (!resultado.ok) setError(resultado.error);
+  };
+
   const fila = (a: Aviso, hecho: boolean) => {
     const estado = estadoAviso(a, ahora);
     return (
-      <button
+      <div
         key={a.id}
-        type="button"
-        onClick={() => alternar(a)}
-        className={`flex min-h-[54px] w-full cursor-pointer items-center gap-3 rounded-[13px] border border-bor bg-sup px-[14px] py-[10px] text-left text-tx ${
+        className={`flex min-h-[54px] items-center rounded-[13px] border border-bor bg-sup ${
           hecho ? 'opacity-50' : ''
         }`}
+      >
+      <button
+        type="button"
+        onClick={() => alternar(a)}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 px-[14px] py-[10px] text-left text-tx"
       >
         {hecho ? (
           <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 border-bor2 bg-bor2">
@@ -306,6 +342,18 @@ function TabAvisos({ materiaId, avisos }: { materiaId: string; avisos: Aviso[] }
           {!hecho && (estado === 'vencido' ? ' · vencido' : estado === 'hoy' ? ' · hoy' : '')}
         </span>
       </button>
+        {/* Los avisos del aula virtual los regenera el sync: no se borran. */}
+        {esManual(a.id) && (
+          <button
+            type="button"
+            onClick={() => borrar(a.id)}
+            aria-label={`Eliminar ${a.titulo}`}
+            className="tactil mr-[6px] grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-xl text-tx3"
+          >
+            <Trash2 size={15} strokeWidth={2} aria-hidden />
+          </button>
+        )}
+      </div>
     );
   };
 

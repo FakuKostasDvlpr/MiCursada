@@ -8,11 +8,19 @@
 import type { User } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { escribirEstadoAviso, escribirHorariosLocales } from '@/lib/datos-locales';
+import {
+  crearArchivoLocal,
+  crearAvisoLocal,
+  eliminarArchivoLocal,
+  eliminarAvisoLocal,
+  escribirEstadoAviso,
+  escribirHorariosLocales,
+  escribirMateriaExtra,
+} from '@/lib/datos-locales';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { createClient } from '@/lib/supabase/server';
 import { normalizarUrl } from '@/lib/urls';
-import { COLORES_MATERIA, ESTADOS_BLOQUE, TIPOS_BLOQUE } from '@/lib/types';
+import { COLORES_MATERIA, ESTADOS_BLOQUE, TIPOS_BLOQUE, esManual } from '@/lib/types';
 
 export type ResultadoAction = { ok: true } | { ok: false; error: string };
 
@@ -21,6 +29,8 @@ const ERROR_SIN_CONFIG = 'Falta configurar Supabase (.env.local).';
 const ERROR_GUARDAR = 'No se pudo guardar. Probá de nuevo.';
 const ERROR_NO_EXISTE = 'Eso ya no existe.';
 const ERROR_DATOS = 'Datos inválidos.';
+const ERROR_ARCHIVO_MOODLE = 'Ese archivo viene del aula virtual.';
+const ERROR_AVISO_MOODLE = 'Ese aviso viene del aula virtual.';
 
 function revalidarTodo() {
   revalidatePath('/', 'layout');
@@ -83,8 +93,6 @@ function validarHorarios(
 
 /**
  * Modo sin Supabase: guarda los horarios de una materia en datos/horarios.json.
- * Es lo único de la edición de materia que podemos persistir sin base
- * (profe/aula/color no tienen dónde vivir todavía).
  */
 export async function guardarHorariosLocales(
   materiaId: string,
@@ -103,15 +111,40 @@ export async function guardarHorariosLocales(
   return { ok: true };
 }
 
+/**
+ * Modo sin Supabase: profe/aula/color van a datos/materias-extra.json y los
+ * horarios a datos/horarios.json. El nombre sigue siendo del snapshot.
+ */
+async function actualizarMateriaLocal(
+  id: string,
+  input: MateriaInput
+): Promise<ResultadoAction> {
+  const parsed = materiaSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: ERROR_DATOS };
+  if (parsed.data.horarios.some((h) => h.fin <= h.inicio)) {
+    return { ok: false, error: 'El fin tiene que ser después del inicio.' };
+  }
+
+  try {
+    await escribirMateriaExtra(id, {
+      profe: parsed.data.profe,
+      aula: parsed.data.aula,
+      color: parsed.data.color,
+    });
+    await escribirHorariosLocales(id, parsed.data.horarios);
+  } catch (e) {
+    console.error('actualizarMateria (local):', e);
+    return { ok: false, error: ERROR_GUARDAR };
+  }
+  revalidarTodo();
+  return { ok: true };
+}
+
 export async function actualizarMateria(
   id: string,
   input: MateriaInput
 ): Promise<ResultadoAction> {
-  if (!supabaseConfigurado()) {
-    const parsedLocal = materiaSchema.safeParse(input);
-    if (!parsedLocal.success) return { ok: false, error: ERROR_DATOS };
-    return guardarHorariosLocales(id, parsedLocal.data.horarios);
-  }
+  if (!supabaseConfigurado()) return actualizarMateriaLocal(id, input);
 
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
@@ -159,6 +192,22 @@ export async function crearArchivo(
   materiaId: string,
   input: { nombre: string; url: string }
 ): Promise<ResultadoAction> {
+  if (!supabaseConfigurado()) {
+    const parsedLocal = archivoSchema.safeParse(input);
+    if (!parsedLocal.success) return { ok: false, error: 'Poné un nombre y un link.' };
+    try {
+      await crearArchivoLocal(materiaId, {
+        nombre: parsedLocal.data.nombre,
+        url: normalizarUrl(parsedLocal.data.url),
+      });
+    } catch (e) {
+      console.error('crearArchivo (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;
@@ -183,6 +232,19 @@ export async function crearArchivo(
 }
 
 export async function eliminarArchivo(id: string): Promise<ResultadoAction> {
+  if (!supabaseConfigurado()) {
+    if (!esManual(id)) return { ok: false, error: ERROR_ARCHIVO_MOODLE };
+    try {
+      const borrado = await eliminarArchivoLocal(id);
+      if (!borrado) return { ok: false, error: ERROR_NO_EXISTE };
+    } catch (e) {
+      console.error('eliminarArchivo (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;
@@ -214,8 +276,11 @@ const fechaSchema = z
 const avisoSchema = z.object({
   titulo: z.string().trim().min(1),
   // El select de "General" manda '' → lo tratamos como null.
+  // Un solo schema para los dos modos: cualquier string no vacío. En Supabase el
+  // id es uuid y en local es "curso:2756"; si viene basura la rechaza la FK de
+  // la base (modo Supabase) o simplemente no matchea ninguna materia (local).
   materiaId: z
-    .union([z.uuid(), z.literal(''), z.null()])
+    .union([z.string().trim().min(1), z.literal(''), z.null()])
     .transform((v) => v || null),
   fecha: fechaSchema,
 });
@@ -225,6 +290,23 @@ export async function crearAviso(input: {
   materiaId: string | null;
   fecha: string;
 }): Promise<ResultadoAction> {
+  if (!supabaseConfigurado()) {
+    const parsedLocal = avisoSchema.safeParse(input);
+    if (!parsedLocal.success) return { ok: false, error: 'Poné un título y una fecha.' };
+    try {
+      await crearAvisoLocal({
+        titulo: parsedLocal.data.titulo,
+        materiaId: parsedLocal.data.materiaId,
+        fecha: parsedLocal.data.fecha,
+      });
+    } catch (e) {
+      console.error('crearAviso (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;
@@ -287,6 +369,19 @@ export async function toggleAviso(id: string, hecho: boolean): Promise<Resultado
 }
 
 export async function eliminarAviso(id: string): Promise<ResultadoAction> {
+  if (!supabaseConfigurado()) {
+    if (!esManual(id)) return { ok: false, error: ERROR_AVISO_MOODLE };
+    try {
+      const borrado = await eliminarAvisoLocal(id);
+      if (!borrado) return { ok: false, error: ERROR_NO_EXISTE };
+    } catch (e) {
+      console.error('eliminarAviso (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;

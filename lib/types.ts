@@ -81,6 +81,17 @@ export type Aviso = {
   hecho: boolean;
 };
 
+/**
+ * True si una fila (archivo o aviso) la cargó el usuario a mano y por lo tanto
+ * se puede borrar. Las que vienen del aula virtual tienen ids con prefijo
+ * ("mod:123", "assign:14782", "curso:2756") y las regenera el sync, así que no
+ * se tocan. Los ids manuales son "manual:<uuid>" en modo local y un uuid pelado
+ * en modo Supabase — ninguno de los dos tiene un prefijo de Moodle.
+ */
+export function esManual(id: string): boolean {
+  return id.startsWith('manual:') || !id.includes(':');
+}
+
 export type Perfil = {
   nombre: string;
   instituto: string | null;

@@ -1,22 +1,53 @@
-// Modo sin Supabase: la app lee un snapshot del aula virtual desde disco.
+// Modo sin Supabase: la app lee un snapshot del aula virtual desde disco y le
+// aplica encima overlays locales (lo que el usuario edita/agrega a mano).
 //
 // Archivos (todos en datos/, ignorado por git — son datos personales):
-//   datos/aula-virtual.json  → snapshot generado desde Moodle (materias, archivos, avisos)
-//   datos/horarios.json      → horarios cargados a mano { "curso:2756": [{ dia, inicio, fin }] }
-//   datos/avisos-estado.json → toggle "hecho" de cada aviso  { "assign:14782": true }
+//   datos/aula-virtual.json      → snapshot generado desde Moodle (materias, archivos, avisos)
+//   datos/horarios.json          → horarios cargados a mano { "curso:2756": [{ dia, inicio, fin }] }
+//   datos/avisos-estado.json     → toggle "hecho" de cada aviso  { "assign:14782": true }
+//   datos/materias-extra.json    → profe/aula/color por materia  { "curso:2756": { profe, aula, color } }
+//   datos/archivos-manuales.json → archivos agregados a mano     { "curso:2756": [{ id, nombre, url }] }
+//   datos/avisos-manuales.json   → avisos agregados a mano       [{ id, materiaId, titulo, fecha, hecho }]
+//
+// Las filas que vienen del snapshot NO se pueden borrar (las regenera el sync);
+// las manuales llevan id "manual:<uuid>" para no chocar con "curso:"/"mod:"/"assign:".
 //
 // SOLO SERVIDOR: usa node:fs. No importar desde un client component.
 // (No está el paquete `server-only` en el proyecto, así que la garantía es por convención.)
 
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
-import { COLORES_MATERIA, type Aviso, type Dia, type Horario, type Materia } from '@/lib/types';
+import { COLORES_MATERIA, type Archivo, type Aviso, type Dia, type Horario, type Materia } from '@/lib/types';
 
-const DIR_DATOS = path.join(process.cwd(), 'datos');
-export const RUTA_SNAPSHOT = path.join(DIR_DATOS, 'aula-virtual.json');
-export const RUTA_HORARIOS = path.join(DIR_DATOS, 'horarios.json');
-export const RUTA_AVISOS_ESTADO = path.join(DIR_DATOS, 'avisos-estado.json');
+/**
+ * Directorio de datos. Se resuelve en cada llamada (no en el import) para que
+ * los tests puedan apuntarlo a un tmpdir con CURSADA_DATOS_DIR.
+ */
+function dirDatos(): string {
+  return process.env.CURSADA_DATOS_DIR || path.join(process.cwd(), 'datos');
+}
+
+const NOMBRES = {
+  snapshot: 'aula-virtual.json',
+  horarios: 'horarios.json',
+  avisosEstado: 'avisos-estado.json',
+  materiasExtra: 'materias-extra.json',
+  archivosManuales: 'archivos-manuales.json',
+  avisosManuales: 'avisos-manuales.json',
+} as const;
+
+type Overlay = keyof typeof NOMBRES;
+
+export function rutaDatos(cual: Overlay): string {
+  return path.join(dirDatos(), NOMBRES[cual]);
+}
+
+/** Prefijo de los ids generados localmente (nunca choca con los de Moodle). */
+export const PREFIJO_MANUAL = 'manual:';
+
+const nuevoId = () => `${PREFIJO_MANUAL}${randomUUID()}`;
 
 // --- Schemas (laxos: lo que no reconocemos se descarta, no se rompe) ---
 
@@ -82,6 +113,46 @@ export type HorariosArchivo = z.infer<typeof horariosArchivoSchema>;
 export const avisosEstadoSchema = z.record(z.string(), z.boolean());
 export type AvisosEstado = z.infer<typeof avisosEstadoSchema>;
 
+/** { "curso:2756": { profe: "…", aula: "…", color: "#a78bfa" } } — solo las claves presentes pisan al snapshot. */
+export const materiaExtraSchema = z.object({
+  profe: z.string().optional(),
+  aula: z.string().optional(),
+  color: z.string().optional(),
+});
+
+export const materiasExtraArchivoSchema = z.record(z.string(), materiaExtraSchema);
+
+export type MateriaExtra = z.infer<typeof materiaExtraSchema>;
+export type MateriasExtraArchivo = z.infer<typeof materiasExtraArchivoSchema>;
+
+/** { "curso:2756": [{ id: "manual:…", nombre: "Guía 5", url: "https://…" }] } */
+export const archivoManualSchema = z.object({
+  id: z.string(),
+  nombre: z.string(),
+  url: z.string(),
+});
+
+export const archivosManualesArchivoSchema = z.record(
+  z.string(),
+  z.array(archivoManualSchema)
+);
+
+export type ArchivoManual = z.infer<typeof archivoManualSchema>;
+export type ArchivosManualesArchivo = z.infer<typeof archivosManualesArchivoSchema>;
+
+/** [{ id: "manual:…", materiaId: "curso:2756" | null, titulo, fecha, hecho }] */
+export const avisoManualSchema = z.object({
+  id: z.string(),
+  materiaId: z.string().nullable().optional(),
+  titulo: z.string(),
+  fecha: z.string(),
+  hecho: z.boolean().optional(),
+});
+
+export const avisosManualesArchivoSchema = z.array(avisoManualSchema);
+
+export type AvisoManual = z.infer<typeof avisoManualSchema>;
+
 // --- Lectura con caché por mtime ---
 
 export type DatosLocales = {
@@ -132,14 +203,18 @@ function colorDeId(id: string): Materia['color'] {
 const idHorario = (materiaId: string, h: HorarioLocal) =>
   `${materiaId}#${h.dia}#${h.inicio}-${h.fin}`;
 
-function armar(
-  snapshot: z.infer<typeof snapshotSchema>,
-  horarios: HorariosArchivo,
-  estados: AvisosEstado
-): DatosLocales {
+type Overlays = {
+  horarios: HorariosArchivo;
+  estados: AvisosEstado;
+  extra: MateriasExtraArchivo;
+  archivos: ArchivosManualesArchivo;
+  avisos: AvisoManual[];
+};
+
+function armar(snapshot: z.infer<typeof snapshotSchema>, ov: Overlays): DatosLocales {
   const materias: Materia[] = snapshot.materias
     .map((m): Materia => {
-      const hs: Horario[] = (horarios[m.id] ?? []).map((h) => ({
+      const hs: Horario[] = (ov.horarios[m.id] ?? []).map((h) => ({
         id: idHorario(m.id, h),
         materiaId: m.id,
         dia: h.dia as Dia,
@@ -148,12 +223,29 @@ function armar(
       }));
       hs.sort((a, b) => a.dia - b.dia || a.inicio.localeCompare(b.inicio));
 
+      const extra = ov.extra[m.id] ?? {};
+      // Color: el editado a mano gana; si no, el del snapshot; si no, uno estable por id.
+      const colorCrudo = esColor(extra.color) ? extra.color : m.color;
+
+      const archivosSnapshot: Archivo[] = (m.archivos ?? []).map((a) => ({
+        id: a.id,
+        materiaId: a.materiaId ?? m.id,
+        nombre: a.nombre,
+        url: a.url,
+      }));
+      const archivosManuales: Archivo[] = (ov.archivos[m.id] ?? []).map((a) => ({
+        id: a.id,
+        materiaId: m.id,
+        nombre: a.nombre,
+        url: a.url,
+      }));
+
       return {
         id: m.id,
         nombre: m.nombre,
-        profe: m.profe ?? '',
-        aula: m.aula ?? '',
-        color: esColor(m.color) ? m.color : colorDeId(m.id),
+        profe: extra.profe ?? m.profe ?? '',
+        aula: extra.aula ?? m.aula ?? '',
+        color: esColor(colorCrudo) ? colorCrudo : colorDeId(m.id),
         source: m.source === 'manual' ? 'manual' : 'moodle',
         horarios: hs,
         bloques: (m.bloques ?? []).map((b, i) => ({
@@ -171,23 +263,20 @@ function armar(
           orden: b.orden ?? (i + 1) * 1000,
           createdAt: b.createdAt ?? snapshot.generado ?? new Date(0).toISOString(),
         })),
-        archivos: (m.archivos ?? []).map((a) => ({
-          id: a.id,
-          materiaId: a.materiaId ?? m.id,
-          nombre: a.nombre,
-          url: a.url,
-        })),
+        archivos: [...archivosSnapshot, ...archivosManuales],
       };
     })
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 
-  const avisos: Aviso[] = snapshot.avisos
+  // El "hecho" de TODOS los avisos (del snapshot y manuales) vive en
+  // avisos-estado.json — así toggleAviso es una sola ruta para los dos casos.
+  const avisos: Aviso[] = [...snapshot.avisos, ...ov.avisos]
     .map((a) => ({
       id: a.id,
       materiaId: a.materiaId ?? null,
       titulo: a.titulo,
       fecha: a.fecha,
-      hecho: estados[a.id] ?? a.hecho ?? false,
+      hecho: ov.estados[a.id] ?? a.hecho ?? false,
     }))
     .sort((x, y) => x.fecha.localeCompare(y.fecha));
 
@@ -196,32 +285,43 @@ function armar(
 
 /**
  * Datos del snapshot + overlays locales. Cacheado en memoria; se relee solo
- * si cambió el mtime de alguno de los tres archivos.
+ * si cambió el mtime de alguno de los archivos.
  */
 export async function getDatosLocales(): Promise<DatosLocales> {
-  const [mSnap, mHor, mEst] = await Promise.all([
-    mtime(RUTA_SNAPSHOT),
-    mtime(RUTA_HORARIOS),
-    mtime(RUTA_AVISOS_ESTADO),
+  const rutaSnapshot = rutaDatos('snapshot');
+  const overlays: Overlay[] = [
+    'horarios',
+    'avisosEstado',
+    'materiasExtra',
+    'archivosManuales',
+    'avisosManuales',
+  ];
+
+  const [mSnap, ...mOverlays] = await Promise.all([
+    mtime(rutaSnapshot),
+    ...overlays.map((o) => mtime(rutaDatos(o))),
   ]);
-  const clave = `${mSnap}|${mHor}|${mEst}`;
+  const clave = [rutaSnapshot, mSnap, ...mOverlays].join('|');
   if (cache && cache.clave === clave) return cache.datos;
 
   if (mSnap === 0) {
     if (!avisoSinSnapshot) {
       avisoSinSnapshot = true;
       console.warn(
-        `No hay snapshot del aula virtual en ${RUTA_SNAPSHOT} — la app arranca vacía.`
+        `No hay snapshot del aula virtual en ${rutaSnapshot} — la app arranca vacía.`
       );
     }
     cache = { clave, datos: VACIO };
     return VACIO;
   }
 
-  const [crudoSnap, crudoHor, crudoEst] = await Promise.all([
-    leerJson(RUTA_SNAPSHOT),
-    leerJson(RUTA_HORARIOS),
-    leerJson(RUTA_AVISOS_ESTADO),
+  const [crudoSnap, crudoHor, crudoEst, crudoExtra, crudoArch, crudoAvisos] = await Promise.all([
+    leerJson(rutaSnapshot),
+    leerJson(rutaDatos('horarios')),
+    leerJson(rutaDatos('avisosEstado')),
+    leerJson(rutaDatos('materiasExtra')),
+    leerJson(rutaDatos('archivosManuales')),
+    leerJson(rutaDatos('avisosManuales')),
   ]);
 
   const snap = snapshotSchema.safeParse(crudoSnap);
@@ -233,22 +333,37 @@ export async function getDatosLocales(): Promise<DatosLocales> {
 
   const hor = horariosArchivoSchema.safeParse(crudoHor ?? {});
   const est = avisosEstadoSchema.safeParse(crudoEst ?? {});
+  const extra = materiasExtraArchivoSchema.safeParse(crudoExtra ?? {});
+  const arch = archivosManualesArchivoSchema.safeParse(crudoArch ?? {});
+  const avm = avisosManualesArchivoSchema.safeParse(crudoAvisos ?? []);
 
-  const datos = armar(
-    snap.data,
-    hor.success ? hor.data : {},
-    est.success ? est.data : {}
-  );
+  const datos = armar(snap.data, {
+    horarios: hor.success ? hor.data : {},
+    estados: est.success ? est.data : {},
+    extra: extra.success ? extra.data : {},
+    archivos: arch.success ? arch.data : {},
+    avisos: avm.success ? avm.data : [],
+  });
   cache = { clave, datos };
   return datos;
 }
 
 // --- Escritura de los overlays locales ---
+// Todas siguen el mismo patrón: leer → mergear → escribir el archivo entero.
+// App de un solo usuario, así que no hay locking; la última escritura gana.
 
 async function escribirJson(ruta: string, valor: unknown): Promise<void> {
-  await fs.mkdir(DIR_DATOS, { recursive: true });
+  await fs.mkdir(path.dirname(ruta), { recursive: true });
   await fs.writeFile(ruta, `${JSON.stringify(valor, null, 2)}\n`, 'utf8');
   cache = null; // el mtime cambia igual, pero no dependemos de la resolución del reloj
+}
+
+/** Lee un overlay y lo valida; si no existe o está roto devuelve el fallback. */
+async function leerOverlay<T>(cual: Overlay, schema: z.ZodType<T>, fallback: T): Promise<T> {
+  const crudo = await leerJson(rutaDatos(cual));
+  if (crudo === null) return fallback;
+  const parsed = schema.safeParse(crudo);
+  return parsed.success ? parsed.data : fallback;
 }
 
 /** Mergea los horarios de una materia en datos/horarios.json. */
@@ -256,19 +371,87 @@ export async function escribirHorariosLocales(
   materiaId: string,
   horarios: HorarioLocal[]
 ): Promise<void> {
-  const crudo = await leerJson(RUTA_HORARIOS);
-  const actual = horariosArchivoSchema.safeParse(crudo ?? {});
-  const mapa: HorariosArchivo = actual.success ? { ...actual.data } : {};
+  const mapa = { ...(await leerOverlay('horarios', horariosArchivoSchema, {})) };
   if (horarios.length === 0) delete mapa[materiaId];
   else mapa[materiaId] = horarios;
-  await escribirJson(RUTA_HORARIOS, mapa);
+  await escribirJson(rutaDatos('horarios'), mapa);
 }
 
 /** Mergea el "hecho" de un aviso en datos/avisos-estado.json. */
 export async function escribirEstadoAviso(avisoId: string, hecho: boolean): Promise<void> {
-  const crudo = await leerJson(RUTA_AVISOS_ESTADO);
-  const actual = avisosEstadoSchema.safeParse(crudo ?? {});
-  const mapa: AvisosEstado = actual.success ? { ...actual.data } : {};
+  const mapa = { ...(await leerOverlay('avisosEstado', avisosEstadoSchema, {})) };
   mapa[avisoId] = hecho;
-  await escribirJson(RUTA_AVISOS_ESTADO, mapa);
+  await escribirJson(rutaDatos('avisosEstado'), mapa);
+}
+
+/** Mergea profe/aula/color de una materia en datos/materias-extra.json. */
+export async function escribirMateriaExtra(
+  materiaId: string,
+  extra: MateriaExtra
+): Promise<void> {
+  const mapa = { ...(await leerOverlay('materiasExtra', materiasExtraArchivoSchema, {})) };
+  mapa[materiaId] = { ...mapa[materiaId], ...extra };
+  await escribirJson(rutaDatos('materiasExtra'), mapa);
+}
+
+/** Agrega un archivo manual a datos/archivos-manuales.json. Devuelve su id. */
+export async function crearArchivoLocal(
+  materiaId: string,
+  archivo: { nombre: string; url: string }
+): Promise<string> {
+  const mapa = { ...(await leerOverlay('archivosManuales', archivosManualesArchivoSchema, {})) };
+  const id = nuevoId();
+  mapa[materiaId] = [...(mapa[materiaId] ?? []), { id, nombre: archivo.nombre, url: archivo.url }];
+  await escribirJson(rutaDatos('archivosManuales'), mapa);
+  return id;
+}
+
+/** Borra un archivo manual. False si ese id no es manual (o ya no existe). */
+export async function eliminarArchivoLocal(id: string): Promise<boolean> {
+  const mapa = { ...(await leerOverlay('archivosManuales', archivosManualesArchivoSchema, {})) };
+  let encontrado = false;
+  for (const [materiaId, lista] of Object.entries(mapa)) {
+    const filtrada = lista.filter((a) => a.id !== id);
+    if (filtrada.length === lista.length) continue;
+    encontrado = true;
+    if (filtrada.length === 0) delete mapa[materiaId];
+    else mapa[materiaId] = filtrada;
+  }
+  if (!encontrado) return false;
+  await escribirJson(rutaDatos('archivosManuales'), mapa);
+  return true;
+}
+
+/** Agrega un aviso manual a datos/avisos-manuales.json. Devuelve su id. */
+export async function crearAvisoLocal(aviso: {
+  materiaId: string | null;
+  titulo: string;
+  fecha: string;
+}): Promise<string> {
+  const lista = [...(await leerOverlay('avisosManuales', avisosManualesArchivoSchema, []))];
+  const id = nuevoId();
+  lista.push({
+    id,
+    materiaId: aviso.materiaId,
+    titulo: aviso.titulo,
+    fecha: aviso.fecha,
+    hecho: false,
+  });
+  await escribirJson(rutaDatos('avisosManuales'), lista);
+  return id;
+}
+
+/** Borra un aviso manual (y su estado). False si ese id no es manual. */
+export async function eliminarAvisoLocal(id: string): Promise<boolean> {
+  const lista = await leerOverlay('avisosManuales', avisosManualesArchivoSchema, []);
+  const filtrada = lista.filter((a) => a.id !== id);
+  if (filtrada.length === lista.length) return false;
+  await escribirJson(rutaDatos('avisosManuales'), filtrada);
+
+  const estados = { ...(await leerOverlay('avisosEstado', avisosEstadoSchema, {})) };
+  if (id in estados) {
+    delete estados[id];
+    await escribirJson(rutaDatos('avisosEstado'), estados);
+  }
+  return true;
 }

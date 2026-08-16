@@ -1,10 +1,10 @@
 'use client';
 
-import { Check } from 'lucide-react';
-import { useOptimistic, useTransition } from 'react';
-import { toggleAviso } from '@/app/actions';
+import { Check, Trash2 } from 'lucide-react';
+import { useOptimistic, useState, useTransition } from 'react';
+import { eliminarAviso, toggleAviso } from '@/app/actions';
 import { estadoAviso } from '@/lib/cursada';
-import type { Aviso } from '@/lib/types';
+import { esManual, type Aviso } from '@/lib/types';
 
 /** 'YYYY-MM-DD' → 'dd/mm'. */
 const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
@@ -21,6 +21,7 @@ type Props = {
 
 /** Lista de avisos con toggle optimista: pendientes por fecha asc + sección Hechos. */
 export function AvisosLista({ avisos, materias, ahoraIso }: Props) {
+  const [error, setError] = useState('');
   const [, startTransition] = useTransition();
   const [optimistas, aplicar] = useOptimistic(
     avisos,
@@ -40,6 +41,25 @@ export function AvisosLista({ avisos, materias, ahoraIso }: Props) {
       await toggleAviso(aviso.id, !aviso.hecho);
     });
   };
+
+  const borrar = async (a: Aviso) => {
+    setError('');
+    const resultado = await eliminarAviso(a.id);
+    if (!resultado.ok) setError(resultado.error);
+  };
+
+  /* Los avisos del aula virtual los regenera el sync: no se borran. */
+  const botonBorrar = (a: Aviso) =>
+    esManual(a.id) ? (
+      <button
+        type="button"
+        onClick={() => borrar(a)}
+        aria-label={`Eliminar ${a.titulo}`}
+        className="tactil mr-[6px] grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-xl text-tx3"
+      >
+        <Trash2 size={15} strokeWidth={2} aria-hidden />
+      </button>
+    ) : null;
 
   const subfila = (a: Aviso) => {
     const materia = materias.find((m) => m.id === a.materiaId) ?? null;
@@ -66,11 +86,14 @@ export function AvisosLista({ avisos, materias, ahoraIso }: Props) {
           {pendientes.map((a) => {
             const estado = estadoAviso(a, ahora);
             return (
-              <button
+              <div
                 key={a.id}
+                className="flex min-h-[58px] items-center rounded-[13px] border border-bor bg-sup"
+              >
+              <button
                 type="button"
                 onClick={() => alternar(a)}
-                className="flex min-h-[58px] w-full cursor-pointer items-center gap-3 rounded-[13px] border border-bor bg-sup px-[14px] py-[10px] text-left text-tx"
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 px-[14px] py-[10px] text-left text-tx"
               >
                 <span
                   aria-hidden
@@ -93,6 +116,8 @@ export function AvisosLista({ avisos, materias, ahoraIso }: Props) {
                   {estado === 'vencido' ? ' · vencido' : estado === 'hoy' ? ' · hoy' : ''}
                 </span>
               </button>
+                {botonBorrar(a)}
+              </div>
             );
           })}
         </div>
@@ -103,11 +128,14 @@ export function AvisosLista({ avisos, materias, ahoraIso }: Props) {
           <div className="kicker mb-[10px] tracking-[0.16em]">Hechos</div>
           <div className="flex flex-col gap-2">
             {hechos.map((a) => (
-              <button
+              <div
                 key={a.id}
+                className="flex min-h-[54px] items-center rounded-[13px] border border-bor bg-sup opacity-50"
+              >
+              <button
                 type="button"
                 onClick={() => alternar(a)}
-                className="flex min-h-[54px] w-full cursor-pointer items-center gap-3 rounded-[13px] border border-bor bg-sup px-[14px] py-[10px] text-left text-tx opacity-50"
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 px-[14px] py-[10px] text-left text-tx"
               >
                 <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 border-bor2 bg-bor2">
                   <Check size={11} strokeWidth={3.5} aria-hidden className="text-sup" />
@@ -122,10 +150,14 @@ export function AvisosLista({ avisos, materias, ahoraIso }: Props) {
                   {ddmm(a.fecha)}
                 </span>
               </button>
+                {botonBorrar(a)}
+              </div>
             ))}
           </div>
         </div>
       )}
+
+      {error && <div className="mt-4 text-[13px] text-vencido">{error}</div>}
     </>
   );
 }
