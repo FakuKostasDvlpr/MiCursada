@@ -156,7 +156,13 @@ create policy "materias delete propio" on public.materias
 create policy "horarios select propio" on public.horarios
   for select to authenticated using ((select auth.uid()) = user_id);
 create policy "horarios insert propio" on public.horarios
-  for insert to authenticated with check ((select auth.uid()) = user_id);
+  for insert to authenticated with check (
+    (select auth.uid()) = user_id
+    and exists (
+      select 1 from public.materias m
+      where m.id = materia_id and m.user_id = (select auth.uid())
+    )
+  );
 create policy "horarios update propio" on public.horarios
   for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "horarios delete propio" on public.horarios
@@ -166,7 +172,13 @@ create policy "horarios delete propio" on public.horarios
 create policy "bloques select propio" on public.bloques
   for select to authenticated using ((select auth.uid()) = user_id);
 create policy "bloques insert propio" on public.bloques
-  for insert to authenticated with check ((select auth.uid()) = user_id);
+  for insert to authenticated with check (
+    (select auth.uid()) = user_id
+    and exists (
+      select 1 from public.materias m
+      where m.id = materia_id and m.user_id = (select auth.uid())
+    )
+  );
 create policy "bloques update propio" on public.bloques
   for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "bloques delete propio" on public.bloques
@@ -176,7 +188,13 @@ create policy "bloques delete propio" on public.bloques
 create policy "archivos select propio" on public.archivos
   for select to authenticated using ((select auth.uid()) = user_id);
 create policy "archivos insert propio" on public.archivos
-  for insert to authenticated with check ((select auth.uid()) = user_id);
+  for insert to authenticated with check (
+    (select auth.uid()) = user_id
+    and exists (
+      select 1 from public.materias m
+      where m.id = materia_id and m.user_id = (select auth.uid())
+    )
+  );
 create policy "archivos update propio" on public.archivos
   for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "archivos delete propio" on public.archivos

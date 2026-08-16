@@ -162,11 +162,12 @@ export async function getMaterias(): Promise<Materia[]> {
     .from('materias')
     .select(SELECT_MATERIA)
     .order('nombre')
-    .order('orden', { referencedTable: 'bloques' });
+    .order('orden', { referencedTable: 'bloques' })
+    .order('nombre', { referencedTable: 'archivos' });
 
   if (error) {
     console.error('getMaterias:', error);
-    return [];
+    throw error;
   }
   return (data as MateriaRow[]).map(mapMateria);
 }
@@ -179,11 +180,12 @@ export async function getMateria(id: string): Promise<Materia | null> {
     .select(SELECT_MATERIA)
     .eq('id', id)
     .order('orden', { referencedTable: 'bloques' })
+    .order('nombre', { referencedTable: 'archivos' })
     .maybeSingle();
 
   if (error) {
     console.error('getMateria:', error);
-    return null;
+    throw error;
   }
   return data ? mapMateria(data as MateriaRow) : null;
 }
@@ -198,7 +200,7 @@ export async function getAvisos(): Promise<Aviso[]> {
 
   if (error) {
     console.error('getAvisos:', error);
-    return [];
+    throw error;
   }
   return (data as AvisoRow[]).map(mapAviso);
 }
@@ -213,7 +215,7 @@ export async function getPerfil(): Promise<Perfil | null> {
 
   if (error) {
     console.error('getPerfil:', error);
-    return null;
+    throw error;
   }
   if (!data) return null;
   const row = data as PerfilRow;
@@ -232,7 +234,7 @@ export async function getUltimaSync(): Promise<UltimaSync | null> {
 
   if (error) {
     console.error('getUltimaSync:', error);
-    return null;
+    throw error;
   }
   if (!data) return null;
   const row = data as SyncLogRow;

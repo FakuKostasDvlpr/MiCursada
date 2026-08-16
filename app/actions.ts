@@ -15,6 +15,8 @@ export type ResultadoAction = { ok: true } | { ok: false; error: string };
 
 const ERROR_SESION = 'No pudimos verificar tu sesión. Entrá de nuevo.';
 const ERROR_GUARDAR = 'No se pudo guardar. Probá de nuevo.';
+const ERROR_NO_EXISTE = 'Eso ya no existe.';
+const ERROR_DATOS = 'Datos inválidos.';
 
 function revalidarTodo() {
   revalidatePath('/', 'layout');
@@ -33,10 +35,12 @@ async function conUsuario() {
 // Materias
 // ---------------------------------------------------------------------------
 
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 const horarioSchema = z.object({
   dia: z.number().int().min(1).max(6),
-  inicio: z.string().regex(/^\d{2}:\d{2}$/),
-  fin: z.string().regex(/^\d{2}:\d{2}$/),
+  inicio: z.string().regex(HHMM),
+  fin: z.string().regex(HHMM),
 });
 
 const materiaSchema = z.object({
@@ -54,7 +58,17 @@ function validarMateria(
 ): { ok: true; datos: z.output<typeof materiaSchema> } | { ok: false; error: string } {
   const parsed = materiaSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: 'Poné un nombre y agregá al menos un horario.' };
+    // Nombre vacío u horarios inválidos/faltantes → mensaje de la spec.
+    // Otros campos (color, etc.) → genérico, para no mentir.
+    const esDeNombreOHorarios = parsed.error.issues.every(
+      (issue) => issue.path[0] === 'nombre' || issue.path[0] === 'horarios'
+    );
+    return {
+      ok: false,
+      error: esDeNombreOHorarios
+        ? 'Poné un nombre y agregá al menos un horario.'
+        : ERROR_GUARDAR,
+    };
   }
   // 'HH:MM' compara bien lexicográficamente.
   if (parsed.data.horarios.some((h) => h.fin <= h.inicio)) {
@@ -109,6 +123,9 @@ export async function actualizarMateria(
 
   if (error) {
     console.error('actualizarMateria:', error);
+    if (error.code === 'P0002') {
+      return { ok: false, error: 'Esa materia ya no existe.' };
+    }
     return { ok: false, error: ERROR_GUARDAR };
   }
   revalidarTodo();
@@ -120,12 +137,13 @@ export async function eliminarMateria(id: string): Promise<ResultadoAction> {
   if (!user) return { ok: false, error: ERROR_SESION };
 
   // Cascade se lleva horarios/bloques/archivos; avisos quedan como "General".
-  const { error } = await supabase.from('materias').delete().eq('id', id);
+  const { data, error } = await supabase.from('materias').delete().eq('id', id).select('id');
 
   if (error) {
     console.error('eliminarMateria:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
+  if (!data || data.length === 0) return { ok: false, error: ERROR_NO_EXISTE };
   revalidarTodo();
   return { ok: true };
 }
@@ -169,12 +187,13 @@ export async function eliminarArchivo(id: string): Promise<ResultadoAction> {
   const { supabase, user } = await conUsuario();
   if (!user) return { ok: false, error: ERROR_SESION };
 
-  const { error } = await supabase.from('archivos').delete().eq('id', id);
+  const { data, error } = await supabase.from('archivos').delete().eq('id', id).select('id');
 
   if (error) {
     console.error('eliminarArchivo:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
+  if (!data || data.length === 0) return { ok: false, error: ERROR_NO_EXISTE };
   revalidarTodo();
   return { ok: true };
 }
@@ -183,10 +202,22 @@ export async function eliminarArchivo(id: string): Promise<ResultadoAction> {
 // Avisos
 // ---------------------------------------------------------------------------
 
+/** 'YYYY-MM-DD' que además es una fecha real (round-trip por Date UTC). */
+const fechaSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((f) => {
+    const d = new Date(`${f}T00:00:00Z`);
+    return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === f;
+  });
+
 const avisoSchema = z.object({
   titulo: z.string().trim().min(1),
-  materiaId: z.string().uuid().nullable(),
-  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  // El select de "General" manda '' → lo tratamos como null.
+  materiaId: z
+    .union([z.uuid(), z.literal(''), z.null()])
+    .transform((v) => v || null),
+  fecha: fechaSchema,
 });
 
 export async function crearAviso(input: {
@@ -199,7 +230,13 @@ export async function crearAviso(input: {
 
   const parsed = avisoSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: 'Poné un título y una fecha.' };
+    const esDeTituloOFecha = parsed.error.issues.every(
+      (issue) => issue.path[0] === 'titulo' || issue.path[0] === 'fecha'
+    );
+    return {
+      ok: false,
+      error: esDeTituloOFecha ? 'Poné un título y una fecha.' : ERROR_GUARDAR,
+    };
   }
 
   const { error } = await supabase.from('avisos').insert({
@@ -220,12 +257,17 @@ export async function toggleAviso(id: string, hecho: boolean): Promise<Resultado
   const { supabase, user } = await conUsuario();
   if (!user) return { ok: false, error: ERROR_SESION };
 
-  const { error } = await supabase.from('avisos').update({ hecho }).eq('id', id);
+  const { data, error } = await supabase
+    .from('avisos')
+    .update({ hecho })
+    .eq('id', id)
+    .select('id');
 
   if (error) {
     console.error('toggleAviso:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
+  if (!data || data.length === 0) return { ok: false, error: ERROR_NO_EXISTE };
   revalidarTodo();
   return { ok: true };
 }
@@ -234,12 +276,13 @@ export async function eliminarAviso(id: string): Promise<ResultadoAction> {
   const { supabase, user } = await conUsuario();
   if (!user) return { ok: false, error: ERROR_SESION };
 
-  const { error } = await supabase.from('avisos').delete().eq('id', id);
+  const { data, error } = await supabase.from('avisos').delete().eq('id', id).select('id');
 
   if (error) {
     console.error('eliminarAviso:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
+  if (!data || data.length === 0) return { ok: false, error: ERROR_NO_EXISTE };
   revalidarTodo();
   return { ok: true };
 }
@@ -301,10 +344,11 @@ export async function crearBloque(
 
   const parsed = bloqueNuevoSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: ERROR_GUARDAR };
+    return { ok: false, error: ERROR_DATOS };
   }
 
-  // orden = max(orden) + 1000 (huecos para reordenar sin reescribir todo)
+  // orden = max(orden) + 1000 (huecos para reordenar sin reescribir todo).
+  // Hay una race si se crean dos bloques a la vez; riesgo aceptado (app de un usuario).
   const { data: ultimo, error: errorOrden } = await supabase
     .from('bloques')
     .select('orden')
@@ -351,7 +395,7 @@ export async function actualizarBloque(id: string, patch: BloquePatch): Promise<
 
   const parsed = bloquePatchSchema.safeParse(patch);
   if (!parsed.success) {
-    return { ok: false, error: ERROR_GUARDAR };
+    return { ok: false, error: ERROR_DATOS };
   }
 
   const cambios: Record<string, string | boolean> = {};
@@ -376,15 +420,23 @@ export async function eliminarBloque(id: string): Promise<ResultadoAction> {
   const { supabase, user } = await conUsuario();
   if (!user) return { ok: false, error: ERROR_SESION };
 
-  const { error } = await supabase.from('bloques').delete().eq('id', id);
+  const { data, error } = await supabase.from('bloques').delete().eq('id', id).select('id');
 
   if (error) {
     console.error('eliminarBloque:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
+  if (!data || data.length === 0) return { ok: false, error: ERROR_NO_EXISTE };
   revalidarTodo();
   return { ok: true };
 }
+
+const reordenarSchema = z.array(
+  z.object({
+    id: z.uuid(),
+    orden: z.number().int(),
+  })
+);
 
 export async function reordenarBloques(
   items: { id: string; orden: number }[]
@@ -392,17 +444,19 @@ export async function reordenarBloques(
   const { supabase, user } = await conUsuario();
   if (!user) return { ok: false, error: ERROR_SESION };
 
-  if (items.length === 0) return { ok: true };
+  const parsed = reordenarSchema.safeParse(items);
+  if (!parsed.success) {
+    return { ok: false, error: ERROR_DATOS };
+  }
+  if (parsed.data.length === 0) return { ok: true };
 
-  const resultados = await Promise.all(
-    items.map((item) =>
-      supabase.from('bloques').update({ orden: item.orden }).eq('id', item.id)
-    )
-  );
+  // RPC transaccional: o se reordena todo o nada.
+  const { error } = await supabase.rpc('reordenar_bloques', {
+    p_items: parsed.data,
+  });
 
-  const conError = resultados.find((r) => r.error);
-  if (conError?.error) {
-    console.error('reordenarBloques:', conError.error);
+  if (error) {
+    console.error('reordenarBloques:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
   revalidarTodo();
