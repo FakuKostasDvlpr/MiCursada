@@ -64,7 +64,9 @@ export function detallesAula(
   const out: string[] = [];
   if (estado?.configurado) {
     if (fechaUtil(estado.verificadoEn)) out.push(`Verificado ${hace(estado.verificadoEn, ahora)}`);
-    if (fechaUtil(estado.guardadoEn)) out.push(`Token generado ${hace(estado.guardadoEn, ahora)}`);
+    // "guardado", no "generado": solo sabemos cuándo entró el token a la app.
+    // Si lo generaste en el aula virtual y lo pegaste, la fecha real es anterior.
+    if (fechaUtil(estado.guardadoEn)) out.push(`Token guardado ${hace(estado.guardadoEn, ahora)}`);
   }
   if (fechaUtil(syncIso ?? undefined)) {
     out.push(`Datos sincronizados ${hace(syncIso as string, ahora)}`);
