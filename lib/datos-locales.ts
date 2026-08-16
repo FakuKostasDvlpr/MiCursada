@@ -49,6 +49,12 @@ function dirDatos(): string {
 
 const NOMBRES = {
   snapshot: 'aula-virtual.json',
+  /**
+   * Índice SERVER-ONLY ref → URL de Moodle (sin token) de los archivos del
+   * curso. Lo escribe el sync y lo lee únicamente app/api/archivo/route.ts:
+   * nunca se manda al cliente (por eso no está en el snapshot).
+   */
+  archivosCurso: 'aula-virtual-archivos.json',
   horarios: 'horarios.json',
   avisosEstado: 'avisos-estado.json',
   materiasExtra: 'materias-extra.json',
@@ -92,13 +98,26 @@ const bloqueSchema = z.object({
   createdAt: z.string().optional(),
 });
 
-/** Un ítem de una unidad del curso ("mod:{cmid}" + link al aula virtual). */
+/** Un archivo de un módulo: `ref` opaca, sin URL ni token. */
+const archivoModuloSchema = z.object({
+  nombre: z.string(),
+  mime: z.string().optional(),
+  tamano: z.number().optional(),
+  ref: z.string(),
+});
+
+/** Un ítem de una unidad del curso ("mod:{cmid}" + su material embebible). */
 const moduloCursoSchema = z.object({
   id: z.string(),
   nombre: z.string(),
   tipo: z.string().optional(),
   url: z.string(),
   descripcion: z.string().optional(),
+  /** Los snapshots previos al lector embebido no traen nada de esto. */
+  html: z.string().optional(),
+  enlace: z.string().optional(),
+  video: z.string().optional(),
+  archivos: z.array(archivoModuloSchema).optional(),
 });
 
 /** Una unidad del curso tal como está armada en el aula virtual. */
@@ -321,6 +340,19 @@ function armar(snapshot: z.infer<typeof snapshotSchema>, ov: Overlays): DatosLoc
               tipo: mo.tipo ?? '',
               url: mo.url,
               ...(mo.descripcion ? { descripcion: mo.descripcion } : {}),
+              ...(mo.html ? { html: mo.html } : {}),
+              ...(mo.enlace ? { enlace: mo.enlace } : {}),
+              ...(mo.video ? { video: mo.video } : {}),
+              ...(mo.archivos && mo.archivos.length > 0
+                ? {
+                    archivos: mo.archivos.map((a) => ({
+                      nombre: a.nombre,
+                      mime: a.mime ?? 'application/octet-stream',
+                      tamano: a.tamano ?? 0,
+                      ref: a.ref,
+                    })),
+                  }
+                : {}),
             })
           ),
         }))

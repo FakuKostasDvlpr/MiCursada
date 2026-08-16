@@ -6,6 +6,8 @@ import {
   Check,
   ChevronDown,
   ClipboardList,
+  Download,
+  Eye,
   File,
   FileText,
   Folder,
@@ -25,7 +27,24 @@ import {
 } from '@/app/actions';
 import { NotasEditor } from '@/components/notas-editor';
 import { estadoAviso, hoyISO } from '@/lib/cursada';
-import { esManual, type Aviso, type Materia, type Seccion } from '@/lib/types';
+import {
+  dominio,
+  esLista,
+  esPdf,
+  tamanoLegible,
+  tipoArchivo,
+  urlArchivo,
+  urlEmbed,
+  urlYoutube,
+} from '@/lib/embebido';
+import {
+  esManual,
+  type ArchivoModulo,
+  type Aviso,
+  type Materia,
+  type ModuloCurso,
+  type Seccion,
+} from '@/lib/types';
 
 /** 'YYYY-MM-DD' → 'dd/mm'. */
 const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
@@ -110,6 +129,18 @@ const ICONO_MODULO: Record<string, LucideIcon> = {
  */
 const MAX_TODAS_ABIERTAS = 3;
 
+/**
+ * Las unidades del aula virtual, con cada módulo desplegable para LEER el
+ * material adentro de la app (el contenido ya viene sanitizado en el snapshot,
+ * así que abrir es instantáneo y anda sin conexión; solo los archivos salen a
+ * la red al tocar "Ver"/"Descargar").
+ *
+ * DECISIÓN: un solo módulo abierto a la vez en toda la tab. A 390px un módulo
+ * desplegado ocupa media pantalla o más (un video 16:9 son ~220px y el visor de
+ * PDF 70vh), así que permitir varios abiertos convertiría la lista en un scroll
+ * infinito donde no se encuentra nada. Las UNIDADES sí admiten varias abiertas:
+ * plegadas son una sola línea y sirven de índice.
+ */
 function TabCurso({ secciones }: { secciones: Seccion[] }) {
   const idBase = useId();
   const [abiertas, setAbiertas] = useState<ReadonlySet<number>>(() =>
@@ -117,6 +148,7 @@ function TabCurso({ secciones }: { secciones: Seccion[] }) {
       ? new Set(secciones.map((_, i) => i))
       : new Set(secciones.length > 0 ? [0] : [])
   );
+  const [moduloAbierto, setModuloAbierto] = useState<string | null>(null);
 
   const alternar = (i: number) =>
     setAbiertas((prev) => {
@@ -131,7 +163,7 @@ function TabCurso({ secciones }: { secciones: Seccion[] }) {
 
   return (
     <div className="mt-4">
-      <div className="font-mono text-[11px] text-tx3">Se abre en el aula virtual</div>
+      <div className="font-mono text-[11px] text-tx3">Tocá un material para leerlo acá</div>
 
       <div className="mt-3 flex flex-col gap-3">
         {secciones.map((s, i) => {
@@ -157,46 +189,213 @@ function TabCurso({ secciones }: { secciones: Seccion[] }) {
               </button>
 
               <div id={idPanel} hidden={!abierta} className="flex flex-col gap-2">
-                {s.modulos.map((m) => {
-                  const Icono = ICONO_MODULO[m.tipo] ?? File;
-                  return (
-                    <a
-                      key={m.id}
-                      href={m.url}
-                      target="_blank"
-                      rel="noopener"
-                      className="flex min-h-[54px] items-start gap-3 rounded-[13px] border border-bor bg-sup px-[14px] py-3"
-                    >
-                      <Icono
-                        size={16}
-                        strokeWidth={2}
-                        aria-hidden
-                        className="mt-[2px] shrink-0 text-tx3"
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-acc">{m.nombre}</span>
-                        {/* line-clamp-2 ya pone display:-webkit-box: sumarle
-                            `block` lo pisa y la descripción se vería entera. */}
-                        {m.descripcion && (
-                          <span className="mt-[3px] line-clamp-2 text-[13px] leading-[1.45] text-tx2">
-                            {m.descripcion}
-                          </span>
-                        )}
-                      </span>
-                      <ArrowUpRight
-                        size={15}
-                        strokeWidth={2}
-                        aria-hidden
-                        className="mt-[2px] shrink-0 text-tx3"
-                      />
-                    </a>
-                  );
-                })}
+                {s.modulos.map((m) => (
+                  <ModuloAcordeon
+                    key={m.id}
+                    modulo={m}
+                    abierto={moduloAbierto === m.id}
+                    onAlternar={() => setModuloAbierto((prev) => (prev === m.id ? null : m.id))}
+                  />
+                ))}
               </div>
             </section>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** Link chico "Ver en el aula virtual", presente en TODO módulo desplegado. */
+function LinkAula({ url }: { url: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 self-start font-mono text-[11px] text-tx3"
+    >
+      Ver en el aula virtual
+      <ArrowUpRight size={12} strokeWidth={2} aria-hidden />
+    </a>
+  );
+}
+
+/** Cabecera clickeable + panel con el material del módulo. */
+function ModuloAcordeon({
+  modulo,
+  abierto,
+  onAlternar,
+}: {
+  modulo: ModuloCurso;
+  abierto: boolean;
+  onAlternar: () => void;
+}) {
+  const idPanel = `${useId()}-mod`;
+  const Icono = ICONO_MODULO[modulo.tipo] ?? File;
+  const archivos = modulo.archivos ?? [];
+  const hayAlgo = Boolean(modulo.html || modulo.video || modulo.enlace || archivos.length > 0);
+
+  return (
+    <div className="rounded-[13px] border border-bor bg-sup">
+      <button
+        type="button"
+        onClick={onAlternar}
+        aria-expanded={abierto}
+        aria-controls={idPanel}
+        className="flex min-h-[54px] w-full cursor-pointer items-start gap-3 px-[14px] py-3 text-left"
+      >
+        <Icono size={16} strokeWidth={2} aria-hidden className="mt-[2px] shrink-0 text-tx3" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-acc">{modulo.nombre}</span>
+          {/* line-clamp-2 ya pone display:-webkit-box: sumarle `block` lo pisa
+              y la descripción se vería entera. */}
+          {modulo.descripcion && !abierto && (
+            <span className="mt-[3px] line-clamp-2 text-[13px] leading-[1.45] text-tx2">
+              {modulo.descripcion}
+            </span>
+          )}
+        </span>
+        <ChevronDown
+          size={15}
+          strokeWidth={2}
+          aria-hidden
+          className={`mt-[2px] shrink-0 text-tx3 ${abierto ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      <div
+        id={idPanel}
+        hidden={!abierto}
+        className="flex flex-col gap-3 border-t border-bor px-[14px] py-3"
+      >
+        {modulo.html && (
+          // Sanitizado en el server con whitelist (lib/moodle/contenido.ts):
+          // sin script, sin on*, sin javascript: y solo iframes de YouTube
+          // (nocookie) o Vimeo. El cliente NO vuelve a sanitizar.
+          <div className="prosa" dangerouslySetInnerHTML={{ __html: modulo.html }} />
+        )}
+
+        {modulo.video && <Video video={modulo.video} yaEnHtml={Boolean(modulo.html)} />}
+
+        {archivos.map((a) => (
+          <ArchivoEmbebido key={a.ref} archivo={a} />
+        ))}
+
+        {modulo.enlace && (
+          <a
+            href={modulo.enlace}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="tactil flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-acc-bg px-4 text-sm font-bold !text-acc-fg"
+          >
+            Abrir enlace
+            <span className="font-mono text-[11px] font-semibold opacity-80">
+              {dominio(modulo.enlace)}
+            </span>
+            <ArrowUpRight size={14} strokeWidth={2.5} aria-hidden className="shrink-0" />
+          </a>
+        )}
+
+        {!hayAlgo && (
+          <p className="text-[13px] leading-[1.5] text-tx2">
+            Este material se abre en el aula virtual.
+          </p>
+        )}
+
+        <LinkAula url={modulo.url} />
+      </div>
+    </div>
+  );
+}
+
+/** Reproductor 16:9 de youtube-nocookie (o el link, si es una playlist). */
+function Video({ video, yaEnHtml }: { video: string; yaEnHtml: boolean }) {
+  const lista = esLista(video);
+  // Si el iframe ya venía dentro del html no lo repetimos: solo dejamos el
+  // link por si el embebido no alcanza.
+  if (yaEnHtml && !lista) return null;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <iframe
+        src={urlEmbed(video)}
+        title={lista ? 'Lista de reproducción de YouTube' : 'Video de YouTube'}
+        allowFullScreen
+        className="aspect-video w-full rounded-xl border-0 bg-bg"
+      />
+      <a
+        href={urlYoutube(video)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 self-start font-mono text-[11px] text-tx3"
+      >
+        {lista ? 'Abrir la lista en YouTube' : 'Abrir en YouTube'}
+        <ArrowUpRight size={12} strokeWidth={2} aria-hidden />
+      </a>
+    </div>
+  );
+}
+
+/**
+ * Un archivo del módulo: nombre, "PDF · 161 KB" y los botones. Los PDFs se
+ * previsualizan en un visor embebido; el resto solo se descarga (un .zip o un
+ * .docx en un iframe no muestra nada).
+ */
+function ArchivoEmbebido({ archivo }: { archivo: ArchivoModulo }) {
+  const [viendo, setViendo] = useState(false);
+  const idVisor = `${useId()}-visor`;
+  const url = urlArchivo(archivo.ref);
+  const pdf = esPdf(archivo.mime, archivo.nombre);
+  const tamano = tamanoLegible(archivo.tamano);
+
+  return (
+    <div className="rounded-xl border border-bor bg-bg p-[10px]">
+      <div className="flex min-w-0 items-start gap-2">
+        <FileText size={15} strokeWidth={2} aria-hidden className="mt-[3px] shrink-0 text-tx3" />
+        <div className="min-w-0 flex-1">
+          <div className="text-[13.5px] leading-[1.35] font-semibold break-words text-tx">
+            {archivo.nombre}
+          </div>
+          <div className="mt-[2px] font-mono text-[11px] text-tx3">
+            {tipoArchivo(archivo.mime, archivo.nombre)}
+            {tamano && ` · ${tamano}`}
+          </div>
+        </div>
+      </div>
+      <div className="mt-[10px] flex flex-wrap gap-2">
+        {pdf && (
+          <button
+            type="button"
+            onClick={() => setViendo((v) => !v)}
+            aria-expanded={viendo}
+            aria-controls={idVisor}
+            className="tactil flex min-h-[38px] cursor-pointer items-center gap-[6px] rounded-xl bg-acc-bg px-3 text-[12.5px] font-bold text-acc-fg"
+          >
+            <Eye size={13} strokeWidth={2.5} aria-hidden />
+            {viendo ? 'Cerrar' : 'Ver'}
+          </button>
+        )}
+        <a
+          href={url}
+          download={archivo.nombre}
+          className="tactil flex min-h-[38px] items-center gap-[6px] rounded-xl border border-bor2 px-3 text-[12.5px] font-bold !text-tx2"
+        >
+          <Download size={13} strokeWidth={2.5} aria-hidden />
+          Descargar
+        </a>
+      </div>
+      {pdf && (
+        <div id={idVisor} hidden={!viendo} className="mt-[10px]">
+          {viendo && (
+            <iframe
+              src={url}
+              title={archivo.nombre}
+              className="h-[70vh] w-full rounded-xl border border-bor bg-sup"
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }

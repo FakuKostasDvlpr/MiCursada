@@ -18,6 +18,22 @@ import type { FuncionMoodle } from './cliente';
 
 const loose = z.looseObject;
 
+/**
+ * Archivo devuelto por los web services de módulos (`contentfiles`,
+ * `introattachments`, `introfiles`).
+ *
+ * ⚠️ `fileurl` trae el `wstoken` embebido (trampa #5): no persistir jamás.
+ * Se usa solo en memoria, y el índice server-only lo guarda SIN el token.
+ */
+export const archivoWsSchema = loose({
+  filename: z.string(),
+  filepath: z.string().nullable().optional(),
+  filesize: z.number().optional(),
+  fileurl: z.string().nullable().optional(),
+  mimetype: z.string().nullable().optional(),
+  isexternalfile: z.boolean().optional(),
+});
+
 // 1. core_webservice_get_site_info
 export const siteInfoSchema = loose({
   sitename: z.string(),
@@ -103,6 +119,8 @@ export const assignmentSchema = loose({
   allowsubmissionsfromdate: z.number().optional(),
   cutoffdate: z.number().optional(),
   intro: z.string().optional(), // HTML: sanitizar antes de renderizar
+  // Adjuntos de la consigna (ej. "2022C2-ORT-FPROG-TP1.pdf").
+  introattachments: z.array(archivoWsSchema).optional(),
 });
 export const assignmentsSchema = loose({
   courses: z.array(
@@ -186,6 +204,72 @@ export const exportTokenSchema = loose({
   warnings: z.array(z.unknown()).optional(),
 });
 
+// 10. Contenido de los módulos para el lector embebido.
+//     Todas comparten forma: `{ <plural>: [...], warnings: [] }`, y cada ítem
+//     trae `coursemodule` (el cmid) que es la clave con la que se pegan a las
+//     secciones de core_course_get_contents.
+
+const moduloContenidoBase = {
+  id: z.number(),
+  coursemodule: z.number(), // cmid
+  course: z.number(),
+  name: z.string(),
+  intro: z.string().optional(), // HTML: sanitizar
+  introfiles: z.array(archivoWsSchema).optional(),
+};
+
+export const paginaSchema = loose({
+  ...moduloContenidoBase,
+  content: z.string().optional(), // HTML completo de la página
+  contentfiles: z.array(archivoWsSchema).optional(),
+});
+export const paginasSchema = loose({
+  pages: z.array(paginaSchema),
+  warnings: z.array(z.unknown()).optional(),
+});
+
+export const urlModuloSchema = loose({
+  ...moduloContenidoBase,
+  externalurl: z.string().optional(),
+});
+export const urlsSchema = loose({
+  urls: z.array(urlModuloSchema),
+  warnings: z.array(z.unknown()).optional(),
+});
+
+export const recursoSchema = loose({
+  ...moduloContenidoBase,
+  contentfiles: z.array(archivoWsSchema).optional(),
+});
+export const recursosSchema = loose({
+  resources: z.array(recursoSchema),
+  warnings: z.array(z.unknown()).optional(),
+});
+
+export const leccionSchema = loose({
+  id: z.number(),
+  coursemodule: z.number().optional(),
+  course: z.number(),
+  name: z.string(),
+  intro: z.string().optional(),
+});
+export const leccionesSchema = loose({
+  lessons: z.array(leccionSchema),
+  warnings: z.array(z.unknown()).optional(),
+});
+
+export const cuestionarioSchema = loose({
+  id: z.number(),
+  coursemodule: z.number().optional(),
+  course: z.number(),
+  name: z.string(),
+  intro: z.string().optional(),
+});
+export const cuestionariosSchema = loose({
+  quizzes: z.array(cuestionarioSchema),
+  warnings: z.array(z.unknown()).optional(),
+});
+
 /** Mapa función → schema, para validar genéricamente. */
 export const schemasPorFuncion: Record<FuncionMoodle, z.ZodType> = {
   core_webservice_get_site_info: siteInfoSchema,
@@ -198,6 +282,11 @@ export const schemasPorFuncion: Record<FuncionMoodle, z.ZodType> = {
   mod_forum_get_forums_by_courses: forosSchema,
   mod_forum_get_forum_discussions: discusionesSchema,
   core_calendar_get_calendar_export_token: exportTokenSchema,
+  mod_page_get_pages_by_courses: paginasSchema,
+  mod_url_get_urls_by_courses: urlsSchema,
+  mod_resource_get_resources_by_courses: recursosSchema,
+  mod_lesson_get_lessons_by_courses: leccionesSchema,
+  mod_quiz_get_quizzes_by_courses: cuestionariosSchema,
 };
 
 export type SiteInfo = z.infer<typeof siteInfoSchema>;
@@ -208,3 +297,9 @@ export type CursoConAssignments = z.infer<typeof assignmentsSchema>['courses'][n
 export type Assignment = CursoConAssignments['assignments'][number];
 export type Foro = z.infer<typeof forosSchema>[number];
 export type Discusion = z.infer<typeof discusionesSchema>['discussions'][number];
+export type ArchivoWs = z.infer<typeof archivoWsSchema>;
+export type Pagina = z.infer<typeof paginaSchema>;
+export type UrlModulo = z.infer<typeof urlModuloSchema>;
+export type Recurso = z.infer<typeof recursoSchema>;
+export type Leccion = z.infer<typeof leccionSchema>;
+export type Cuestionario = z.infer<typeof cuestionarioSchema>;

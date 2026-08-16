@@ -59,8 +59,25 @@ export type Archivo = {
 export type SourceMateria = 'manual' | 'moodle';
 
 /**
+ * Un archivo de un módulo del aula virtual (adjunto de TP, PDF de un recurso…).
+ *
+ * `ref` es un identificador OPACO ("{cmid}:{indice}"): NO contiene la URL de
+ * Moodle ni el token. Lo resuelve el proxy `/api/archivo?ref=…` del lado
+ * servidor, que es el único que conoce la URL real.
+ */
+export type ArchivoModulo = {
+  nombre: string;
+  /** mimetype de Moodle ("application/pdf", "application/zip"…). */
+  mime: string;
+  /** Tamaño en bytes; 0 si Moodle no lo informa. */
+  tamano: number;
+  ref: string;
+};
+
+/**
  * Un ítem de una unidad del aula virtual (un `course_module` de Moodle).
- * Se muestra en la tab "Curso" y abre el módulo en el aula virtual.
+ * Se muestra en la tab "Curso", desplegable para leer el material sin salir
+ * de la app.
  */
 export type ModuloCurso = {
   /** "mod:{cmid}" */
@@ -72,6 +89,21 @@ export type ModuloCurso = {
   url: string;
   /** `description` del módulo pasada a texto plano, solo si aporta algo. */
   descripcion?: string;
+  /**
+   * Contenido rico del módulo (page.content, assign.intro, url/lesson/quiz.intro)
+   * YA SANITIZADO en el server (ver lib/moodle/contenido.ts). El cliente lo
+   * inyecta tal cual: nunca vuelve a sanitizar.
+   */
+  html?: string;
+  /** `externalurl` de un módulo `url` (playlist de YouTube, editor web…). */
+  enlace?: string;
+  /**
+   * Video de YouTube detectado en el html o en `enlace`. Es el id pelado
+   * ("TMeaRPvj_rA") para un video, o `"lista:{id}"` para una playlist.
+   */
+  video?: string;
+  /** Archivos descargables del módulo, con `ref` opaca para el proxy. */
+  archivos?: ArchivoModulo[];
 };
 
 /** Una unidad/sección del curso en el aula virtual ("Unidad 1", "Evaluaciones Generales"…). */

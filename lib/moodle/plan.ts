@@ -17,6 +17,15 @@ import path from 'node:path';
 import { rutaDatos } from '@/lib/datos-locales';
 import type { ModuloCurso, Seccion } from '@/lib/types';
 import { call } from './cliente';
+import {
+  RegistroRefs,
+  sanitizar,
+  tieneContenido,
+  videoDesdeHtml,
+  videoYoutube,
+  type ArchivoModulo,
+  type RefArchivo,
+} from './contenido';
 import { leerCredenciales, type Credencial } from './credenciales';
 import {
   aTextoPlano,
@@ -29,14 +38,26 @@ import {
 import {
   assignmentsSchema,
   contenidosCursoSchema,
+  cuestionariosSchema,
   cursosSchema,
   eventosCalendarioSchema,
+  leccionesSchema,
+  paginasSchema,
+  recursosSchema,
   siteInfoSchema,
+  urlsSchema,
+  type ArchivoWs,
+  type Assignment,
+  type Cuestionario,
   type Curso,
   type CursoConAssignments,
   type EventoCalendario,
+  type Leccion,
+  type Pagina,
+  type Recurso,
   type SeccionCurso,
   type SiteInfo,
+  type UrlModulo,
 } from './schemas';
 
 // ─── cursos ──────────────────────────────────────────────────────────────────
@@ -104,7 +125,8 @@ export interface ModuloContenido {
   uservisible?: boolean | undefined;
   /** HTML de la descripción que el profe escribió debajo del ítem. */
   description?: string | undefined;
-  contents?: Array<{ type: string; filename: string }> | undefined;
+  /** ⚠️ `fileurl` trae el token: solo se usa en memoria (ver contenido.ts). */
+  contents?: Array<ArchivoWs & { type: string }> | undefined;
 }
 
 export interface SeccionContenido {
@@ -202,6 +224,164 @@ function recortar(texto: string, max: number): string {
   return `${(corte > max * 0.6 ? duro.slice(0, corte) : duro).trimEnd()}…`;
 }
 
+// ─── contenido embebible de cada módulo ──────────────────────────────────────
+
+/** Lo que la app puede mostrar de un módulo SIN salir al aula virtual. */
+export type ContenidoModulo = {
+  html?: string;
+  enlace?: string;
+  video?: string;
+  archivos?: ArchivoModulo[];
+};
+
+/** Las respuestas `*_by_courses` (y los assignments) ya parseadas con Zod. */
+export interface ContenidosCrudos {
+  pages: Pagina[];
+  urls: UrlModulo[];
+  resources: Recurso[];
+  lessons: Leccion[];
+  quizzes: Cuestionario[];
+  assignments: Assignment[];
+}
+
+/** Materia prima de un módulo antes de sanitizar. */
+type Crudo = {
+  html: string;
+  enlace: string;
+  archivos: ArchivoWs[];
+};
+
+function vacio(): Crudo {
+  return { html: '', enlace: '', archivos: [] };
+}
+
+/**
+ * Junta el contenido de UN módulo: sanitiza el HTML (registrando las imágenes
+ * de Moodle en el índice de refs), arma `archivos[]` con refs opacas y detecta
+ * el video de YouTube.
+ *
+ * Los `fileurl` NUNCA salen de acá: van al índice server-only `refs` y sin el
+ * token. Lo que se devuelve (y termina en el snapshot) solo tiene la ref.
+ */
+export function contenidoDeModulo(
+  cmid: number,
+  crudo: Crudo,
+  refs: Record<string, RefArchivo>
+): ContenidoModulo | null {
+  const registro = new RegistroRefs(cmid, refs);
+
+  const archivos: ArchivoModulo[] = [];
+  for (const f of crudo.archivos) {
+    const ref = registro.registrar(f.fileurl, f.filename, f.mimetype ?? undefined);
+    if (ref === null) continue;
+    archivos.push({
+      nombre: f.filename,
+      mime: f.mimetype ?? 'application/octet-stream',
+      tamano: f.filesize ?? 0,
+      ref,
+    });
+  }
+
+  const html = sanitizar(crudo.html, { registrarArchivo: (src) => registro.registrar(src) });
+  const conHtml = tieneContenido(html) ? html : '';
+  const enlace = /^https?:\/\//i.test(crudo.enlace.trim()) ? crudo.enlace.trim() : '';
+  const video = videoDesdeHtml(conHtml) ?? videoYoutube(enlace);
+
+  if (conHtml === '' && enlace === '' && video === null && archivos.length === 0) return null;
+  return {
+    ...(conHtml !== '' ? { html: conHtml } : {}),
+    ...(enlace !== '' ? { enlace } : {}),
+    ...(video !== null ? { video } : {}),
+    ...(archivos.length > 0 ? { archivos } : {}),
+  };
+}
+
+/**
+ * Mapa cmid → contenido embebible, a partir de las cinco llamadas
+ * `*_by_courses`, los assignments y las secciones crudas.
+ *
+ * Las secciones aportan los archivos de las CARPETAS (`mod_folder` no tiene
+ * web service en la allowlist, pero `core_course_get_contents` ya devuelve sus
+ * `contents[]`) y son el fallback de `description` cuando el módulo no tiene
+ * ninguna de las funciones específicas.
+ */
+export function contenidosPorModulo(
+  crudos: ContenidosCrudos,
+  secciones: readonly SeccionContenido[],
+  refs: Record<string, RefArchivo>
+): Map<number, ContenidoModulo> {
+  const materia = new Map<number, Crudo>();
+  const tomar = (cmid: number | undefined): Crudo | null => {
+    if (typeof cmid !== 'number' || !Number.isFinite(cmid)) return null;
+    const previo = materia.get(cmid);
+    if (previo) return previo;
+    const nuevo = vacio();
+    materia.set(cmid, nuevo);
+    return nuevo;
+  };
+
+  // page: el HTML completo de la página (lo más rico que devuelve la API).
+  for (const p of crudos.pages) {
+    const c = tomar(p.coursemodule);
+    if (c === null) continue;
+    c.html = (p.content ?? '').trim() || (p.intro ?? '');
+    // `index.html` es el archivo interno con el que Moodle guarda la página:
+    // ya lo estamos mostrando como `html`, listarlo sería ruido.
+    c.archivos.push(
+      ...(p.contentfiles ?? []).filter((f) => f.filename !== '' && f.filename !== 'index.html')
+    );
+  }
+  // url: la consigna corta + el link externo.
+  for (const u of crudos.urls) {
+    const c = tomar(u.coursemodule);
+    if (c === null) continue;
+    c.html = u.intro ?? '';
+    c.enlace = u.externalurl ?? '';
+  }
+  // resource: los PDFs / ZIPs sueltos.
+  for (const r of crudos.resources) {
+    const c = tomar(r.coursemodule);
+    if (c === null) continue;
+    c.html = r.intro ?? '';
+    c.archivos.push(...(r.contentfiles ?? []));
+  }
+  for (const l of crudos.lessons) {
+    const c = tomar(l.coursemodule);
+    if (c !== null) c.html = l.intro ?? '';
+  }
+  for (const q of crudos.quizzes) {
+    const c = tomar(q.coursemodule);
+    if (c !== null) c.html = q.intro ?? '';
+  }
+  // assign: la consigna + los adjuntos del enunciado.
+  for (const a of crudos.assignments) {
+    const c = tomar(a.cmid);
+    if (c === null) continue;
+    c.html = a.intro ?? '';
+    c.archivos.push(...(a.introattachments ?? []));
+  }
+  // folder (y cualquier módulo con contents): los archivos de la carpeta.
+  for (const s of secciones) {
+    for (const mod of s.modules) {
+      const files = (mod.contents ?? []).filter(
+        (f) => f.type === 'file' && f.filename !== '' && f.filename !== 'index.html'
+      );
+      if (files.length === 0) continue;
+      const c = tomar(mod.id);
+      if (c === null || c.archivos.length > 0) continue;
+      c.archivos.push(...files);
+      if (c.html === '') c.html = mod.description ?? '';
+    }
+  }
+
+  const salida = new Map<number, ContenidoModulo>();
+  for (const [cmid, crudo] of materia) {
+    const contenido = contenidoDeModulo(cmid, crudo, refs);
+    if (contenido !== null) salida.set(cmid, contenido);
+  }
+  return salida;
+}
+
 /**
  * Traduce las secciones de `core_course_get_contents` al contenido del curso
  * que muestra la app: las unidades con sus materiales, igual que el aula virtual.
@@ -214,11 +394,15 @@ function recortar(texto: string, max: number): string {
  * - La URL es SIEMPRE la del módulo (`urlModuloAbsoluta`), nunca el `fileurl`
  *   (trampa #5: trae el token embebido).
  * - `description` pasa por `aTextoPlano` y se omite si queda vacía o si repite
- *   el nombre del módulo (Moodle a veces duplica los dos campos).
+ *   el nombre del módulo (Moodle a veces duplica los dos campos). Es el
+ *   resumen que se ve con el módulo PLEGADO.
+ * - `contenidos` (opcional) es lo que se despliega dentro de la app: html
+ *   sanitizado, enlace externo, video de YouTube y archivos con ref opaca.
  */
 export function seccionesDesdeContenidos(
   secciones: readonly SeccionContenido[],
-  baseUrl: string
+  baseUrl: string,
+  contenidos?: ReadonlyMap<number, ContenidoModulo>
 ): Seccion[] {
   const salida: Seccion[] = [];
   for (const seccion of secciones) {
@@ -235,6 +419,7 @@ export function seccionesDesdeContenidos(
         tipo: mod.modname,
         url: urlModuloAbsoluta(baseUrl, mod.modname, mod.id),
         ...(descripcion !== '' && descripcion !== nombre ? { descripcion } : {}),
+        ...(contenidos?.get(mod.id) ?? {}),
       });
     }
     if (modulos.length === 0) continue;
@@ -466,6 +651,56 @@ export async function obtenerAssignments(
   return data.courses;
 }
 
+/**
+ * Contenido de los módulos de TODOS los cursos: cinco llamadas en total (una
+ * por tipo de módulo), no una por módulo. Cada una recibe `courseids[]` entero.
+ *
+ * Si una función no está habilitada en la instancia, la llamada se descarta con
+ * un warning y se sigue: el lector muestra lo que haya y el resto cae al link
+ * del aula virtual.
+ */
+export async function obtenerContenidoModulos(
+  courseids: number[],
+  cred: Credencial
+): Promise<Omit<ContenidosCrudos, 'assignments'>> {
+  const vacios = { pages: [], urls: [], resources: [], lessons: [], quizzes: [] };
+  if (courseids.length === 0) return vacios;
+
+  async function pedir<T>(
+    fn: Parameters<typeof call>[0],
+    parse: (crudo: unknown) => T,
+    fallback: T
+  ): Promise<T> {
+    try {
+      return parse(await call(fn, { courseids }, cred));
+    } catch (e) {
+      console.warn(`[moodle] sin contenido de ${fn}: ${e instanceof Error ? e.message : e}`);
+      return fallback;
+    }
+  }
+
+  const [pages, urls, resources, lessons, quizzes] = await Promise.all([
+    pedir('mod_page_get_pages_by_courses', (c) => paginasSchema.parse(c).pages, [] as Pagina[]),
+    pedir('mod_url_get_urls_by_courses', (c) => urlsSchema.parse(c).urls, [] as UrlModulo[]),
+    pedir(
+      'mod_resource_get_resources_by_courses',
+      (c) => recursosSchema.parse(c).resources,
+      [] as Recurso[]
+    ),
+    pedir(
+      'mod_lesson_get_lessons_by_courses',
+      (c) => leccionesSchema.parse(c).lessons,
+      [] as Leccion[]
+    ),
+    pedir(
+      'mod_quiz_get_quizzes_by_courses',
+      (c) => cuestionariosSchema.parse(c).quizzes,
+      [] as Cuestionario[]
+    ),
+  ]);
+  return { pages, urls, resources, lessons, quizzes };
+}
+
 // ─── plan ────────────────────────────────────────────────────────────────────
 
 const DIAS_CALENDARIO = 60;
@@ -490,6 +725,12 @@ export interface PlanMoodle {
   modulosSalteados: ModuloSalteado[];
   avisos: AvisoPlaneado[];
   avisosDescartados: AvisoDescartado[];
+  /**
+   * Índice SERVER-ONLY ref → URL de Moodle (sin token) de cada archivo del
+   * curso. NO va al snapshot: se escribe aparte y solo lo lee el proxy
+   * /api/archivo.
+   */
+  refsArchivos: Record<string, RefArchivo>;
 }
 
 /**
@@ -518,9 +759,10 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
   const modulosSalteados: ModuloSalteado[] = [];
   const asistenciaPorCurso = new Map<number, string>();
   const clasePorCurso = new Map<number, string>();
-  const seccionesPorCurso = new Map<number, Seccion[]>();
+  const contenidosPorCurso = new Map<number, SeccionCurso[]>();
   for (const curso of cursos) {
     const secciones = await obtenerContenidos(curso.id, cred);
+    contenidosPorCurso.set(curso.id, secciones);
     const r = archivosDesdeContenidos(curso.id, secciones, cred.url);
     archivos.push(...r.archivos);
     modulosSalteados.push(...r.salteados);
@@ -531,25 +773,37 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
     // Ídem el zoom de la comisión, para "Entrar a la clase".
     const clase = urlClaseDesdeContenidos(secciones, cred.url);
     if (clase !== null) clasePorCurso.set(curso.id, clase);
-    // Y el curso entero por unidades, para la tab "Curso".
-    seccionesPorCurso.set(curso.id, seccionesDesdeContenidos(secciones, cred.url));
   }
+
+  // assignments (una sola llamada) + calendario (+60 días) → avisos
+  const idsCursos = cursos.map((c) => c.id);
+  const cursosConTps = await obtenerAssignments(idsCursos, cred);
+  const assignments = cursosConTps.flatMap((c) => c.assignments);
+  const deAssigns = avisosDesdeAssignments(assignments, nombresCortos);
+
+  // Contenido embebible de los módulos: 5 llamadas más para TODOS los cursos.
+  const modulos = await obtenerContenidoModulos(idsCursos, cred);
+  const refsArchivos: Record<string, RefArchivo> = {};
+  const todasLasSecciones = [...contenidosPorCurso.values()].flat();
+  const contenidos = contenidosPorModulo(
+    { ...modulos, assignments },
+    todasLasSecciones,
+    refsArchivos
+  );
+
   for (const m of materias) {
     const url = asistenciaPorCurso.get(m.cursoId);
     if (url !== undefined) m.asistenciaUrl = url;
     const clase = clasePorCurso.get(m.cursoId);
     if (clase !== undefined) m.claseUrl = clase;
-    const secs = seccionesPorCurso.get(m.cursoId);
-    if (secs !== undefined && secs.length > 0) m.secciones = secs;
+    // Y el curso entero por unidades, para la tab "Curso".
+    const secs = seccionesDesdeContenidos(
+      contenidosPorCurso.get(m.cursoId) ?? [],
+      cred.url,
+      contenidos
+    );
+    if (secs.length > 0) m.secciones = secs;
   }
-
-  // assignments (una sola llamada) + calendario (+60 días) → avisos
-  const cursosConTps = await obtenerAssignments(
-    cursos.map((c) => c.id),
-    cred
-  );
-  const assignments = cursosConTps.flatMap((c) => c.assignments);
-  const deAssigns = avisosDesdeAssignments(assignments, nombresCortos);
 
   const ahora = Math.floor(Date.now() / 1000);
   const eventos = await obtenerEventos(ahora, ahora + DIAS_CALENDARIO * 24 * 60 * 60, cred);
@@ -572,6 +826,7 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
     modulosSalteados,
     avisos: [...deAssigns.avisos, ...deEventos.avisos],
     avisosDescartados: [...deAssigns.descartados, ...deEventos.descartados],
+    refsArchivos,
   };
 }
 
@@ -655,6 +910,18 @@ export async function escribirSnapshot(snapshot: Snapshot): Promise<void> {
   await fs.writeFile(salida, `${json}\n`, 'utf8');
 }
 
+/**
+ * Escribe datos/aula-virtual-archivos.json: el índice ref → URL de Moodle que
+ * usa el proxy /api/archivo. Es SERVER-ONLY y NO se manda nunca al cliente.
+ * Las URLs ya vienen sin token, y `sinToken` es la última red de seguridad.
+ */
+export async function escribirRefsArchivos(refs: Record<string, RefArchivo>): Promise<void> {
+  const salida = rutaDatos('archivosCurso');
+  const json = sinToken(JSON.stringify(refs, null, 2));
+  await fs.mkdir(path.dirname(salida), { recursive: true });
+  await fs.writeFile(salida, `${json}\n`, 'utf8');
+}
+
 export type ResumenSync = {
   materias: number;
   archivos: number;
@@ -662,6 +929,11 @@ export type ResumenSync = {
   generado: string;
   /** fullname del usuario según site_info (para mostrar "conectado como…"). */
   nombre: string;
+  /** Módulos del curso con contenido embebible (para el reporte del sync). */
+  modulos: number;
+  conHtml: number;
+  conVideo: number;
+  conArchivos: number;
 };
 
 /**
@@ -675,6 +947,9 @@ export async function sincronizarSnapshot(cred?: Credencial): Promise<ResumenSyn
   const plan = await construirPlan(credencial);
   const snapshot = armarSnapshot(plan);
   await escribirSnapshot(snapshot);
+  await escribirRefsArchivos(plan.refsArchivos);
+
+  const todos = snapshot.materias.flatMap((m) => (m.secciones ?? []).flatMap((s) => s.modulos));
 
   return {
     materias: snapshot.materias.length,
@@ -682,5 +957,9 @@ export async function sincronizarSnapshot(cred?: Credencial): Promise<ResumenSyn
     avisos: snapshot.avisos.length,
     generado: snapshot.generado,
     nombre: plan.site.fullname,
+    modulos: todos.length,
+    conHtml: todos.filter((m) => m.html).length,
+    conVideo: todos.filter((m) => m.video).length,
+    conArchivos: todos.filter((m) => m.archivos && m.archivos.length > 0).length,
   };
 }

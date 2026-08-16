@@ -188,3 +188,168 @@ html[data-tema="claro"] {
   min-width: 44px;
   min-height: 44px;
 }
+
+/* ============================================================
+   .prosa — el HTML del aula virtual renderizado dentro de la app
+   (ya viene SANITIZADO del server, ver lib/moodle/contenido.ts).
+   Mobile-first 390px: nada acá puede desbordar horizontalmente.
+   ============================================================ */
+.prosa {
+  color: var(--tx);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.prosa > :first-child {
+  margin-top: 0;
+}
+
+.prosa > :last-child {
+  margin-bottom: 0;
+}
+
+.prosa p,
+.prosa blockquote,
+.prosa ul,
+.prosa ol,
+.prosa pre,
+.prosa table {
+  margin: 0 0 10px;
+}
+
+.prosa h1,
+.prosa h2,
+.prosa h3,
+.prosa h4 {
+  margin: 16px 0 8px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--tx);
+}
+
+.prosa h1 {
+  font-size: 18px;
+}
+
+.prosa h2 {
+  font-size: 16.5px;
+}
+
+.prosa h3 {
+  font-size: 15px;
+}
+
+.prosa h4 {
+  font-size: 14px;
+  color: var(--tx2);
+}
+
+.prosa a {
+  color: var(--acc);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prosa strong,
+.prosa b {
+  font-weight: 700;
+}
+
+.prosa ul,
+.prosa ol {
+  padding-left: 22px;
+}
+
+.prosa ul {
+  list-style: disc;
+}
+
+.prosa ol {
+  list-style: decimal;
+}
+
+.prosa li {
+  margin: 3px 0;
+}
+
+.prosa blockquote {
+  border-left: 3px solid var(--bor2);
+  padding: 2px 0 2px 12px;
+  color: var(--tx2);
+}
+
+.prosa code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: var(--bg);
+  border: 1px solid var(--bor);
+  border-radius: 6px;
+  padding: 1px 5px;
+}
+
+.prosa pre {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: var(--bg);
+  border: 1px solid var(--bor);
+  border-radius: 10px;
+  padding: 10px 12px;
+  /* scroll propio: una línea larga de código no rompe el layout a 390px */
+  overflow-x: auto;
+}
+
+.prosa pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+}
+
+.prosa img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+
+.prosa hr {
+  border: 0;
+  border-top: 1px solid var(--bor);
+  margin: 14px 0;
+}
+
+/* La tabla scrollea DENTRO de su propio contenedor, nunca la página */
+.prosa table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.prosa th,
+.prosa td {
+  border: 1px solid var(--bor);
+  padding: 6px 9px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.prosa th {
+  color: var(--tx2);
+  font-weight: 700;
+}
+
+/* Los iframes que sobreviven al sanitizador (YouTube / Vimeo) van 16:9 */
+.prosa iframe {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border: 0;
+  border-radius: 12px;
+  margin: 10px 0;
+  background: var(--bg);
+}

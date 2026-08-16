@@ -33,6 +33,13 @@ export const FUNCIONES_PERMITIDAS = [
   'mod_forum_get_forums_by_courses',
   'mod_forum_get_forum_discussions',
   'core_calendar_get_calendar_export_token',
+  // Contenido de los módulos para el lector embebido (todas de LECTURA:
+  // devuelven `intro`/`content`/`externalurl`/`contentfiles`, no escriben nada).
+  'mod_page_get_pages_by_courses',
+  'mod_url_get_urls_by_courses',
+  'mod_resource_get_resources_by_courses',
+  'mod_lesson_get_lessons_by_courses',
+  'mod_quiz_get_quizzes_by_courses',
 ] as const;
 
 export type FuncionMoodle = (typeof FUNCIONES_PERMITIDAS)[number];

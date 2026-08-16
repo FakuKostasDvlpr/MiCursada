@@ -10,11 +10,13 @@ import {
   colorRoundRobin,
   filtrarCursosVigentes,
   nombreCortoCurso,
+  contenidosPorModulo,
   seccionesDesdeContenidos,
   urlAsistenciaDesdeContenidos,
   urlClaseDesdeContenidos,
   type PlanMoodle,
 } from './plan';
+import type { RefArchivo } from './contenido';
 
 const AHORA = 1_760_000_000;
 
@@ -273,6 +275,7 @@ describe('armarSnapshot', () => {
       },
     ],
     avisosDescartados: [],
+    refsArchivos: {},
   };
 
   const snap = armarSnapshot(plan, '2026-03-01T00:00:00.000Z');
@@ -464,6 +467,7 @@ describe('armarSnapshot con asistencia', () => {
     modulosSalteados: [],
     avisos: [],
     avisosDescartados: [],
+    refsArchivos: {},
   };
 
   it('copia asistenciaUrl solo en las materias que la tienen', () => {
@@ -646,9 +650,199 @@ describe('seccionesDesdeContenidos', () => {
       modulosSalteados: [],
       avisos: [],
       avisosDescartados: [],
+      refsArchivos: {},
     };
     const snap = armarSnapshot(plan, '2026-08-16T00:00:00.000Z');
     expect(snap.materias[0]?.secciones?.[0]?.nombre).toBe('Unidad 1');
     expect(snap.materias[1]).not.toHaveProperty('secciones');
+  });
+});
+
+// ─── lector embebido: contenido de los módulos dentro de la app ──────────────
+
+describe('contenidosPorModulo', () => {
+  const vacios = { pages: [], urls: [], resources: [], lessons: [], quizzes: [], assignments: [] };
+
+  it('page: usa `content` (el HTML completo) y detecta el video de YouTube', () => {
+    const refs: Record<string, RefArchivo> = {};
+    const mapa = contenidosPorModulo(
+      {
+        ...vacios,
+        pages: [
+          {
+            id: 1,
+            coursemodule: 500,
+            course: 7,
+            name: 'Recurso Externo 1',
+            intro: '<p>intro corta</p>',
+            content:
+              '<p>Mirá este video</p><iframe src="https://www.youtube.com/embed/TMeaRPvj_rA?rel=0"></iframe>',
+          },
+        ],
+      },
+      [],
+      refs
+    );
+    const c = mapa.get(500);
+    expect(c?.html).toContain('Mirá este video');
+    expect(c?.html).toContain('youtube-nocookie.com/embed/TMeaRPvj_rA');
+    expect(c?.video).toBe('TMeaRPvj_rA');
+  });
+
+  it('url: guarda el externalurl como enlace y saca la lista de YouTube', () => {
+    const mapa = contenidosPorModulo(
+      {
+        ...vacios,
+        urls: [
+          {
+            id: 2,
+            coursemodule: 501,
+            course: 7,
+            name: 'Playlist',
+            intro: '<p>toda la teoría</p>',
+            externalurl: 'https://www.youtube.com/playlist?list=PLabc123DEF',
+          },
+        ],
+      },
+      [],
+      {}
+    );
+    const c = mapa.get(501);
+    expect(c?.enlace).toBe('https://www.youtube.com/playlist?list=PLabc123DEF');
+    expect(c?.video).toBe('lista:PLabc123DEF');
+    expect(c?.html).toContain('toda la teoría');
+  });
+
+  it('assign: consigna + adjuntos, con ref opaca y SIN el token en ningún lado', () => {
+    const refs: Record<string, RefArchivo> = {};
+    const mapa = contenidosPorModulo(
+      {
+        ...vacios,
+        assignments: [
+          {
+            id: 3,
+            cmid: 4321,
+            course: 7,
+            name: 'Trabajo Práctico Nº 1',
+            duedate: 0,
+            intro: '<p>Resolver los ejercicios.</p>',
+            introattachments: [
+              {
+                filename: '2022C2-ORT-FPROG-TP1.pdf',
+                filesize: 164_864,
+                mimetype: 'application/pdf',
+                fileurl:
+                  'https://aula.test/webservice/pluginfile.php/1/mod_assign/introattachment/0/2022C2-ORT-FPROG-TP1.pdf?token=SECRETO',
+              },
+            ],
+          },
+        ],
+      },
+      [],
+      refs
+    );
+    const c = mapa.get(4321);
+    expect(c?.archivos).toEqual([
+      {
+        nombre: '2022C2-ORT-FPROG-TP1.pdf',
+        mime: 'application/pdf',
+        tamano: 164_864,
+        ref: '4321:0',
+      },
+    ]);
+    // Lo que va al snapshot no tiene URL ni token; la URL vive solo en el índice.
+    expect(JSON.stringify(c)).not.toMatch(/token|pluginfile|SECRETO/);
+    expect(refs['4321:0']?.url).toContain('pluginfile.php');
+    expect(JSON.stringify(refs)).not.toMatch(/SECRETO|token=/);
+  });
+
+  it('resource: los contentfiles quedan como archivos descargables', () => {
+    const mapa = contenidosPorModulo(
+      {
+        ...vacios,
+        resources: [
+          {
+            id: 4,
+            coursemodule: 600,
+            course: 7,
+            name: 'Apunte',
+            contentfiles: [
+              {
+                filename: 'apunte.pdf',
+                filesize: 205_824,
+                mimetype: 'application/pdf',
+                fileurl: 'https://aula.test/webservice/pluginfile.php/1/mod_resource/content/1/apunte.pdf?token=X',
+              },
+            ],
+          },
+        ],
+      },
+      [],
+      {}
+    );
+    expect(mapa.get(600)?.archivos?.[0]?.ref).toBe('600:0');
+  });
+
+  it('un módulo sin nada embebible no entra en el mapa', () => {
+    const mapa = contenidosPorModulo(
+      { ...vacios, quizzes: [{ id: 5, coursemodule: 700, course: 7, name: 'Quiz', intro: '' }] },
+      [],
+      {}
+    );
+    expect(mapa.has(700)).toBe(false);
+  });
+
+  it('folder: los archivos salen de contents[] de core_course_get_contents', () => {
+    const mapa = contenidosPorModulo(
+      vacios,
+      [
+        {
+          modules: [
+            {
+              id: 800,
+              name: 'Guías',
+              modname: 'folder',
+              contents: [
+                {
+                  type: 'file',
+                  filename: 'guia1.pdf',
+                  filesize: 1024,
+                  mimetype: 'application/pdf',
+                  fileurl: 'https://aula.test/webservice/pluginfile.php/1/mod_folder/content/0/guia1.pdf?token=X',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      {}
+    );
+    expect(mapa.get(800)?.archivos?.map((a) => a.nombre)).toEqual(['guia1.pdf']);
+  });
+});
+
+describe('seccionesDesdeContenidos con contenido embebible', () => {
+  it('pega el html/video/archivos al módulo por cmid', () => {
+    const contenidos = new Map([
+      [10, { html: '<p>hola</p>', video: 'TMeaRPvj_rA' }],
+    ]);
+    const salida = seccionesDesdeContenidos(
+      [
+        {
+          name: 'Unidad 1',
+          modules: [
+            { id: 10, name: 'Video', modname: 'page', uservisible: true },
+            { id: 11, name: 'Otro', modname: 'resource', uservisible: true },
+          ],
+        },
+      ],
+      'https://aula.test',
+      contenidos
+    );
+    expect(salida[0]?.modulos[0]?.html).toBe('<p>hola</p>');
+    expect(salida[0]?.modulos[0]?.video).toBe('TMeaRPvj_rA');
+    // El que no tiene contenido sigue con su link al aula virtual y nada más.
+    expect(salida[0]?.modulos[1]?.html).toBeUndefined();
+    expect(salida[0]?.modulos[1]?.url).toBe('https://aula.test/mod/resource/view.php?id=11');
   });
 });
