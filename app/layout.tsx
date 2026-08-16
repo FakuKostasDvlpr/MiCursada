@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -18,13 +18,36 @@ export const metadata: Metadata = {
   description: "Organizá tu cursada nocturna: materias, notas, avisos.",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#020617" },
+    { media: "(prefers-color-scheme: light)", color: "#f1f5f9" },
+  ],
+};
+
+// Aplica el tema antes del primer paint para evitar FOUC.
+const temaInicial = `
+try {
+  var t = localStorage.getItem('tema');
+  if (t === 'claro' || (t === null && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+    document.documentElement.dataset.tema = 'claro';
+  }
+} catch (e) {}
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es-AR">
+    <html lang="es-AR" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: temaInicial }} />
+      </head>
       <body className={`${jakarta.variable} ${jetbrains.variable} antialiased`}>
         {children}
       </body>

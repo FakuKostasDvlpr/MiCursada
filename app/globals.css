@@ -17,6 +17,8 @@
   --tx3: #64748b; /* kickers, labels, contadores */
   --tx4: #475569; /* placeholders, hints, "— libre" */
   --acc: #fbbf24; /* acento: botón primario, tab activa, links, foco, "hoy" */
+  --acc-hover: #fde68a; /* hover de links */
+  --foco: #fbbf24; /* outline de foco visible */
   --scrim: rgba(2, 6, 23, 0.72); /* overlay de modal */
   --navbg: rgba(2, 6, 23, 0.93); /* bottom nav (+ blur(14px)) */
 
@@ -55,6 +57,8 @@ html[data-tema="claro"] {
   --tx3: #64748b;
   --tx4: #94a3b8;
   --acc: #b45309;
+  --acc-hover: #92400e;
+  --foco: #b45309;
   --scrim: rgba(15, 23, 42, 0.4);
   --navbg: rgba(241, 245, 249, 0.93);
   /* --acc-bg / --acc-fg NO cambian: fondo ámbar #fbbf24 + texto #221a00 en ambos temas */
@@ -70,8 +74,10 @@ html[data-tema="claro"] {
   --color-tx3: var(--tx3);
   --color-tx4: var(--tx4);
   --color-acc: var(--acc);
+  --color-acc-hover: var(--acc-hover);
   --color-acc-bg: var(--acc-bg);
   --color-acc-fg: var(--acc-fg);
+  --color-foco: var(--foco);
   --color-scrim: var(--scrim);
   --color-navbg: var(--navbg);
   --color-vencido: var(--vencido);
@@ -90,37 +96,44 @@ html[data-tema="claro"] {
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
-/* html y body SIEMPRE scrollean: pantallas largas (Semana) no se cortan */
-html,
-body {
-  height: auto;
-  min-height: 100%;
-  overflow-y: auto;
-}
+@layer base {
+  /* html SIEMPRE scrollea: pantallas largas (Semana) no se cortan
+     aunque algún reset fije overflow: hidden */
+  html {
+    height: auto;
+    min-height: 100%;
+    overflow-y: auto;
+  }
 
-body {
-  background: var(--bg);
-  color: var(--tx);
-  font-family: var(--font-jakarta), system-ui, sans-serif;
-}
+  body {
+    height: auto;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--tx);
+    font-family: var(--font-sans);
+  }
 
-/* Links por defecto en ámbar */
-a {
-  color: var(--acc);
-}
-a:hover {
-  color: #fde68a;
-}
+  /* Links por defecto en ámbar */
+  a {
+    color: var(--acc);
+  }
 
-/* Foco visible — sin sombras en todo el sistema */
-:focus-visible {
-  outline: 2px solid #fbbf24;
-  outline-offset: 2px;
+  @media (hover: hover) {
+    a:hover {
+      color: var(--acc-hover);
+    }
+  }
+
+  /* Foco visible — sin sombras en todo el sistema */
+  :focus-visible {
+    outline: 2px solid var(--foco);
+    outline-offset: 2px;
+  }
 }
 
 /* Kicker: PRÓXIMA CLASE, CLASES DE HOY, … */
-.kicker {
-  font-family: var(--font-jetbrains), ui-monospace, monospace;
+@utility kicker {
+  font-family: var(--font-mono);
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -129,7 +142,7 @@ a:hover {
 }
 
 /* Mínimo táctil 44px para controles interactivos */
-.tactil {
+@utility tactil {
   min-width: 44px;
   min-height: 44px;
 }
