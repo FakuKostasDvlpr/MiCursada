@@ -55,12 +55,17 @@ export type Archivo = {
   url: string;
 };
 
+/** Origen de una materia: cargada a mano o sincronizada desde el aula virtual (Moodle). */
+export type SourceMateria = 'manual' | 'moodle';
+
 export type Materia = {
   id: string;
   nombre: string;
   profe: string;
   aula: string;
   color: ColorMateria;
+  /** 'moodle' = vino del sync del aula virtual (nombre readonly, no se elimina). */
+  source: SourceMateria;
   horarios: Horario[];
   bloques: Bloque[];
   archivos: Archivo[];

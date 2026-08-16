@@ -32,6 +32,7 @@ const mat = (nombre: string, horarios: Horario[], color: ColorMateria = '#38bdf8
   profe: '',
   aula: '',
   color,
+  source: 'moodle',
   horarios,
   bloques: [],
   archivos: [],

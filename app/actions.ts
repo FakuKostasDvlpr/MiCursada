@@ -8,6 +8,7 @@
 import type { User } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { escribirEstadoAviso, escribirHorariosLocales } from '@/lib/datos-locales';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { createClient } from '@/lib/supabase/server';
 import { normalizarUrl } from '@/lib/urls';
@@ -45,6 +46,9 @@ async function conUsuario(): Promise<ConUsuario> {
 
 // ---------------------------------------------------------------------------
 // Materias
+// Las materias llegan del sync con el aula virtual (Moodle) — no se crean ni
+// se eliminan desde acá. Lo único editable es lo que Moodle no trae:
+// profe, aula, color y horarios (0 o más). El nombre queda readonly.
 // ---------------------------------------------------------------------------
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -56,58 +60,43 @@ const horarioSchema = z.object({
 });
 
 const materiaSchema = z.object({
-  nombre: z.string().trim().min(1),
   profe: z.string().trim(),
   aula: z.string().trim(),
   color: z.enum(COLORES_MATERIA),
-  horarios: z.array(horarioSchema).min(1),
+  // Una materia recién sincronizada puede no tener horarios todavía: 0 es válido.
+  horarios: z.array(horarioSchema),
 });
 
 export type MateriaInput = z.input<typeof materiaSchema>;
 
-function validarMateria(
-  input: MateriaInput
-): { ok: true; datos: z.output<typeof materiaSchema> } | { ok: false; error: string } {
-  const parsed = materiaSchema.safeParse(input);
-  if (!parsed.success) {
-    // Nombre vacío u horarios inválidos/faltantes → mensaje de la spec.
-    // Otros campos (color, etc.) → genérico, para no mentir.
-    const esDeNombreOHorarios = parsed.error.issues.every(
-      (issue) => issue.path[0] === 'nombre' || issue.path[0] === 'horarios'
-    );
-    return {
-      ok: false,
-      error: esDeNombreOHorarios
-        ? 'Poné un nombre y agregá al menos un horario.'
-        : ERROR_GUARDAR,
-    };
-  }
-  // 'HH:MM' compara bien lexicográficamente.
-  if (parsed.data.horarios.some((h) => h.fin <= h.inicio)) {
+/** Valida horarios y devuelve el error de copy exacto si algo no cierra. */
+function validarHorarios(
+  horarios: unknown
+): { ok: true; horarios: z.infer<typeof horarioSchema>[] } | { ok: false; error: string } {
+  const parsed = z.array(horarioSchema).safeParse(horarios);
+  if (!parsed.success) return { ok: false, error: ERROR_DATOS };
+  if (parsed.data.some((h) => h.fin <= h.inicio)) {
     return { ok: false, error: 'El fin tiene que ser después del inicio.' };
   }
-  return { ok: true, datos: parsed.data };
+  return { ok: true, horarios: parsed.data };
 }
 
-export async function crearMateria(input: MateriaInput): Promise<ResultadoAction> {
-  const sesion = await conUsuario();
-  if (!sesion.user) return { ok: false, error: sesion.error };
-  const { supabase } = sesion;
+/**
+ * Modo sin Supabase: guarda los horarios de una materia en datos/horarios.json.
+ * Es lo único de la edición de materia que podemos persistir sin base
+ * (profe/aula/color no tienen dónde vivir todavía).
+ */
+export async function guardarHorariosLocales(
+  materiaId: string,
+  horarios: MateriaInput['horarios']
+): Promise<ResultadoAction> {
+  const validado = validarHorarios(horarios);
+  if (!validado.ok) return { ok: false, error: validado.error };
 
-  const validacion = validarMateria(input);
-  if (!validacion.ok) return validacion;
-  const { datos } = validacion;
-
-  const { error } = await supabase.rpc('crear_materia_con_horarios', {
-    p_nombre: datos.nombre,
-    p_profe: datos.profe,
-    p_aula: datos.aula,
-    p_color: datos.color,
-    p_horarios: datos.horarios,
-  });
-
-  if (error) {
-    console.error('crearMateria:', error);
+  try {
+    await escribirHorariosLocales(materiaId, validado.horarios);
+  } catch (e) {
+    console.error('guardarHorariosLocales:', e);
     return { ok: false, error: ERROR_GUARDAR };
   }
   revalidarTodo();
@@ -118,17 +107,28 @@ export async function actualizarMateria(
   id: string,
   input: MateriaInput
 ): Promise<ResultadoAction> {
+  if (!supabaseConfigurado()) {
+    const parsedLocal = materiaSchema.safeParse(input);
+    if (!parsedLocal.success) return { ok: false, error: ERROR_DATOS };
+    return guardarHorariosLocales(id, parsedLocal.data.horarios);
+  }
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;
 
-  const validacion = validarMateria(input);
-  if (!validacion.ok) return validacion;
-  const { datos } = validacion;
+  const parsed = materiaSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: ERROR_DATOS };
+  }
+  // 'HH:MM' compara bien lexicográficamente.
+  if (parsed.data.horarios.some((h) => h.fin <= h.inicio)) {
+    return { ok: false, error: 'El fin tiene que ser después del inicio.' };
+  }
+  const { data: datos } = parsed;
 
-  const { error } = await supabase.rpc('actualizar_materia_con_horarios', {
+  const { error } = await supabase.rpc('editar_materia', {
     p_materia_id: id,
-    p_nombre: datos.nombre,
     p_profe: datos.profe,
     p_aula: datos.aula,
     p_color: datos.color,
@@ -142,23 +142,6 @@ export async function actualizarMateria(
     }
     return { ok: false, error: ERROR_GUARDAR };
   }
-  revalidarTodo();
-  return { ok: true };
-}
-
-export async function eliminarMateria(id: string): Promise<ResultadoAction> {
-  const sesion = await conUsuario();
-  if (!sesion.user) return { ok: false, error: sesion.error };
-  const { supabase } = sesion;
-
-  // Cascade se lleva horarios/bloques/archivos; avisos quedan como "General".
-  const { data, error } = await supabase.from('materias').delete().eq('id', id).select('id');
-
-  if (error) {
-    console.error('eliminarMateria:', error);
-    return { ok: false, error: ERROR_GUARDAR };
-  }
-  if (!data || data.length === 0) return { ok: false, error: ERROR_NO_EXISTE };
   revalidarTodo();
   return { ok: true };
 }
@@ -272,6 +255,18 @@ export async function crearAviso(input: {
 }
 
 export async function toggleAviso(id: string, hecho: boolean): Promise<ResultadoAction> {
+  // Sin Supabase: el "hecho" vive en datos/avisos-estado.json y sobrevive al reload.
+  if (!supabaseConfigurado()) {
+    try {
+      await escribirEstadoAviso(id, hecho);
+    } catch (e) {
+      console.error('toggleAviso (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;
@@ -314,11 +309,14 @@ export async function eliminarAviso(id: string): Promise<ResultadoAction> {
 const perfilSchema = z.object({
   nombre: z.string().trim().min(1),
   instituto: z.string().trim(),
+  // undefined = no tocar la foto; string = nueva URL del avatar en Storage.
+  avatarUrl: z.string().trim().min(1).optional(),
 });
 
 export async function guardarPerfil(input: {
   nombre: string;
   instituto: string;
+  avatarUrl?: string;
 }): Promise<ResultadoAction> {
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
@@ -334,6 +332,7 @@ export async function guardarPerfil(input: {
       user_id: sesion.user.id,
       nombre: parsed.data.nombre,
       instituto: parsed.data.instituto || null,
+      ...(parsed.data.avatarUrl !== undefined ? { avatar_url: parsed.data.avatarUrl } : {}),
     },
     { onConflict: 'user_id' }
   );

@@ -2,6 +2,7 @@
 // Mapean filas snake_case de Supabase a los tipos de dominio (camelCase) de lib/types.ts.
 // Sin cache: lecturas directas, las páginas son dynamic.
 
+import { getDatosLocales } from '@/lib/datos-locales';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { createClient } from '@/lib/supabase/server';
 import type {
@@ -52,6 +53,7 @@ type MateriaRow = {
   profe: string;
   aula: string;
   color: string;
+  source: string;
   horarios: HorarioRow[];
   bloques: BloqueRow[];
   archivos: ArchivoRow[];
@@ -131,6 +133,7 @@ function mapMateria(row: MateriaRow): Materia {
     profe: row.profe,
     aula: row.aula,
     color: row.color as ColorMateria,
+    source: row.source === 'moodle' ? 'moodle' : 'manual',
     horarios: (row.horarios ?? []).map(mapHorario),
     bloques: (row.bloques ?? []).map(mapBloque),
     archivos: (row.archivos ?? []).map(mapArchivo),
@@ -148,7 +151,7 @@ function mapAviso(row: AvisoRow): Aviso {
 }
 
 const SELECT_MATERIA = `
-  id, nombre, profe, aula, color,
+  id, nombre, profe, aula, color, source,
   horarios ( id, materia_id, dia, inicio, fin ),
   bloques ( id, materia_id, tipo, texto, url, estado, hecho, orden, created_at ),
   archivos ( id, materia_id, nombre, url )
@@ -158,19 +161,22 @@ const SELECT_MATERIA = `
 
 let avisoSinConfigurar = false;
 
-/** True si Supabase está configurado; si no, avisa una sola vez por proceso. */
+/**
+ * True si Supabase está configurado. Si no, avisa una vez por proceso y las
+ * queries caen al snapshot local (datos/aula-virtual.json, ver lib/datos-locales.ts).
+ */
 function conSupabase(): boolean {
   if (supabaseConfigurado()) return true;
   if (!avisoSinConfigurar) {
     avisoSinConfigurar = true;
-    console.warn('Supabase sin configurar — usando datos vacíos');
+    console.warn('Supabase sin configurar — leyendo el snapshot local del aula virtual');
   }
   return false;
 }
 
 /** Materias del usuario con horarios, bloques (por orden) y archivos anidados. */
 export async function getMaterias(): Promise<Materia[]> {
-  if (!conSupabase()) return [];
+  if (!conSupabase()) return (await getDatosLocales()).materias;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('materias')
@@ -188,7 +194,19 @@ export async function getMaterias(): Promise<Materia[]> {
 
 /** Una materia con todo anidado, o null si no existe. */
 export async function getMateria(id: string): Promise<Materia | null> {
-  if (!conSupabase()) return null;
+  if (!conSupabase()) {
+    const { materias } = await getDatosLocales();
+    // El id trae ':' ("curso:2756"): es válido en un segmento de URL, pero si el
+    // navegador (o un Link) lo mandó percent-encoded, lo aceptamos igual.
+    const decodificado = (() => {
+      try {
+        return decodeURIComponent(id);
+      } catch {
+        return id;
+      }
+    })();
+    return materias.find((m) => m.id === id || m.id === decodificado) ?? null;
+  }
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('materias')
@@ -207,7 +225,7 @@ export async function getMateria(id: string): Promise<Materia | null> {
 
 /** Todos los avisos del usuario, ordenados por fecha ascendente. */
 export async function getAvisos(): Promise<Aviso[]> {
-  if (!conSupabase()) return [];
+  if (!conSupabase()) return (await getDatosLocales()).avisos;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('avisos')
@@ -241,7 +259,18 @@ export async function getPerfil(): Promise<Perfil | null> {
 
 /** Última corrida del scraper o null si nunca corrió. */
 export async function getUltimaSync(): Promise<UltimaSync | null> {
-  if (!conSupabase()) return null;
+  if (!conSupabase()) {
+    // Sin base, la "última sync" es el momento en que se generó el snapshot.
+    const { generado, materias, avisos } = await getDatosLocales();
+    if (!generado) return null;
+    const archivos = materias.reduce((n, m) => n + m.archivos.length, 0);
+    return {
+      id: 'local',
+      corridaAt: generado,
+      resultado: 'ok',
+      detalle: `${materias.length} materias · ${archivos} archivos · ${avisos.length} avisos`,
+    };
+  }
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('sync_log')

@@ -42,6 +42,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# datos personales del aula virtual (snapshot + overlays locales)
+/datos/
+
 # fuentes del handoff de diseño (no se portan)
 Mi Cursada - App de estudio (1)/
 support.js
