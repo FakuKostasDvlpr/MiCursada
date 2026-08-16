@@ -1,6 +1,6 @@
 # Mi Cursada
 
-App mobile-first personal (un solo usuario) para organizar una cursada nocturna.
+App personal (un solo usuario) para organizar una cursada nocturna. **Desktop-first y responsive**: >640px sidebar fija de 232px + contenido `max-width: 1150px`; ≤640px bottom nav + contenido `max-width: 720px`. El breakpoint se aplica con `min-[641px]:` en Tailwind.
 
 ## Stack
 - Next.js 15 (App Router) + TypeScript estricto. **Sin `src/`** — `app/`, `lib/`, `components/` en la raíz. Alias `@/*`.

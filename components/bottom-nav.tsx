@@ -11,13 +11,16 @@ const ITEMS = [
   { href: '/avisos', label: 'Avisos', Icono: Bell },
 ] as const;
 
-/** Bottom nav fija de 4 pestañas. No se muestra en /login ni /perfil. */
+/**
+ * Bottom nav fija de 4 pestañas (móvil ≤640px; arriba de eso manda Sidebar).
+ * No se muestra en /login ni /perfil.
+ */
 export function BottomNav() {
   const pathname = usePathname();
   if (pathname.startsWith('/login') || pathname.startsWith('/perfil')) return null;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-bor bg-navbg pb-[env(safe-area-inset-bottom)] backdrop-blur-[14px]">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-bor bg-navbg pb-[env(safe-area-inset-bottom)] backdrop-blur-[14px] min-[641px]:hidden">
       <div className="mx-auto grid max-w-[720px] grid-cols-4">
         {ITEMS.map(({ href, label, Icono }) => {
           const activa = href === '/' ? pathname === '/' : pathname.startsWith(href);

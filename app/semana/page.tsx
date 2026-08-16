@@ -31,7 +31,8 @@ export default async function PaginaSemana() {
         <div className="font-mono text-xs text-tx3">{rango}</div>
       </header>
 
-      <div className="mt-5 flex flex-col gap-[10px]">
+      {/* 1 columna en móvil, 2 en desktop (cards al tope de su fila). */}
+      <div className="mt-5 grid items-start gap-[10px] min-[641px]:grid-cols-[repeat(2,minmax(0,1fr))]">
         {dias.map((d) => {
           const clases = clasesDeDia(materias, d.dia);
           return (

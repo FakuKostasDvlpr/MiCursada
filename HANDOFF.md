@@ -1,11 +1,11 @@
 # Handoff: Mi Cursada — app de cursada nocturna
 
 ## Overview
-App **mobile-first de uso personal (un solo usuario)** para organizar una cursada nocturna en un instituto: login + alta de perfil con foto, dashboard con **bento grid**, materias con horarios, notas de clase estilo Notion (bloques, comandos `/`, tablero kanban), archivos/links con preview, y avisos/recordatorios con estados vencido/hoy. Incluye **modo oscuro y modo claro**. Todo el copy está en **español rioplatense con voseo** ("Hoy no cursás", "Anotá lo que dice el profe") — mantener ese tono textual.
+App **desktop-first y responsive** de uso personal (un solo usuario) para organizar una cursada nocturna en un instituto: login + alta de perfil con foto, dashboard con **bento grid**, materias con horarios, notas de clase estilo Notion (bloques, comandos `/`, tablero kanban), archivos/links con preview, y avisos/recordatorios con estados vencido/hoy. Incluye **modo oscuro y modo claro**. Todo el copy está en **español rioplatense con voseo** ("Hoy no cursás", "Anotá lo que dice el profe") — mantener ese tono textual.
 
 Estética "**turno noche**": fondo azul-noche muy oscuro, un solo acento ámbar (sensación de luz de aula de noche), y un color propio por materia usado solo como riel fino o punto indicador, nunca como fondo grande. El modo claro es la misma estructura con la escala invertida (ver tokens).
 
-Tipografía y stack visual salen del **Blu Design System** (bundle en `_ds/blu-design-system-47477865-.../`): Plus Jakarta Sans + JetBrains Mono. En el codebase destino usar los tokens/componentes equivalentes de ese sistema.
+Tipografía: **design system propio "Turno Noche"**, autocontenido en el propio archivo (variables CSS en el `<helmet>`): Plus Jakarta Sans (UI) + JetBrains Mono (datos), cargadas de Google Fonts. No depende de ningún design system externo.
 
 ## About the Design Files
 Los archivos de este paquete son **referencias de diseño creadas en HTML** (formato Design Component: un template HTML + una clase de lógica JS embebidos en `Mi Cursada.dc.html`, que corre con `support.js`). Son un prototipo funcional que muestra el look & feel y el comportamiento esperado — **no es código de producción para copiar tal cual**. La tarea es **recrear este diseño en el entorno del codebase destino** (React, Vue, Svelte, SwiftUI, etc.) usando sus patrones y librerías; si todavía no existe un entorno, elegir el framework más apropiado (una SPA React/Vite con persistencia local es un mapeo directo).
@@ -51,11 +51,13 @@ Estados kanban: Por hacer `#64748b` · En proceso `#38bdf8` · Listo `#34d399`. 
 Radios: cards 13–16px, inputs/botones 12px, chips/pills 999px, bloques kanban 11px. **Sin sombras** (solo el blur del nav y el scrim). Foco visible: `outline: 2px solid #fbbf24; outline-offset: 2px`.
 
 ### Layout
-Viewport base **390px**. Contenido centrado `max-width: 720px`, padding lateral 18px, padding inferior 130px (despeje del nav). Breakpoint móvil/desktop: `(max-width: 640px)` — solo cambia el modal (sheet vs centrado). `html, body` deben scrollear (`overflow-y: auto`, altura automática): si un reset del design system fija `overflow: hidden`, las pantallas largas (Semana) quedan cortadas.
+**Desktop (>640px)**: sidebar fija de 232px, contenido `max-width: 1150px` con padding `34px 40px 80px 274px`. **Móvil (≤640px)**: viewport base 390px, contenido centrado `max-width: 720px`, padding lateral 18px, padding inferior 130px (despeje de la bottom nav). El breakpoint `(max-width: 640px)` (via matchMedia) decide nav lateral vs inferior, columnas del bento y de Semana, y sheet vs modal centrado. `html, body` deben scrollear (`overflow-y: auto`, altura automática): si un reset externo fija `overflow: hidden`, las pantallas largas (Semana) quedan cortadas.
 
 ## Screens / Views
 
-Navegación: **bottom nav fija de 4 pestañas** (Hoy, Semana, Materias, Avisos), ícono 21px + label 11px; activa en ámbar, inactivas `--tx3`. Grid de 4 columnas, `min-height: 56px` por ítem, `padding-bottom: env(safe-area-inset-bottom)`. **La nav no se muestra en Login ni en Perfil.**
+Navegación — dos variantes según viewport (ninguna se muestra en Login/Perfil):
+- **Desktop: sidebar fija izquierda de 232px** (`--sup`, borde derecho `--bor`, padding 22px 14px): arriba logo (tile ámbar 36px con luna + "Mi Cursada" 14px/800 + kicker "TURNO NOCHE"); debajo los 4 ítems (44px, radio 11px, ícono 18px + label 13.5px/700; activo: texto ámbar sobre fondo `--bor`; inactivo `--tx3`); abajo (mt auto) botón de tema ("Modo claro"/"Modo oscuro" con ícono sol/luna) y botón de perfil (avatar 30px ámbar con iniciales + nombre + "Tu perfil").
+- **Móvil: bottom nav fija de 4 pestañas**, ícono 21px + label 11px; activa en ámbar, inactivas `--tx3`. Grid de 4 columnas, `min-height: 56px` por ítem, `padding-bottom: env(safe-area-inset-bottom)`. En móvil el toggle de tema y el avatar-botón de perfil (40px) viven en el header de Hoy.
 
 Flujo de arranque: **Login → Perfil → app (Hoy)**. Con perfil ya guardado, la app entra directo a Hoy.
 
@@ -68,8 +70,8 @@ Columna centrada, `max-width: 360px`, centrada verticalmente. Tile ámbar 54px r
 En producción: reemplazar el botón de foto por captura real (`getUserMedia` o file input con `capture`) + recorte circular, y persistir el avatar; el resto de la UI no cambia.
 
 ### 1. Hoy — dashboard bento
-- Header en fila: bloque de título (kicker "MI CURSADA · TURNO NOCHE" + **fecha larga** como H1, "Jueves 13 de agosto", calculada en vivo) + **botón de tema** (40px, ícono sol en oscuro / luna en claro) + **avatar-botón de perfil** (40px circular ámbar con iniciales, abre Perfil).
-- **Bento grid**: `grid-template-columns: repeat(2, 1fr)`, gap 10px, radios 16px, todas las celdas sobre `--sup` con borde `--bor`.
+- Header en fila: bloque de título (kicker "MI CURSADA · TURNO NOCHE" + **fecha larga** como H1, "Jueves 13 de agosto", calculada en vivo). En móvil el header suma **botón de tema** (40px, ícono sol en oscuro / luna en claro) + **avatar-botón de perfil** (40px circular ámbar con iniciales, abre Perfil).
+- **Bento grid**: gap 10px, radios 16px, todas las celdas sobre `--sup` con borde `--bor`. Desktop: `repeat(4, minmax(0,1fr))` — hero en `1 / 3`, los dos tiles de stats en las columnas 3 y 4 (misma fila), "Clases de hoy" en `1 / 3` y "Próximos avisos" en `3 / 5` (lado a lado). Móvil: `repeat(2, 1fr)` — hero y tiles anchos a `1 / -1`, stats lado a lado.
   - **Hero "Próxima clase"** (`grid-column: 1 / -1`): riel vertical 4px del color de la materia, kicker dentro de la card, nombre 21px/800, horario mono 17px ("19:50–21:30"), aula 13px, y línea de estado 13.5px/600 **en el color de la materia**: "Empieza en 1 h 20 min" / "En curso — termina 21:30" / "Mañana a las 18:10" / "El lunes a las 18:10". Escanea hasta 7 días. Tap → detalle.
   - **Tile "CLASES HOY"** (1 col, min-height 106px): número mono 32px + sublínea contextual ("día libre" / "todas por delante" / "quedan 2" / "ya terminaste"). Tap → Semana.
   - **Tile "PENDIENTES"** (1 col): número mono 32px **en ámbar si hay pendientes** + sublínea ("al día" / "2 vencidos" / "nada vencido"). Tap → Avisos.
@@ -80,7 +82,7 @@ En producción: reemplazar el botón de foto por captura real (`getUserMedia` o 
 
 ### 2. Semana
 - H1 "Semana" + rango mono a la derecha ("11/08 – 16/08").
-- Lista vertical **Lunes a Sábado** (fechas de la semana actual; si es domingo, la semana que arranca mañana). Cada día: card con nombre 14px/700 + fecha mono; **el día actual con borde ámbar y pill "hoy"** (ámbar, texto `#221a00`, mono 10px uppercase).
+- Grilla **Lunes a Sábado** (fechas de la semana actual; si es domingo, la semana que arranca mañana): 2 columnas `minmax(0,1fr)` con `align-items: start` en desktop, 1 columna en móvil. Cada día: card con nombre 14px/700 + fecha mono; **el día actual con borde ámbar y pill "hoy"** (ámbar, texto `#221a00`, mono 10px uppercase).
 - Cada clase es un chip fila (fondo `#020617`, borde `#1e293b`): dot de color + nombre + horario mono; tap → detalle. Días sin clases: "— libre" (mono, `#475569`).
 
 ### 3. Materias
@@ -175,6 +177,5 @@ Derivados clave (ver `renderVals()`): próxima clase (scan 7 días con estados e
 ## Files
 - `Mi Cursada.dc.html` — **el diseño completo**: template (login, perfil, las 4 pestañas, detalle, tabs, modales) + clase `Component` con toda la lógica y los datos de ejemplo (`semilla()`). Las variables de tema están en el `<style>` del `<helmet>`, arriba del archivo.
 - `support.js` — runtime del formato Design Component (solo para abrir el prototipo; no portar).
-- `_ds/…` — hojas de estilo del design system Blu del que se toma la tipografía; el look "turno noche" está definido inline en el propio diseño (estos archivos solo evitan 404 al abrir el prototipo).
 
 Props de demo del prototipo (no portar): `horaSimulada` ("HH:MM" para previsualizar estados del hero), `datosDeEjemplo` (seed vs vacío), `mostrarSincronizacion` (línea de sync).

@@ -53,21 +53,26 @@ export function HoyLive({ materias, avisos, iniciales, inicialIso }: Props) {
             {fechaLargaHoy(ahora)}
           </h1>
         </div>
-        <ThemeToggle />
-        <Link
-          href="/perfil"
-          aria-label="Tu perfil"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#fbbf24] text-[13px] font-extrabold !text-[#221a00]"
-        >
-          {iniciales || '·'}
-        </Link>
+        {/* En desktop el tema y el perfil viven en la sidebar. */}
+        <div className="flex items-start gap-[10px] min-[641px]:hidden">
+          <ThemeToggle />
+          <Link
+            href="/perfil"
+            aria-label="Tu perfil"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#fbbf24] text-[13px] font-extrabold !text-[#221a00]"
+          >
+            {iniciales || '·'}
+          </Link>
+        </div>
       </header>
 
-      <div className="mt-5 grid grid-cols-2 gap-[10px]">
+      {/* Bento: 2 columnas en móvil, 4 en desktop (hero 1/3, stats en 3 y 4,
+          "Clases de hoy" 1/3 y "Próximos avisos" 3/5 lado a lado). */}
+      <div className="mt-5 grid grid-cols-2 gap-[10px] min-[641px]:grid-cols-[repeat(4,minmax(0,1fr))]">
         {prox ? (
           <Link
             href={`/materias/${prox.materia.id}`}
-            className="col-span-full flex gap-[14px] rounded-2xl border border-bor bg-sup p-4 !text-tx"
+            className="col-span-full flex gap-[14px] rounded-2xl border border-bor bg-sup p-4 !text-tx min-[641px]:col-[1/3]"
           >
             <span
               aria-hidden
@@ -134,7 +139,7 @@ export function HoyLive({ materias, avisos, iniciales, inicialIso }: Props) {
           <span className="text-xs text-tx3">{stats.subPendientes}</span>
         </Link>
 
-        <div className="col-span-full rounded-2xl border border-bor bg-sup p-[14px]">
+        <div className="col-span-full rounded-2xl border border-bor bg-sup p-[14px] min-[641px]:col-[1/3]">
           <div className="kicker mb-[10px] tracking-[0.16em]">Clases de hoy</div>
           {hoy.length === 0 ? (
             <div className="rounded-xl border border-dashed border-bor p-4 text-center text-[13.5px] text-tx3">
@@ -172,7 +177,7 @@ export function HoyLive({ materias, avisos, iniciales, inicialIso }: Props) {
           )}
         </div>
 
-        <div className="col-span-full rounded-2xl border border-bor bg-sup p-[14px]">
+        <div className="col-span-full rounded-2xl border border-bor bg-sup p-[14px] min-[641px]:col-[3/5]">
           <div className="mb-[6px] flex items-center justify-between">
             <div className="kicker tracking-[0.16em]">Próximos avisos</div>
             <Link
