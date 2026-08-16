@@ -32,14 +32,16 @@ export function Sidebar({ nombre, iniciales, avatarUrl = null }: Props) {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col border-r border-bor bg-sup px-[14px] py-[22px] min-[641px]:flex">
       <div className="min-w-0 px-2">
-        {/* El logo es azul sobre transparente: en tema oscuro se perdería,
-            así que va sobre un chip blanco (idéntico en ambos temas). */}
+        {/* El logo es azul sobre blanco: en tema oscuro se perdería, así que va
+            sobre un chip blanco (idéntico en ambos temas). width/height son las
+            medidas reales del archivo — el tamaño en pantalla lo pone el CSS,
+            y así next/image sirve una versión nítida en pantallas retina. */}
         <span className="inline-flex items-center rounded-md bg-white px-[6px] py-[3px]">
           <Image
             src={INSTITUTO.logo}
             alt={INSTITUTO.logoAlt}
-            width={32}
-            height={17}
+            width={INSTITUTO.logoAncho}
+            height={INSTITUTO.logoAlto}
             priority
             className="h-[17px] w-auto"
           />

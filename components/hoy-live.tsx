@@ -21,6 +21,7 @@ import {
   statsBento,
   textoEstado,
 } from '@/lib/cursada';
+import { INSTITUTO } from '@/lib/instituto';
 import type { Aviso, Materia } from '@/lib/types';
 
 /** 'YYYY-MM-DD' → 'dd/mm'. */
@@ -72,19 +73,19 @@ export function HoyLive({
       <header className="flex items-start gap-[10px]">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            {/* El logo es azul sobre transparente: en tema oscuro se perdería,
-                así que va sobre un chip blanco (idéntico en ambos temas). */}
+            {/* El logo es azul sobre blanco: en tema oscuro se perdería, así
+                que va sobre un chip blanco (idéntico en ambos temas). */}
             <span className="flex shrink-0 items-center rounded-md bg-white px-[6px] py-[3px]">
               <Image
-                src="/logo-ort.png"
-                alt="Aula Virtual ORT"
-                width={30}
-                height={16}
+                src={INSTITUTO.logo}
+                alt={INSTITUTO.logoAlt}
+                width={INSTITUTO.logoAncho}
+                height={INSTITUTO.logoAlto}
                 priority
                 className="h-[16px] w-auto"
               />
             </span>
-            <div className="kicker min-w-0 truncate tracking-[0.1em]">Analista de Sistemas</div>
+            <div className="kicker min-w-0 truncate tracking-[0.1em]">{INSTITUTO.carrera}</div>
           </div>
           <h1 className="mt-2 text-2xl font-extrabold tracking-[-0.015em]">
             {fechaLargaHoy(ahora)}
