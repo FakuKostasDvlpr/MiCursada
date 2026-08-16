@@ -1,0 +1,236 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { ThemeToggle } from '@/components/theme-toggle';
+import {
+  clasesDeHoy,
+  estadoAviso,
+  fechaLargaHoy,
+  proximaClase,
+  statsBento,
+  textoEstado,
+} from '@/lib/cursada';
+import type { Aviso, Materia } from '@/lib/types';
+
+/** 'YYYY-MM-DD' → 'dd/mm'. */
+const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
+
+type Props = {
+  materias: Materia[];
+  avisos: Aviso[];
+  iniciales: string;
+  /** Instante del render en el server, para hidratar sin desajuste. */
+  inicialIso: string;
+};
+
+/**
+ * Sección viva de Hoy: header con fecha larga + bento (hero, tiles, clases de hoy,
+ * próximos avisos). Un tick de 30s recalcula countdown y estados; los datos
+ * llegan serializados del server.
+ */
+export function HoyLive({ materias, avisos, iniciales, inicialIso }: Props) {
+  const [ahora, setAhora] = useState(() => new Date(inicialIso));
+
+  useEffect(() => {
+    setAhora(new Date());
+    const id = setInterval(() => setAhora(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const prox = proximaClase(materias, ahora);
+  const hoy = clasesDeHoy(materias, ahora);
+  const stats = statsBento(materias, avisos, ahora);
+  const proximos = avisos.filter((a) => !a.hecho).slice(0, 3);
+  const materiaDe = (id: string | null) => materias.find((m) => m.id === id) ?? null;
+
+  return (
+    <>
+      <header className="flex items-start gap-[10px]">
+        <div className="min-w-0 flex-1">
+          <div className="kicker tracking-[0.16em]">Mi cursada · Turno noche</div>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-[-0.015em]">
+            {fechaLargaHoy(ahora)}
+          </h1>
+        </div>
+        <ThemeToggle />
+        <Link
+          href="/perfil"
+          aria-label="Tu perfil"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#fbbf24] text-[13px] font-extrabold !text-[#221a00]"
+        >
+          {iniciales || '·'}
+        </Link>
+      </header>
+
+      <div className="mt-5 grid grid-cols-2 gap-[10px]">
+        {prox ? (
+          <Link
+            href={`/materias/${prox.materia.id}`}
+            className="col-span-full flex gap-[14px] rounded-2xl border border-bor bg-sup p-4 !text-tx"
+          >
+            <span
+              aria-hidden
+              className="w-1 shrink-0 self-stretch rounded-full"
+              style={{ background: prox.materia.color }}
+            />
+            <span className="block min-w-0 flex-1">
+              <span className="kicker block tracking-[0.16em]">Próxima clase</span>
+              <span className="mt-2 block text-[21px] leading-[1.2] font-extrabold tracking-[-0.01em]">
+                {prox.materia.nombre}
+              </span>
+              <span className="mt-2 flex flex-wrap items-baseline gap-3">
+                <span className="font-mono text-[17px] font-semibold">
+                  {prox.horario.inicio}–{prox.horario.fin}
+                </span>
+                <span className="text-[13px] text-tx2">{prox.materia.aula}</span>
+              </span>
+              <span
+                className="mt-[10px] block text-[13.5px] font-semibold"
+                style={{ color: prox.materia.color }}
+              >
+                {textoEstado(prox, ahora)}
+              </span>
+            </span>
+          </Link>
+        ) : (
+          <div className="col-span-full rounded-2xl border border-bor bg-sup px-5 py-[26px] text-center">
+            <div className="text-base font-bold">Cargá tus materias</div>
+            <div className="mt-[6px] text-[13.5px] text-tx2">
+              Armá tu semana con horarios, notas y avisos.
+            </div>
+            <Link
+              href="/materias"
+              className="mt-4 inline-flex min-h-[46px] items-center rounded-xl bg-acc-bg px-5 text-sm font-bold !text-acc-fg"
+            >
+              Nueva materia
+            </Link>
+          </div>
+        )}
+
+        <Link
+          href="/semana"
+          className="flex min-h-[106px] flex-col gap-[6px] rounded-2xl border border-bor bg-sup p-[14px] !text-tx"
+        >
+          <span className="kicker tracking-[0.16em]">Clases hoy</span>
+          <span className="mt-auto font-mono text-[32px] leading-none font-semibold">
+            {stats.clasesHoy}
+          </span>
+          <span className="text-xs text-tx3">{stats.subClases}</span>
+        </Link>
+
+        <Link
+          href="/avisos"
+          className="flex min-h-[106px] flex-col gap-[6px] rounded-2xl border border-bor bg-sup p-[14px] !text-tx"
+        >
+          <span className="kicker tracking-[0.16em]">Pendientes</span>
+          <span
+            className={`mt-auto font-mono text-[32px] leading-none font-semibold ${
+              stats.pendientes > 0 ? 'text-acc' : ''
+            }`}
+          >
+            {stats.pendientes}
+          </span>
+          <span className="text-xs text-tx3">{stats.subPendientes}</span>
+        </Link>
+
+        <div className="col-span-full rounded-2xl border border-bor bg-sup p-[14px]">
+          <div className="kicker mb-[10px] tracking-[0.16em]">Clases de hoy</div>
+          {hoy.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-bor p-4 text-center text-[13.5px] text-tx3">
+              Hoy no cursás. Aprovechá para ponerte al día.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-[6px]">
+              {hoy.map((c) => (
+                <Link
+                  key={c.horario.id}
+                  href={`/materias/${c.materia.id}`}
+                  className={`flex min-h-[50px] items-center gap-3 rounded-xl border border-bor bg-bg px-3 py-[10px] !text-tx ${
+                    c.pasada ? 'opacity-40' : ''
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: c.materia.color }}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                    {c.materia.nombre}
+                  </span>
+                  <span className="text-xs text-tx3">{c.materia.aula}</span>
+                  <span
+                    className={`font-mono text-[12.5px] whitespace-nowrap ${
+                      c.enCurso ? 'text-acc' : 'text-tx2'
+                    }`}
+                  >
+                    {c.horario.inicio}–{c.horario.fin}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="col-span-full rounded-2xl border border-bor bg-sup p-[14px]">
+          <div className="mb-[6px] flex items-center justify-between">
+            <div className="kicker tracking-[0.16em]">Próximos avisos</div>
+            <Link
+              href="/avisos"
+              className="flex min-h-[44px] items-center px-1 text-[13px] font-bold text-acc"
+            >
+              Ver todos
+            </Link>
+          </div>
+          {proximos.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-bor p-4 text-center text-[13.5px] text-tx3">
+              Nada pendiente. Tranquilo.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-[6px]">
+              {proximos.map((a) => {
+                const materia = materiaDe(a.materiaId);
+                const estado = estadoAviso(a, ahora);
+                return (
+                  <Link
+                    key={a.id}
+                    href="/avisos"
+                    className="flex min-h-[52px] items-center gap-3 rounded-xl border border-bor bg-bg px-3 py-2 !text-tx"
+                  >
+                    <span
+                      aria-hidden
+                      className="h-5 w-5 shrink-0 rounded-full border-2 border-bor2"
+                    />
+                    <span className="block min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{a.titulo}</span>
+                      <span className="mt-[3px] flex items-center gap-[6px]">
+                        <span
+                          aria-hidden
+                          className="h-[6px] w-[6px] rounded-full"
+                          style={{ background: materia?.color ?? '#64748b' }}
+                        />
+                        <span className="text-xs text-tx3">{materia?.nombre ?? 'General'}</span>
+                      </span>
+                    </span>
+                    <span
+                      className={`font-mono text-xs whitespace-nowrap ${
+                        estado === 'vencido'
+                          ? 'text-vencido'
+                          : estado === 'hoy'
+                            ? 'text-acc'
+                            : 'text-tx3'
+                      }`}
+                    >
+                      {ddmm(a.fecha)}
+                      {estado === 'vencido' ? ' · vencido' : estado === 'hoy' ? ' · hoy' : ''}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}

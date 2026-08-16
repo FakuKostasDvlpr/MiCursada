@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { BottomNav } from "@/components/bottom-nav";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -49,7 +50,8 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: temaInicial }} />
       </head>
       <body className={`${jakarta.variable} ${jetbrains.variable} antialiased`}>
-        {children}
+        <div className="mx-auto max-w-[720px] px-[18px] pt-[26px] pb-[130px]">{children}</div>
+        <BottomNav />
       </body>
     </html>
   );
