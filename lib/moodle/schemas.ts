@@ -59,6 +59,7 @@ export const moduloSchema = loose({
   url: z.string().optional(),
   visible: z.number().optional(),
   uservisible: z.boolean().optional(),
+  description: z.string().optional(), // HTML: sanitizar / pasar por aTextoPlano
   contents: z.array(contenidoArchivoSchema).optional(),
 });
 export const seccionSchema = loose({
@@ -66,6 +67,8 @@ export const seccionSchema = loose({
   name: z.string(),
   section: z.number().optional(),
   visible: z.number().optional(),
+  uservisible: z.boolean().optional(),
+  summary: z.string().optional(),
   modules: z.array(moduloSchema),
 });
 export const contenidosCursoSchema = z.array(seccionSchema);

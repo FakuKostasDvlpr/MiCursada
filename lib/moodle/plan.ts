@@ -15,9 +15,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { rutaDatos } from '@/lib/datos-locales';
+import type { ModuloCurso, Seccion } from '@/lib/types';
 import { call } from './cliente';
 import { leerCredenciales, type Credencial } from './credenciales';
 import {
+  aTextoPlano,
   decodificarHtml,
   epochAIso,
   limpiarNombre,
@@ -100,10 +102,15 @@ export interface ModuloContenido {
   name: string;
   modname: string;
   uservisible?: boolean | undefined;
+  /** HTML de la descripción que el profe escribió debajo del ítem. */
+  description?: string | undefined;
   contents?: Array<{ type: string; filename: string }> | undefined;
 }
 
 export interface SeccionContenido {
+  /** "Unidad 1", "Evaluaciones Generales"… (los snapshots viejos de test no lo traen). */
+  name?: string | undefined;
+  uservisible?: boolean | undefined;
   modules: ModuloContenido[];
 }
 
@@ -173,6 +180,67 @@ export function archivosDesdeContenidos(
     }
   }
   return { archivos, salteados };
+}
+
+// ─── secciones (el curso como se ve en el aula virtual) ──────────────────────
+
+/**
+ * modnames que NO son contenido del curso y por lo tanto no se listan:
+ * `label` es texto decorativo (no lleva a ningún lado) y attendance/zoom ya
+ * tienen su propio botón en el detalle de la materia (asistenciaUrl/claseUrl).
+ */
+const MODNAMES_NO_CONTENIDO = new Set(['label', 'attendance', 'zoom']);
+
+/** Tope de la descripción de un módulo: lo justo para 2 líneas y un poco más. */
+const MAX_DESCRIPCION = 400;
+
+/** Recorta en el último espacio antes del tope y agrega elipsis. */
+function recortar(texto: string, max: number): string {
+  if (texto.length <= max) return texto;
+  const duro = texto.slice(0, max);
+  const corte = duro.lastIndexOf(' ');
+  return `${(corte > max * 0.6 ? duro.slice(0, corte) : duro).trimEnd()}…`;
+}
+
+/**
+ * Traduce las secciones de `core_course_get_contents` al contenido del curso
+ * que muestra la app: las unidades con sus materiales, igual que el aula virtual.
+ *
+ * - Se saltean las secciones y los módulos con `uservisible === false` (el
+ *   alumno no los ve en el aula: mostrarlos sería mentirle).
+ * - Se saltean label (texto decorativo) y attendance/zoom (ya tienen botón
+ *   propio, listarlos de nuevo sería duplicar).
+ * - Las secciones que quedan sin módulos no se incluyen.
+ * - La URL es SIEMPRE la del módulo (`urlModuloAbsoluta`), nunca el `fileurl`
+ *   (trampa #5: trae el token embebido).
+ * - `description` pasa por `aTextoPlano` y se omite si queda vacía o si repite
+ *   el nombre del módulo (Moodle a veces duplica los dos campos).
+ */
+export function seccionesDesdeContenidos(
+  secciones: readonly SeccionContenido[],
+  baseUrl: string
+): Seccion[] {
+  const salida: Seccion[] = [];
+  for (const seccion of secciones) {
+    if (seccion.uservisible === false) continue;
+    const modulos: ModuloCurso[] = [];
+    for (const mod of seccion.modules) {
+      if (mod.uservisible === false) continue;
+      if (MODNAMES_NO_CONTENIDO.has(mod.modname)) continue;
+      const nombre = decodificarHtml(mod.name).trim();
+      const descripcion = recortar(aTextoPlano(mod.description ?? ''), MAX_DESCRIPCION);
+      modulos.push({
+        id: `mod:${mod.id}`,
+        nombre,
+        tipo: mod.modname,
+        url: urlModuloAbsoluta(baseUrl, mod.modname, mod.id),
+        ...(descripcion !== '' && descripcion !== nombre ? { descripcion } : {}),
+      });
+    }
+    if (modulos.length === 0) continue;
+    salida.push({ nombre: decodificarHtml(seccion.name ?? '').trim(), modulos });
+  }
+  return salida;
 }
 
 // ─── asistencia ──────────────────────────────────────────────────────────────
@@ -410,6 +478,8 @@ export interface MateriaPlaneada {
   asistenciaUrl?: string;
   /** URL de la sala de Zoom de la cursada, si el curso tiene una visible. */
   claseUrl?: string;
+  /** Las unidades del curso con sus materiales, como se ven en el aula virtual. */
+  secciones?: Seccion[];
 }
 
 export interface PlanMoodle {
@@ -448,6 +518,7 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
   const modulosSalteados: ModuloSalteado[] = [];
   const asistenciaPorCurso = new Map<number, string>();
   const clasePorCurso = new Map<number, string>();
+  const seccionesPorCurso = new Map<number, Seccion[]>();
   for (const curso of cursos) {
     const secciones = await obtenerContenidos(curso.id, cred);
     const r = archivosDesdeContenidos(curso.id, secciones, cred.url);
@@ -460,12 +531,16 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
     // Ídem el zoom de la comisión, para "Entrar a la clase".
     const clase = urlClaseDesdeContenidos(secciones, cred.url);
     if (clase !== null) clasePorCurso.set(curso.id, clase);
+    // Y el curso entero por unidades, para la tab "Curso".
+    seccionesPorCurso.set(curso.id, seccionesDesdeContenidos(secciones, cred.url));
   }
   for (const m of materias) {
     const url = asistenciaPorCurso.get(m.cursoId);
     if (url !== undefined) m.asistenciaUrl = url;
     const clase = clasePorCurso.get(m.cursoId);
     if (clase !== undefined) m.claseUrl = clase;
+    const secs = seccionesPorCurso.get(m.cursoId);
+    if (secs !== undefined && secs.length > 0) m.secciones = secs;
   }
 
   // assignments (una sola llamada) + calendario (+60 días) → avisos
@@ -514,6 +589,8 @@ export type SnapshotMateria = {
   asistenciaUrl?: string;
   /** Solo si el curso tiene sala de Zoom de cursada visible. */
   claseUrl?: string;
+  /** Solo si el curso tiene al menos una unidad con contenido visible. */
+  secciones?: Seccion[];
   horarios: [];
   archivos: SnapshotArchivo[];
   bloques: [];
@@ -549,6 +626,7 @@ export function armarSnapshot(plan: PlanMoodle, generado = new Date().toISOStrin
     source: 'moodle',
     ...(m.asistenciaUrl ? { asistenciaUrl: m.asistenciaUrl } : {}),
     ...(m.claseUrl ? { claseUrl: m.claseUrl } : {}),
+    ...(m.secciones && m.secciones.length > 0 ? { secciones: m.secciones } : {}),
     horarios: [],
     archivos: plan.archivos
       .filter((a) => a.cursoId === m.cursoId)

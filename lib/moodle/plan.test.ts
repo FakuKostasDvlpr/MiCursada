@@ -10,6 +10,7 @@ import {
   colorRoundRobin,
   filtrarCursosVigentes,
   nombreCortoCurso,
+  seccionesDesdeContenidos,
   urlAsistenciaDesdeContenidos,
   urlClaseDesdeContenidos,
   type PlanMoodle,
@@ -475,5 +476,179 @@ describe('armarSnapshot con asistencia', () => {
     const snap = armarSnapshot(planBase, '2026-08-16T00:00:00.000Z');
     expect(snap.materias[0]?.claseUrl).toBe('https://a/z');
     expect(snap.materias[1]).not.toHaveProperty('claseUrl');
+  });
+});
+
+describe('seccionesDesdeContenidos', () => {
+  const BASE = 'https://aula.example';
+
+  it('arma unidades con sus módulos y la URL del módulo (nunca fileurl)', () => {
+    const secciones = seccionesDesdeContenidos(
+      [
+        {
+          name: 'Unidad 1',
+          modules: [
+            { id: 10, name: 'Apunte de modularización', modname: 'resource' },
+            { id: 11, name: 'TP 1', modname: 'assign' },
+          ],
+        },
+      ],
+      BASE
+    );
+    expect(secciones).toEqual([
+      {
+        nombre: 'Unidad 1',
+        modulos: [
+          {
+            id: 'mod:10',
+            nombre: 'Apunte de modularización',
+            tipo: 'resource',
+            url: `${BASE}/mod/resource/view.php?id=10`,
+          },
+          {
+            id: 'mod:11',
+            nombre: 'TP 1',
+            tipo: 'assign',
+            url: `${BASE}/mod/assign/view.php?id=11`,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('saltea la sección que el alumno no ve', () => {
+    expect(
+      seccionesDesdeContenidos(
+        [
+          {
+            name: 'Borrador del profe',
+            uservisible: false,
+            modules: [{ id: 1, name: 'Apunte', modname: 'resource' }],
+          },
+        ],
+        BASE
+      )
+    ).toEqual([]);
+  });
+
+  it('saltea el módulo con uservisible false', () => {
+    const secciones = seccionesDesdeContenidos(
+      [
+        {
+          name: 'Unidad 2',
+          modules: [
+            { id: 1, name: 'Oculto', modname: 'resource', uservisible: false },
+            { id: 2, name: 'Visible', modname: 'page', uservisible: true },
+          ],
+        },
+      ],
+      BASE
+    );
+    expect(secciones[0]?.modulos.map((m) => m.nombre)).toEqual(['Visible']);
+  });
+
+  it('saltea label, attendance y zoom (decorativos o con botón propio)', () => {
+    const secciones = seccionesDesdeContenidos(
+      [
+        {
+          name: 'Unidad 3',
+          modules: [
+            { id: 1, name: 'Texto suelto', modname: 'label' },
+            { id: 2, name: 'Asistencia', modname: 'attendance' },
+            { id: 3, name: 'Clase por Zoom', modname: 'zoom' },
+            { id: 4, name: 'Guía', modname: 'resource' },
+          ],
+        },
+      ],
+      BASE
+    );
+    expect(secciones[0]?.modulos.map((m) => m.tipo)).toEqual(['resource']);
+  });
+
+  it('la sección que queda sin módulos no aparece', () => {
+    expect(
+      seccionesDesdeContenidos(
+        [
+          { name: 'Solo carteles', modules: [{ id: 1, name: 'Bienvenidos', modname: 'label' }] },
+          { name: 'Sin nada', modules: [] },
+        ],
+        BASE
+      )
+    ).toEqual([]);
+  });
+
+  it('la descripción HTML se guarda como texto plano', () => {
+    const secciones = seccionesDesdeContenidos(
+      [
+        {
+          name: 'Unidad 1 - Extensión',
+          modules: [
+            {
+              id: 5,
+              name: 'Modularización',
+              modname: 'page',
+              description: '<p>Aqu&iacute; te mostramos algunos <b>conceptos</b> b&aacute;sicos.</p>',
+            },
+          ],
+        },
+      ],
+      BASE
+    );
+    expect(secciones[0]?.modulos[0]?.descripcion).toBe(
+      'Aquí te mostramos algunos conceptos básicos.'
+    );
+  });
+
+  it('la descripción vacía o igual al nombre se omite', () => {
+    const secciones = seccionesDesdeContenidos(
+      [
+        {
+          name: 'Unidad 1',
+          modules: [
+            { id: 1, name: 'Guía', modname: 'resource', description: '<p>&nbsp;</p>' },
+            { id: 2, name: 'Parcial', modname: 'quiz', description: '<p>Parcial</p>' },
+          ],
+        },
+      ],
+      BASE
+    );
+    expect(secciones[0]?.modulos[0]).not.toHaveProperty('descripcion');
+    expect(secciones[0]?.modulos[1]).not.toHaveProperty('descripcion');
+  });
+
+  it('recorta las descripciones largas con elipsis', () => {
+    const larga = 'palabra '.repeat(120).trim();
+    const secciones = seccionesDesdeContenidos(
+      [{ name: 'U1', modules: [{ id: 1, name: 'X', modname: 'page', description: larga }] }],
+      BASE
+    );
+    const d = secciones[0]?.modulos[0]?.descripcion ?? '';
+    expect(d.length).toBeLessThanOrEqual(401);
+    expect(d.endsWith('…')).toBe(true);
+  });
+
+  it('el snapshot solo lleva `secciones` si la materia tiene contenido', () => {
+    const plan: PlanMoodle = {
+      site: { sitename: 's', username: 'u', fullname: 'F', userid: 1, siteurl: 'https://a', functions: [] },
+      cursos: [],
+      materias: [
+        {
+          externalId: 'curso:1',
+          nombre: 'Con contenido',
+          cursoId: 1,
+          secciones: [
+            { nombre: 'Unidad 1', modulos: [{ id: 'mod:9', nombre: 'Guía', tipo: 'resource', url: 'https://a/g' }] },
+          ],
+        },
+        { externalId: 'curso:2', nombre: 'Sin contenido', cursoId: 2 },
+      ],
+      archivos: [],
+      modulosSalteados: [],
+      avisos: [],
+      avisosDescartados: [],
+    };
+    const snap = armarSnapshot(plan, '2026-08-16T00:00:00.000Z');
+    expect(snap.materias[0]?.secciones?.[0]?.nombre).toBe('Unidad 1');
+    expect(snap.materias[1]).not.toHaveProperty('secciones');
   });
 });

@@ -33,7 +33,9 @@ import {
   type EstadoBloque,
   type Horario,
   type Materia,
+  type ModuloCurso,
   type Perfil,
+  type Seccion,
   type TipoBloque,
 } from '@/lib/types';
 
@@ -90,6 +92,21 @@ const bloqueSchema = z.object({
   createdAt: z.string().optional(),
 });
 
+/** Un ítem de una unidad del curso ("mod:{cmid}" + link al aula virtual). */
+const moduloCursoSchema = z.object({
+  id: z.string(),
+  nombre: z.string(),
+  tipo: z.string().optional(),
+  url: z.string(),
+  descripcion: z.string().optional(),
+});
+
+/** Una unidad del curso tal como está armada en el aula virtual. */
+const seccionSchema = z.object({
+  nombre: z.string().optional(),
+  modulos: z.array(moduloCursoSchema).default([]),
+});
+
 const materiaSchema = z.object({
   id: z.string(),
   nombre: z.string(),
@@ -101,6 +118,8 @@ const materiaSchema = z.object({
   asistenciaUrl: z.string().optional(),
   /** Ídem: los snapshots previos al sync de zoom no lo tienen. */
   claseUrl: z.string().optional(),
+  /** Ídem: los snapshots previos al sync del contenido por unidades no lo tienen. */
+  secciones: z.array(seccionSchema).optional(),
   archivos: z.array(archivoSchema).optional(),
   bloques: z.array(bloqueSchema).optional(),
 });
@@ -290,6 +309,23 @@ function armar(snapshot: z.infer<typeof snapshotSchema>, ov: Overlays): DatosLoc
         url: a.url,
       }));
 
+      // Unidades del aula virtual: solo lectura (las regenera el sync). Las que
+      // quedaron sin módulos no se muestran.
+      const secciones: Seccion[] = (m.secciones ?? [])
+        .map((s) => ({
+          nombre: s.nombre ?? '',
+          modulos: s.modulos.map(
+            (mo): ModuloCurso => ({
+              id: mo.id,
+              nombre: mo.nombre,
+              tipo: mo.tipo ?? '',
+              url: mo.url,
+              ...(mo.descripcion ? { descripcion: mo.descripcion } : {}),
+            })
+          ),
+        }))
+        .filter((s) => s.modulos.length > 0);
+
       return {
         id: m.id,
         nombre: m.nombre,
@@ -299,6 +335,7 @@ function armar(snapshot: z.infer<typeof snapshotSchema>, ov: Overlays): DatosLoc
         source: m.source === 'manual' ? 'manual' : 'moodle',
         ...(m.asistenciaUrl ? { asistenciaUrl: m.asistenciaUrl } : {}),
         ...(m.claseUrl ? { claseUrl: m.claseUrl } : {}),
+        ...(secciones.length > 0 ? { secciones } : {}),
         horarios: hs,
         // Bloques del snapshot + los que el usuario escribió en el editor
         // (datos/bloques.json), todos ordenados por `orden`.

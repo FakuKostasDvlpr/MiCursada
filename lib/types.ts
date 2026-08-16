@@ -58,6 +58,28 @@ export type Archivo = {
 /** Origen de una materia: cargada a mano o sincronizada desde el aula virtual (Moodle). */
 export type SourceMateria = 'manual' | 'moodle';
 
+/**
+ * Un ítem de una unidad del aula virtual (un `course_module` de Moodle).
+ * Se muestra en la tab "Curso" y abre el módulo en el aula virtual.
+ */
+export type ModuloCurso = {
+  /** "mod:{cmid}" */
+  id: string;
+  nombre: string;
+  /** `modname` de Moodle: resource, url, page, assign, quiz, forum, lesson, folder… */
+  tipo: string;
+  /** URL absoluta al módulo ("…/mod/{tipo}/view.php?id={cmid}"), NUNCA un fileurl. */
+  url: string;
+  /** `description` del módulo pasada a texto plano, solo si aporta algo. */
+  descripcion?: string;
+};
+
+/** Una unidad/sección del curso en el aula virtual ("Unidad 1", "Evaluaciones Generales"…). */
+export type Seccion = {
+  nombre: string;
+  modulos: ModuloCurso[];
+};
+
 export type Materia = {
   id: string;
   nombre: string;
@@ -78,6 +100,11 @@ export type Materia = {
    * visible. Las salas de recuperatorio/examen NO se guardan acá.
    */
   claseUrl?: string;
+  /**
+   * Contenido del curso tal como está armado en el aula virtual: las unidades
+   * con sus materiales. Los snapshots viejos no lo traen.
+   */
+  secciones?: Seccion[];
   horarios: Horario[];
   bloques: Bloque[];
   archivos: Archivo[];

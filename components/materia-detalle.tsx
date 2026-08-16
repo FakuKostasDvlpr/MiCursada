@@ -1,7 +1,21 @@
 'use client';
 
-import { ArrowUpRight, Check, FileText, Trash2 } from 'lucide-react';
-import { useOptimistic, useState, useTransition } from 'react';
+import {
+  ArrowUpRight,
+  BookOpen,
+  Check,
+  ChevronDown,
+  ClipboardList,
+  File,
+  FileText,
+  Folder,
+  HelpCircle,
+  Link2,
+  MessagesSquare,
+  Trash2,
+  type LucideIcon,
+} from 'lucide-react';
+import { useId, useOptimistic, useState, useTransition } from 'react';
 import {
   crearArchivo,
   crearAviso,
@@ -11,12 +25,12 @@ import {
 } from '@/app/actions';
 import { NotasEditor } from '@/components/notas-editor';
 import { estadoAviso, hoyISO } from '@/lib/cursada';
-import { esManual, type Aviso, type Materia } from '@/lib/types';
+import { esManual, type Aviso, type Materia, type Seccion } from '@/lib/types';
 
 /** 'YYYY-MM-DD' → 'dd/mm'. */
 const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
 
-type Tab = 'notas' | 'archivos' | 'avisos';
+type Tab = 'curso' | 'notas' | 'archivos' | 'avisos';
 
 type Props = {
   materia: Materia;
@@ -30,15 +44,19 @@ const claseInput =
 const claseVacio =
   'mt-[14px] rounded-[14px] border border-dashed border-bor p-5 text-center text-[13.5px] text-tx3';
 
-/** Tabs del detalle de materia: Notas (editor de bloques con menú de comandos),
- *  Archivos (alta inline + lista) y Avisos (alta inline + lista con toggle). */
+/** Tabs del detalle de materia: Curso (las unidades del aula virtual), Notas
+ *  (editor de bloques con menú de comandos), Archivos (alta inline + lista) y
+ *  Avisos (alta inline + lista con toggle). */
 export function MateriaDetalle({ materia, avisos }: Props) {
-  const [tab, setTab] = useState<Tab>('notas');
+  const [tab, setTab] = useState<Tab>('curso');
 
+  const secciones = materia.secciones ?? [];
+  const modulos = secciones.reduce((n, s) => n + s.modulos.length, 0);
   const notas = materia.bloques.filter((b) => b.tipo !== 'divisor').length;
   const pendientes = avisos.filter((a) => !a.hecho).length;
 
   const tabs: { id: Tab; label: string; n: number }[] = [
+    { id: 'curso', label: 'Curso', n: modulos },
     { id: 'notas', label: 'Notas', n: notas },
     { id: 'archivos', label: 'Archivos', n: materia.archivos.length },
     { id: 'avisos', label: 'Avisos', n: pendientes },
@@ -62,10 +80,124 @@ export function MateriaDetalle({ materia, avisos }: Props) {
         ))}
       </div>
 
+      {tab === 'curso' && <TabCurso secciones={secciones} />}
       {tab === 'notas' && <NotasEditor materiaId={materia.id} bloques={materia.bloques} />}
       {tab === 'archivos' && <TabArchivos materia={materia} />}
       {tab === 'avisos' && <TabAvisos materiaId={materia.id} avisos={avisos} />}
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Curso — las unidades del aula virtual con sus materiales
+// ---------------------------------------------------------------------------
+
+/** Ícono por `modname` de Moodle. Lo que no reconocemos cae en File. */
+const ICONO_MODULO: Record<string, LucideIcon> = {
+  resource: FileText,
+  page: FileText,
+  url: Link2,
+  assign: ClipboardList,
+  quiz: HelpCircle,
+  forum: MessagesSquare,
+  lesson: BookOpen,
+  folder: Folder,
+};
+
+/**
+ * Con pocas unidades se ven todas de una; a partir de acá se abre solo la
+ * primera, para que la pantalla no arranque con una lista interminable.
+ */
+const MAX_TODAS_ABIERTAS = 3;
+
+function TabCurso({ secciones }: { secciones: Seccion[] }) {
+  const idBase = useId();
+  const [abiertas, setAbiertas] = useState<ReadonlySet<number>>(() =>
+    secciones.length <= MAX_TODAS_ABIERTAS
+      ? new Set(secciones.map((_, i) => i))
+      : new Set(secciones.length > 0 ? [0] : [])
+  );
+
+  const alternar = (i: number) =>
+    setAbiertas((prev) => {
+      const proximo = new Set(prev);
+      if (!proximo.delete(i)) proximo.add(i);
+      return proximo;
+    });
+
+  if (secciones.length === 0) {
+    return <div className={claseVacio}>Todavía no hay contenido cargado en el aula virtual.</div>;
+  }
+
+  return (
+    <div className="mt-4">
+      <div className="font-mono text-[11px] text-tx3">Se abre en el aula virtual</div>
+
+      <div className="mt-3 flex flex-col gap-3">
+        {secciones.map((s, i) => {
+          const abierta = abiertas.has(i);
+          const idPanel = `${idBase}-seccion-${i}`;
+          return (
+            <section key={`${s.nombre}-${i}`}>
+              <button
+                type="button"
+                onClick={() => alternar(i)}
+                aria-expanded={abierta}
+                aria-controls={idPanel}
+                className="flex min-h-[44px] w-full cursor-pointer items-center gap-2 py-2 text-left"
+              >
+                <span className="kicker min-w-0 flex-1 truncate">{s.nombre || 'Sin título'}</span>
+                <span className="font-mono text-[11px] text-tx3">{s.modulos.length}</span>
+                <ChevronDown
+                  size={15}
+                  strokeWidth={2}
+                  aria-hidden
+                  className={`shrink-0 text-tx3 ${abierta ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              <div id={idPanel} hidden={!abierta} className="flex flex-col gap-2">
+                {s.modulos.map((m) => {
+                  const Icono = ICONO_MODULO[m.tipo] ?? File;
+                  return (
+                    <a
+                      key={m.id}
+                      href={m.url}
+                      target="_blank"
+                      rel="noopener"
+                      className="flex min-h-[54px] items-start gap-3 rounded-[13px] border border-bor bg-sup px-[14px] py-3"
+                    >
+                      <Icono
+                        size={16}
+                        strokeWidth={2}
+                        aria-hidden
+                        className="mt-[2px] shrink-0 text-tx3"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-acc">{m.nombre}</span>
+                        {/* line-clamp-2 ya pone display:-webkit-box: sumarle
+                            `block` lo pisa y la descripción se vería entera. */}
+                        {m.descripcion && (
+                          <span className="mt-[3px] line-clamp-2 text-[13px] leading-[1.45] text-tx2">
+                            {m.descripcion}
+                          </span>
+                        )}
+                      </span>
+                      <ArrowUpRight
+                        size={15}
+                        strokeWidth={2}
+                        aria-hidden
+                        className="mt-[2px] shrink-0 text-tx3"
+                      />
+                    </a>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
