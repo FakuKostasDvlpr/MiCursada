@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/blu-design-system-47477865-7581-4479-9a2c-8804ce765b6d/sections/pro/pro-app.css">
+  <link rel="stylesheet" href="_ds/blu-design-system-47477865-7581-4479-9a2c-8804ce765b6d/styles.css">
+  <script src="_ds/blu-design-system-47477865-7581-4479-9a2c-8804ce765b6d/_ds_bundle.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#020617;--sup:#0f172a;--bor:#1e293b;--bor2:#334155;--tx:#e2e8f0;--tx2:#94a3b8;--tx3:#64748b;--tx4:#475569;--acc:#fbbf24;--scrim:rgba(2,6,23,.72);--navbg:rgba(2,6,23,.93);}
+html[data-tema="claro"]{--bg:#f1f5f9;--sup:#ffffff;--bor:#e2e8f0;--bor2:#cbd5e1;--tx:#0f172a;--tx2:#475569;--tx3:#64748b;--tx4:#94a3b8;--acc:#b45309;--scrim:rgba(15,23,42,.4);--navbg:rgba(241,245,249,.93);}
+html[data-tema="claro"] body{color-scheme:light;}
+html{background:var(--bg);}
+    html,body{overflow-x:hidden !important;overflow-y:auto !important;height:auto !important;min-height:100% !important;}
+    #root{overflow:visible;height:auto;min-height:100%;}
+    body{margin:0;background:var(--bg);color:var(--tx);display:block;color-scheme:dark;font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+    *{box-sizing:border-box;}
+    a{color:var(--acc);}a:hover{color:#fde68a;}
+    :focus-visible{outline:2px solid #fbbf24;outline-offset:2px;border-radius:8px;}
+    input,textarea,select,button{font-family:inherit;}
+    ::placeholder{color:var(--tx4);opacity:1;}
+    @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+    @keyframes sheetUp{from{transform:translateY(26px);opacity:.4;}to{transform:none;opacity:1;}}
+  </style>
+</helmet>
+<div style="min-height:100dvh;background:var(--bg);color:var(--tx);">
+  <main style="max-width:720px;margin:0 auto;padding:26px 18px 130px;">
+
+    <sc-if value="{{ verLogin }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Login" style="min-height:calc(100dvh - 200px);display:flex;flex-direction:column;justify-content:center;max-width:360px;margin:0 auto;padding:30px 0;">
+        <div style="width:54px;height:54px;border-radius:16px;background:#fbbf24;color:#221a00;display:grid;place-items:center;margin:0 auto;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"></path></svg>
+        </div>
+        <div style="text-align:center;margin-top:18px;">
+          <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Mi cursada · Turno noche</div>
+          <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Entrá a tu cursada</h1>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:26px;">
+          <input type="email" value="{{ emailTxt }}" onChange="{{ setEmail }}" placeholder="Tu correo" style="width:100%;min-height:48px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+          <input type="password" value="{{ passTxt }}" onChange="{{ setPass }}" placeholder="Tu contraseña" style="width:100%;min-height:48px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+          <button onClick="{{ entrar }}" style="margin-top:4px;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:15px;min-height:48px;cursor:pointer;">Entrar</button>
+        </div>
+        <button style="margin-top:14px;background:none;border:none;color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;min-height:44px;">¿Te olvidaste la contraseña?</button>
+        <div style="text-align:center;margin-top:20px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx4);">demo — entrá con cualquier correo</div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verPerfil }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Perfil inicial" style="max-width:400px;margin:0 auto;padding:26px 0;">
+        <div style="text-align:center;">
+          <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Tu perfil</div>
+          <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Contanos quién sos</h1>
+        </div>
+        <div style="position:relative;width:104px;margin:26px auto 0;">
+          <div style="width:104px;height:104px;border-radius:99px;display:grid;place-items:center;font-size:34px;font-weight:800;background:{{ avatarBg }};color:{{ avatarCol }};box-shadow:{{ avatarRing }};">
+            <sc-if value="{{ tieneIniciales }}" hint-placeholder-val="{{ false }}">{{ iniciales }}</sc-if>
+            <sc-if value="{{ sinIniciales }}" hint-placeholder-val="{{ true }}">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg>
+            </sc-if>
+          </div>
+          <sc-if value="{{ fotoLista }}" hint-placeholder-val="{{ false }}">
+            <span style="position:absolute;right:-2px;bottom:-2px;width:30px;height:30px;border-radius:99px;background:#34d399;color:var(--bg);border:3px solid var(--bg);display:grid;place-items:center;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+            </span>
+          </sc-if>
+        </div>
+        <div style="display:flex;justify-content:center;margin-top:16px;">
+          <button onClick="{{ tomarFoto }}" style="display:inline-flex;align-items:center;gap:8px;background:var(--sup);border:1px solid var(--bor2);border-radius:12px;color:var(--tx);font-size:13.5px;font-weight:700;min-height:44px;padding:0 16px;cursor:pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            {{ fotoLabel }}
+          </button>
+        </div>
+        <div style="text-align:center;margin-top:8px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx4);">cámara de muestra — solo UI</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:22px;">
+          <input value="{{ perfilNombre }}" onChange="{{ setPerfilNombre }}" placeholder="Tu nombre" style="width:100%;min-height:48px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+          <input value="{{ perfilInsti }}" onChange="{{ setPerfilInsti }}" placeholder="Instituto (opcional)" style="width:100%;min-height:48px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+        </div>
+        <sc-if value="{{ perfilErrorHay }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:10px;font-size:13px;color:#fb7185;text-align:center;">{{ perfilError }}</div>
+        </sc-if>
+        <button onClick="{{ empezar }}" style="width:100%;margin-top:16px;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:15px;min-height:48px;cursor:pointer;">Empezar</button>
+        <button onClick="{{ volverLogin }}" style="width:100%;margin-top:8px;background:none;border:none;color:var(--tx3);font-size:13px;font-weight:600;cursor:pointer;min-height:44px;">Volver</button>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verHoy }}" hint-placeholder-val="{{ true }}">
+      <section data-screen-label="Hoy">
+        <header style="display:flex;align-items:flex-start;gap:10px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Mi cursada · Turno noche</div>
+            <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-.015em;">{{ fechaLarga }}</h1>
+          </div>
+          <button onClick="{{ toggleTema }}" aria-label="Cambiar tema" style="width:40px;height:40px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;color:var(--tx2);cursor:pointer;display:grid;place-items:center;flex-shrink:0;">
+            <sc-if value="{{ esOscuro }}" hint-placeholder-val="{{ true }}">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M4.9 4.9l1.4 1.4"></path><path d="M17.7 17.7l1.4 1.4"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="M4.9 19.1l1.4-1.4"></path><path d="M17.7 6.3l1.4-1.4"></path></svg>
+            </sc-if>
+            <sc-if value="{{ esClaro }}" hint-placeholder-val="{{ false }}">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"></path></svg>
+            </sc-if>
+          </button>
+          <button onClick="{{ editarPerfil }}" aria-label="Tu perfil" style="width:40px;height:40px;border-radius:99px;background:#fbbf24;color:#221a00;border:none;font-weight:800;font-size:13px;cursor:pointer;flex-shrink:0;">{{ iniciales }}</button>
+        </header>
+
+        <sc-if value="{{ sinMaterias }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:22px;background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:26px 20px;text-align:center;">
+            <div style="font-size:16px;font-weight:700;">Cargá tus materias</div>
+            <div style="margin-top:6px;font-size:13.5px;color:var(--tx2);">Armá tu semana con horarios, notas y avisos.</div>
+            <button onClick="{{ abrirModalMateria }}" style="margin-top:16px;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14px;min-height:46px;padding:0 20px;cursor:pointer;">Nueva materia</button>
+          </div>
+        </sc-if>
+
+        <div style="margin-top:20px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+          <sc-if value="{{ hayHero }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ heroAbrir }}" style="grid-column:1 / -1;width:100%;text-align:left;background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:16px;display:flex;gap:14px;cursor:pointer;color:var(--tx);">
+              <span style="width:4px;border-radius:99px;background:{{ heroColor }};flex-shrink:0;align-self:stretch;"></span>
+              <span style="flex:1;min-width:0;display:block;">
+                <span style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">{{ heroKicker }}</span>
+                <span style="display:block;font-size:21px;font-weight:800;letter-spacing:-.01em;line-height:1.2;margin-top:8px;">{{ heroNombre }}</span>
+                <span style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-top:8px;">
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:17px;font-weight:600;">{{ heroHorario }}</span>
+                  <span style="font-size:13px;color:var(--tx2);">{{ heroAula }}</span>
+                </span>
+                <span style="display:block;margin-top:10px;font-size:13.5px;font-weight:600;color:{{ heroColor }};">{{ heroEstado }}</span>
+              </span>
+            </button>
+          </sc-if>
+          <button onClick="{{ irSemana }}" style="background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:14px;text-align:left;cursor:pointer;color:var(--tx);display:flex;flex-direction:column;gap:6px;min-height:106px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Clases hoy</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:32px;font-weight:600;line-height:1;margin-top:auto;">{{ statClasesN }}</span>
+            <span style="font-size:12px;color:var(--tx3);">{{ statClasesSub }}</span>
+          </button>
+          <button onClick="{{ verTodos }}" style="background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:14px;text-align:left;cursor:pointer;color:var(--tx);display:flex;flex-direction:column;gap:6px;min-height:106px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Pendientes</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:32px;font-weight:600;line-height:1;margin-top:auto;color:{{ colStatPend }};">{{ statPendN }}</span>
+            <span style="font-size:12px;color:var(--tx3);">{{ statPendSub }}</span>
+          </button>
+          <div style="grid-column:1 / -1;background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:14px;">
+            <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);margin-bottom:10px;">Clases de hoy</div>
+            <sc-if value="{{ sinClasesHoy }}" hint-placeholder-val="{{ false }}">
+              <div style="border:1px dashed var(--bor);border-radius:12px;padding:16px;text-align:center;color:var(--tx3);font-size:13.5px;">Hoy no cursás. Aprovechá para ponerte al día.</div>
+            </sc-if>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <sc-for list="{{ hoyClases }}" as="c" hint-placeholder-count="2">
+                <button onClick="{{ c.abrir }}" style="display:flex;align-items:center;gap:12px;width:100%;min-height:50px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left;color:var(--tx);opacity:{{ c.op }};">
+                  <span style="width:8px;height:8px;border-radius:99px;background:{{ c.color }};flex-shrink:0;"></span>
+                  <span style="flex:1;min-width:0;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.nombre }}</span>
+                  <span style="font-size:12px;color:var(--tx3);">{{ c.aula }}</span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;color:{{ c.hColor }};white-space:nowrap;">{{ c.horario }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="grid-column:1 / -1;background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Próximos avisos</div>
+              <button onClick="{{ verTodos }}" style="background:none;border:none;color:var(--acc);font-size:13px;font-weight:700;cursor:pointer;min-height:44px;padding:0 4px;">Ver todos</button>
+            </div>
+            <sc-if value="{{ sinAvisosHoy }}" hint-placeholder-val="{{ false }}">
+              <div style="border:1px dashed var(--bor);border-radius:12px;padding:16px;text-align:center;color:var(--tx3);font-size:13.5px;">Nada pendiente. Tranquilo.</div>
+            </sc-if>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <sc-for list="{{ avisosHoy }}" as="a" hint-placeholder-count="2">
+                <button onClick="{{ a.toggle }}" style="display:flex;align-items:center;gap:12px;width:100%;min-height:52px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:8px 12px;cursor:pointer;text-align:left;color:var(--tx);">
+                  <span style="width:20px;height:20px;border-radius:99px;border:2px solid var(--bor2);flex-shrink:0;"></span>
+                  <span style="flex:1;min-width:0;display:block;">
+                    <span style="display:block;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.titulo }}</span>
+                    <span style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+                      <span style="width:6px;height:6px;border-radius:99px;background:{{ a.matColor }};"></span>
+                      <span style="font-size:12px;color:var(--tx3);">{{ a.matNombre }}</span>
+                    </span>
+                  </span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:{{ a.fCol }};white-space:nowrap;">{{ a.fechaTxt }} {{ a.suf }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <sc-if value="{{ mostrarSync }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:34px;display:flex;align-items:center;justify-content:center;gap:8px;">
+            <span style="width:6px;height:6px;border-radius:99px;background:#34d399;"></span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">Sincronizado con el aula virtual · hace 2 h</span>
+          </div>
+        </sc-if>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verSemana }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Semana">
+        <header style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+          <h1 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Semana</h1>
+          <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:var(--tx3);">{{ semanaRango }}</div>
+        </header>
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
+          <sc-for list="{{ dias }}" as="d" hint-placeholder-count="6">
+            <div style="background:var(--sup);border:1px solid {{ d.borde }};border-radius:14px;padding:12px 14px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:14px;font-weight:700;">{{ d.nombre }}</span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;color:var(--tx3);">{{ d.fecha }}</span>
+                <sc-if value="{{ d.esHoy }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;background:#fbbf24;color:#221a00;border-radius:99px;padding:3px 9px;">hoy</span>
+                </sc-if>
+              </div>
+              <sc-if value="{{ d.libre }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:8px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;color:var(--tx4);">— libre</div>
+              </sc-if>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
+                <sc-for list="{{ d.clases }}" as="c" hint-placeholder-count="1">
+                  <button onClick="{{ c.abrir }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:44px;background:var(--bg);border:1px solid var(--bor);border-radius:11px;padding:9px 12px;cursor:pointer;text-align:left;color:var(--tx);">
+                    <span style="width:8px;height:8px;border-radius:99px;background:{{ c.color }};flex-shrink:0;"></span>
+                    <span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.nombre }}</span>
+                    <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:var(--tx2);white-space:nowrap;">{{ c.horario }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verMaterias }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Materias">
+        <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <h1 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Materias</h1>
+          <button onClick="{{ abrirModalMateria }}" style="background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14px;min-height:44px;padding:0 16px;cursor:pointer;">+ Nueva</button>
+        </header>
+        <sc-if value="{{ sinMaterias }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:20px;border:1px dashed var(--bor);border-radius:16px;padding:28px 20px;text-align:center;color:var(--tx3);font-size:13.5px;">Todavía no cargaste materias. Empezá por acá arriba.</div>
+        </sc-if>
+        <div style="margin-top:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:12px;">
+          <sc-for list="{{ materias }}" as="m" hint-placeholder-count="4">
+            <button onClick="{{ m.abrir }}" style="background:var(--sup);border:1px solid var(--bor);border-radius:14px;padding:14px;text-align:left;cursor:pointer;color:var(--tx);display:flex;flex-direction:column;gap:10px;min-height:128px;">
+              <span style="display:flex;gap:9px;align-items:flex-start;">
+                <span style="width:8px;height:8px;border-radius:99px;background:{{ m.color }};flex-shrink:0;margin-top:5px;"></span>
+                <span style="font-size:15px;font-weight:700;line-height:1.3;">{{ m.nombre }}</span>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:3px;">
+                <sc-for list="{{ m.horarios }}" as="h" hint-placeholder-count="1">
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;color:var(--tx2);">{{ h.txt }}</span>
+                </sc-for>
+              </span>
+              <span style="margin-top:auto;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">{{ m.tNotas }} · {{ m.tArch }} · <span style="color:{{ m.avCol }};">{{ m.tAvisos }}</span></span>
+            </button>
+          </sc-for>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verAvisos }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Avisos">
+        <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <h1 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Avisos</h1>
+          <button onClick="{{ abrirModalAviso }}" style="background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14px;min-height:44px;padding:0 16px;cursor:pointer;">+ Nuevo</button>
+        </header>
+        <sc-if value="{{ sinPend }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:20px;border:1px dashed var(--bor);border-radius:16px;padding:28px 20px;text-align:center;color:var(--tx3);font-size:13.5px;">Nada pendiente. Tranquilo.</div>
+        </sc-if>
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px;">
+          <sc-for list="{{ pend }}" as="a" hint-placeholder-count="3">
+            <button onClick="{{ a.toggle }}" style="display:flex;align-items:center;gap:12px;width:100%;min-height:58px;background:var(--sup);border:1px solid var(--bor);border-radius:13px;padding:10px 14px;cursor:pointer;text-align:left;color:var(--tx);">
+              <span style="width:20px;height:20px;border-radius:99px;border:2px solid var(--bor2);flex-shrink:0;"></span>
+              <span style="flex:1;min-width:0;display:block;">
+                <span style="display:block;font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.titulo }}</span>
+                <span style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+                  <span style="width:6px;height:6px;border-radius:99px;background:{{ a.matColor }};"></span>
+                  <span style="font-size:12px;color:var(--tx3);">{{ a.matNombre }}</span>
+                </span>
+              </span>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:{{ a.fCol }};white-space:nowrap;">{{ a.fechaTxt }} {{ a.suf }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <sc-if value="{{ hayHechos }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:28px;">
+            <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);margin-bottom:10px;">Hechos</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ hechos }}" as="a" hint-placeholder-count="2">
+                <button onClick="{{ a.toggle }}" style="display:flex;align-items:center;gap:12px;width:100%;min-height:54px;background:var(--sup);border:1px solid var(--bor);border-radius:13px;padding:10px 14px;cursor:pointer;text-align:left;color:var(--tx);opacity:.5;">
+                  <span style="width:20px;height:20px;border-radius:99px;background:var(--bor2);border:2px solid var(--bor2);flex-shrink:0;display:grid;place-items:center;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--sup)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+                  </span>
+                  <span style="flex:1;min-width:0;display:block;">
+                    <span style="display:block;font-size:14.5px;font-weight:600;text-decoration:line-through;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.titulo }}</span>
+                    <span style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+                      <span style="width:6px;height:6px;border-radius:99px;background:{{ a.matColor }};"></span>
+                      <span style="font-size:12px;color:var(--tx3);">{{ a.matNombre }}</span>
+                    </span>
+                  </span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:var(--tx3);white-space:nowrap;">{{ a.fechaTxt }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verDetalle }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Detalle de materia">
+        <button onClick="{{ volver }}" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--acc);font-size:14px;font-weight:700;cursor:pointer;min-height:44px;padding:0 8px 0 0;margin-left:-2px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+          Volver
+        </button>
+        <div style="margin-top:12px;display:flex;gap:14px;">
+          <div style="width:4px;border-radius:99px;background:{{ detColor }};flex-shrink:0;"></div>
+          <div style="flex:1;min-width:0;">
+            <h1 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.015em;line-height:1.2;">{{ detNombre }}</h1>
+            <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--tx2);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg>
+                <span>{{ detProfe }}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--tx2);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                <span>{{ detAula }}</span>
+              </div>
+              <sc-for list="{{ detHorarios }}" as="h" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:9px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;color:var(--tx2);">{{ h.txt }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;border-bottom:1px solid var(--bor);margin-top:24px;">
+          <button onClick="{{ irTabNotas }}" style="flex:1;background:none;border:none;border-bottom:2px solid {{ bTabNotas }};margin-bottom:-1px;min-height:48px;padding:12px 4px;font-size:13.5px;font-weight:700;cursor:pointer;color:{{ colTabNotas }};">Notas <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;opacity:.85;">{{ nNotasDet }}</span></button>
+          <button onClick="{{ irTabArch }}" style="flex:1;background:none;border:none;border-bottom:2px solid {{ bTabArch }};margin-bottom:-1px;min-height:48px;padding:12px 4px;font-size:13.5px;font-weight:700;cursor:pointer;color:{{ colTabArch }};">Archivos <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;opacity:.85;">{{ nArchDet }}</span></button>
+          <button onClick="{{ irTabAv }}" style="flex:1;background:none;border:none;border-bottom:2px solid {{ bTabAv }};margin-bottom:-1px;min-height:48px;padding:12px 4px;font-size:13.5px;font-weight:700;cursor:pointer;color:{{ colTabAv }};">Avisos <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;opacity:.85;">{{ nAvDet }}</span></button>
+        </div>
+
+        <sc-if value="{{ detTabNotas }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+              <div style="display:inline-flex;background:var(--sup);border:1px solid var(--bor);border-radius:10px;padding:3px;gap:2px;">
+                <button onClick="{{ verDoc }}" style="min-height:36px;padding:0 14px;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;color:{{ colVDoc }};background:{{ bgVDoc }};">Documento</button>
+                <button onClick="{{ verKanban }}" style="min-height:36px;padding:0 14px;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;color:{{ colVKan }};background:{{ bgVKan }};">Tablero</button>
+              </div>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx4);">{{ pista }}</span>
+            </div>
+            <sc-if value="{{ vistaDoc }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:14px;display:flex;gap:8px;">
+                <input value="{{ nuevoTxt }}" onChange="{{ setNuevo }}" onKeyDown="{{ nuevoKey }}" placeholder="Anotá lo que dice el profe, o tocá /" style="flex:1;min-width:0;min-height:46px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:14.5px;color:var(--tx);">
+                <button onClick="{{ agregarNuevo }}" aria-label="Agregar bloque" style="width:46px;height:46px;flex-shrink:0;background:#fbbf24;border:none;border-radius:12px;color:#221a00;cursor:pointer;display:grid;place-items:center;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+                </button>
+              </div>
+              <sc-if value="{{ slashAbierto }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:8px;background:var(--sup);border:1px solid var(--bor2);border-radius:12px;overflow:hidden;padding:4px;">
+                  <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx4);padding:8px 10px 4px;">Bloques</div>
+                  <sc-for list="{{ slashOpts }}" as="op" hint-placeholder-count="3">
+                    <button onClick="{{ op.elegir }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 10px;background:none;border:none;border-radius:9px;cursor:pointer;text-align:left;color:var(--tx);" style-hover="background:var(--bor);">
+                      <span style="width:28px;height:28px;border-radius:8px;background:var(--bor);display:grid;place-items:center;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;color:var(--acc);flex-shrink:0;">{{ op.ic }}</span>
+                      <span style="flex:1;font-size:14px;font-weight:600;">{{ op.nombre }}</span>
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">{{ op.cmd }}</span>
+                    </button>
+                  </sc-for>
+                  <sc-if value="{{ sinSlash }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:10px 12px;font-size:13px;color:var(--tx3);">No hay ningún comando «/{{ slashQ }}».</div>
+                  </sc-if>
+                </div>
+              </sc-if>
+              <sc-if value="{{ sinNotasDet }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:14px;border:1px dashed var(--bor);border-radius:14px;padding:20px;text-align:center;color:var(--tx3);font-size:13.5px;">Sin notas todavía. Anotá lo que dice el profe acá — con / agregás títulos, tareas, links y divisores.</div>
+              </sc-if>
+              <div style="margin-top:12px;display:flex;flex-direction:column;">
+                <sc-for list="{{ detBloques }}" as="b" hint-placeholder-count="3">
+                  <div onDragOver="{{ b.dragOver }}" onDrop="{{ b.drop }}" style="display:flex;align-items:flex-start;gap:4px;padding:3px 0;border-top:2px solid {{ b.marca }};">
+                    <span draggable="true" onDragStart="{{ b.dragStart }}" onDragEnd="{{ b.dragEnd }}" title="Arrastrá para ordenar" style="width:24px;align-self:stretch;display:grid;place-items:center;cursor:grab;color:var(--bor2);flex-shrink:0;">
+                      <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="3.5" cy="3" r="1.4"></circle><circle cx="8.5" cy="3" r="1.4"></circle><circle cx="3.5" cy="8" r="1.4"></circle><circle cx="8.5" cy="8" r="1.4"></circle><circle cx="3.5" cy="13" r="1.4"></circle><circle cx="8.5" cy="13" r="1.4"></circle></svg>
+                    </span>
+                    <sc-if value="{{ b.esTitulo }}" hint-placeholder-val="{{ false }}">
+                      <textarea value="{{ b.texto }}" onChange="{{ b.setTexto }}" rows="{{ b.rows }}" autoFocus="{{ b.af }}" placeholder="Título…" style="flex:1;min-width:0;background:none;border:none;padding:6px 4px;color:var(--tx);font-family:inherit;font-size:17.5px;font-weight:800;line-height:1.35;resize:none;overflow:hidden;"></textarea>
+                    </sc-if>
+                    <sc-if value="{{ b.esTexto }}" hint-placeholder-val="{{ false }}">
+                      <textarea value="{{ b.texto }}" onChange="{{ b.setTexto }}" rows="{{ b.rows }}" autoFocus="{{ b.af }}" placeholder="Escribí…" style="flex:1;min-width:0;background:none;border:none;padding:7px 4px;color:{{ b.colTxt }};font-family:inherit;font-size:14.5px;line-height:1.5;resize:none;overflow:hidden;"></textarea>
+                    </sc-if>
+                    <sc-if value="{{ b.esTarea }}" hint-placeholder-val="{{ false }}">
+                      <span style="flex:1;min-width:0;display:flex;align-items:flex-start;gap:8px;">
+                        <button onClick="{{ b.toggle }}" aria-label="Marcar tarea" style="width:20px;height:20px;margin-top:9px;border-radius:7px;border:2px solid var(--bor2);background:{{ b.cirBg }};flex-shrink:0;cursor:pointer;display:grid;place-items:center;padding:0;">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ b.checkOp }};"><path d="M20 6L9 17l-5-5"></path></svg>
+                        </button>
+                        <textarea value="{{ b.texto }}" onChange="{{ b.setTexto }}" rows="{{ b.rows }}" autoFocus="{{ b.af }}" placeholder="Tarea…" style="flex:1;min-width:0;background:none;border:none;padding:7px 0;color:{{ b.colTxt }};font-family:inherit;font-size:14.5px;line-height:1.5;resize:none;overflow:hidden;text-decoration:{{ b.deco }};"></textarea>
+                      </span>
+                    </sc-if>
+                    <sc-if value="{{ b.esDivisor }}" hint-placeholder-val="{{ false }}">
+                      <span style="flex:1;align-self:center;height:1px;background:var(--bor);margin:14px 4px;"></span>
+                    </sc-if>
+                    <sc-if value="{{ b.esLink }}" hint-placeholder-val="{{ false }}">
+                      <span style="flex:1;min-width:0;display:block;padding:3px 0;">
+                        <sc-if value="{{ b.urlOk }}" hint-placeholder-val="{{ false }}">
+                          <a href="{{ b.url }}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:10px 12px;text-decoration:none;min-height:52px;">
+                            <span style="width:20px;height:20px;border-radius:5px;flex-shrink:0;background:var(--bor) center / cover no-repeat;background-image:url('{{ b.favicon }}');"></span>
+                            <span style="flex:1;min-width:0;display:block;">
+                              <span style="display:block;font-size:14px;font-weight:600;color:var(--acc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ b.tituloLink }}</span>
+                              <span style="display:block;margin-top:2px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ b.dominio }}</span>
+                            </span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg>
+                          </a>
+                        </sc-if>
+                        <sc-if value="{{ b.urlPend }}" hint-placeholder-val="{{ false }}">
+                          <span style="display:flex;flex-direction:column;gap:6px;background:var(--sup);border:1px dashed var(--bor2);border-radius:12px;padding:10px 12px;">
+                            <input value="{{ b.texto }}" onChange="{{ b.setTexto }}" autoFocus="{{ b.af }}" placeholder="Nombre del link" style="width:100%;background:none;border:none;padding:4px 2px;font-size:14px;font-weight:600;color:var(--tx);">
+                            <input value="{{ b.url }}" onChange="{{ b.setUrl }}" onBlur="{{ b.fijarUrl }}" onKeyDown="{{ b.urlKey }}" placeholder="Pegá el link y dale Enter" style="width:100%;background:none;border:none;padding:4px 2px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:var(--tx2);">
+                          </span>
+                        </sc-if>
+                      </span>
+                    </sc-if>
+                    <button onClick="{{ b.cicloEstado }}" title="{{ b.estadoNombre }}" style="width:26px;height:34px;background:none;border:none;cursor:pointer;display:grid;place-items:center;flex-shrink:0;padding:0;">
+                      <span style="width:8px;height:8px;border-radius:99px;background:{{ b.estadoColor }};"></span>
+                    </button>
+                    <button onClick="{{ b.borrar }}" aria-label="Borrar bloque" style="width:26px;height:34px;background:none;border:none;color:var(--bor2);cursor:pointer;display:grid;place-items:center;flex-shrink:0;padding:0;" style-hover="color:#fb7185;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ vistaKanban }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:14px;overflow-x:auto;padding-bottom:6px;">
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(218px,1fr));gap:10px;min-width:680px;">
+                  <sc-for list="{{ kanbanCols }}" as="k" hint-placeholder-count="3">
+                    <div onDragOver="{{ k.dragOver }}" onDrop="{{ k.drop }}" style="background:var(--sup);border:1px solid {{ k.borde }};border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:190px;">
+                      <div style="display:flex;align-items:center;gap:8px;padding:2px 4px;">
+                        <span style="width:8px;height:8px;border-radius:99px;background:{{ k.color }};"></span>
+                        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx2);">{{ k.nombre }}</span>
+                        <span style="margin-left:auto;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx4);">{{ k.n }}</span>
+                      </div>
+                      <sc-for list="{{ k.cards }}" as="c" hint-placeholder-count="2">
+                        <div style="background:var(--bg);border:1px solid var(--bor);border-radius:11px;padding:8px 10px;">
+                          <textarea value="{{ c.texto }}" onChange="{{ c.setTexto }}" rows="{{ c.rows }}" autoFocus="{{ c.af }}" placeholder="Escribí…" style="width:100%;background:none;border:none;padding:2px;color:var(--tx);font-family:inherit;font-size:13.5px;font-weight:600;line-height:1.45;resize:none;overflow:hidden;text-decoration:{{ c.deco }};"></textarea>
+                          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+                            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--tx4);">{{ c.fechaTxt }} · {{ c.tipoTxt }}</span>
+                            <span draggable="true" onDragStart="{{ c.dragStart }}" title="Arrastrá a otra columna" style="margin-left:auto;width:28px;height:24px;display:grid;place-items:center;cursor:grab;color:var(--bor2);">
+                              <svg width="12" height="12" viewBox="0 0 12 16" fill="currentColor"><circle cx="3.5" cy="3" r="1.4"></circle><circle cx="8.5" cy="3" r="1.4"></circle><circle cx="3.5" cy="8" r="1.4"></circle><circle cx="8.5" cy="8" r="1.4"></circle><circle cx="3.5" cy="13" r="1.4"></circle><circle cx="8.5" cy="13" r="1.4"></circle></svg>
+                            </span>
+                          </div>
+                        </div>
+                      </sc-for>
+                      <button onClick="{{ k.agregar }}" style="min-height:40px;border:1px dashed var(--bor2);background:none;border-radius:10px;color:var(--tx3);font-size:12.5px;font-weight:600;cursor:pointer;">+ Agregar</button>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ detTabArch }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:16px;">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <input value="{{ archNombre }}" onChange="{{ setArchNombre }}" placeholder="Nombre (ej: Guía 5 PDF)" style="width:100%;min-height:46px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:14.5px;color:var(--tx);">
+              <div style="display:flex;gap:8px;">
+                <input value="{{ archUrl }}" onChange="{{ setArchUrl }}" placeholder="Pegá el link acá" style="flex:1;min-width:0;min-height:46px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:14.5px;color:var(--tx);">
+                <button onClick="{{ agregarArchivo }}" style="background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14px;min-height:46px;padding:0 16px;cursor:pointer;flex-shrink:0;">Agregar</button>
+              </div>
+            </div>
+            <sc-if value="{{ sinArchDet }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:14px;border:1px dashed var(--bor);border-radius:14px;padding:20px;text-align:center;color:var(--tx3);font-size:13.5px;">Sin archivos todavía. Guardá los PDFs y links de la materia acá.</div>
+            </sc-if>
+            <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ detArchivos }}" as="f" hint-placeholder-count="2">
+                <a href="{{ f.url }}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:12px 14px;min-height:54px;text-decoration:none;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>
+                  <span style="flex:1;min-width:0;display:block;">
+                    <span style="display:block;font-size:14px;font-weight:600;color:var(--acc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ f.nombre }}</span>
+                    <span style="display:block;margin-top:2px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ f.url }}</span>
+                  </span>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg>
+                </a>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ detTabAv }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:16px;">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <input value="{{ daTitulo }}" onChange="{{ setDaTitulo }}" placeholder="Título (ej: Entrega del TP)" style="width:100%;min-height:46px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:14.5px;color:var(--tx);">
+              <div style="display:flex;gap:8px;">
+                <input type="date" value="{{ daFecha }}" onChange="{{ setDaFecha }}" style="flex:1;min-width:0;min-height:46px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:14px;color:var(--tx);font-family:'JetBrains Mono',ui-monospace,monospace;">
+                <button onClick="{{ agregarAvisoDet }}" style="background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14px;min-height:46px;padding:0 16px;cursor:pointer;flex-shrink:0;">Agregar</button>
+              </div>
+            </div>
+            <sc-if value="{{ sinAvDet }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:14px;border:1px dashed var(--bor);border-radius:14px;padding:20px;text-align:center;color:var(--tx3);font-size:13.5px;">Nada pendiente para esta materia.</div>
+            </sc-if>
+            <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ detAvisos }}" as="a" hint-placeholder-count="2">
+                <button onClick="{{ a.toggle }}" style="display:flex;align-items:center;gap:12px;width:100%;min-height:54px;background:var(--sup);border:1px solid var(--bor);border-radius:13px;padding:10px 14px;cursor:pointer;text-align:left;color:var(--tx);opacity:{{ a.op }};">
+                  <span style="width:20px;height:20px;border-radius:99px;border:2px solid var(--bor2);background:{{ a.cirBg }};flex-shrink:0;"></span>
+                  <span style="flex:1;min-width:0;font-size:14.5px;font-weight:600;text-decoration:{{ a.deco }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.titulo }}</span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:{{ a.fCol }};white-space:nowrap;">{{ a.fechaTxt }} {{ a.suf }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <button onClick="{{ eliminar }}" style="{{ delStyle }}">{{ delLabel }}</button>
+      </section>
+    </sc-if>
+  </main>
+
+  <sc-if value="{{ verApp }}" hint-placeholder-val="{{ true }}"><nav style="position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--navbg);backdrop-filter:blur(14px);border-top:1px solid var(--bor);padding-bottom:env(safe-area-inset-bottom);">
+    <div style="max-width:720px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);">
+      <button onClick="{{ irHoy }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 12px;font-size:11px;font-weight:700;color:{{ colHoy }};min-height:56px;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"></path></svg>
+        Hoy
+      </button>
+      <button onClick="{{ irSemana }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 12px;font-size:11px;font-weight:700;color:{{ colSemana }};min-height:56px;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18"></path><path d="M8 3v4"></path><path d="M16 3v4"></path></svg>
+        Semana
+      </button>
+      <button onClick="{{ irMaterias }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 12px;font-size:11px;font-weight:700;color:{{ colMaterias }};min-height:56px;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        Materias
+      </button>
+      <button onClick="{{ irAvisos }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 12px;font-size:11px;font-weight:700;color:{{ colAvisos }};min-height:56px;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+        Avisos
+      </button>
+    </div>
+  </nav></sc-if>
+
+  <sc-if value="{{ modalMateria }}" hint-placeholder-val="{{ false }}">
+    <div style="{{ ovStyle }}" onClick="{{ cerrarModal }}">
+      <div style="{{ panelStyle }}" onClick="{{ frenar }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+          <div style="font-size:17px;font-weight:800;">Nueva materia</div>
+          <button onClick="{{ cerrarModal }}" aria-label="Cerrar" style="background:none;border:none;color:var(--tx3);cursor:pointer;width:44px;height:44px;display:grid;place-items:center;margin-right:-12px;border-radius:12px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div>
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Nombre</label>
+            <input value="{{ mNombre }}" onChange="{{ setMNombre }}" placeholder="Ej: Análisis Matemático" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+          </div>
+          <div style="display:flex;gap:10px;">
+            <div style="flex:1.4;min-width:0;">
+              <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Profe</label>
+              <input value="{{ mProfe }}" onChange="{{ setMProfe }}" placeholder="Nombre del profe" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+            </div>
+            <div style="flex:1;min-width:0;">
+              <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Aula</label>
+              <input value="{{ mAula }}" onChange="{{ setMAula }}" placeholder="Ej: Aula 12" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+            </div>
+          </div>
+          <div>
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:9px;">Color</label>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <sc-for list="{{ colores }}" as="c" hint-placeholder-count="6">
+                <button onClick="{{ c.elegir }}" aria-label="{{ c.nombre }}" style="width:34px;height:34px;border-radius:99px;border:none;cursor:pointer;background:{{ c.hex }};box-shadow:{{ c.ring }};"></button>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:9px;">Horarios</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+              <sc-for list="{{ chips }}" as="ch" hint-placeholder-count="1">
+                <span style="display:inline-flex;align-items:center;gap:4px;background:var(--bor);border-radius:99px;padding:6px 6px 6px 12px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;">
+                  {{ ch.txt }}
+                  <button onClick="{{ ch.quitar }}" aria-label="Quitar horario" style="background:none;border:none;color:var(--tx2);cursor:pointer;width:24px;height:24px;display:grid;place-items:center;border-radius:99px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                  </button>
+                </span>
+              </sc-for>
+            </div>
+            <select value="{{ mDia }}" onChange="{{ setMDia }}" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 12px;font-size:15px;color:var(--tx);">
+              <option value="1">Lunes</option>
+              <option value="2">Martes</option>
+              <option value="3">Miércoles</option>
+              <option value="4">Jueves</option>
+              <option value="5">Viernes</option>
+              <option value="6">Sábado</option>
+            </select>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <input type="time" value="{{ mIni }}" onChange="{{ setMIni }}" style="flex:1;min-width:0;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 12px;font-size:14px;color:var(--tx);font-family:'JetBrains Mono',ui-monospace,monospace;">
+              <input type="time" value="{{ mFin }}" onChange="{{ setMFin }}" style="flex:1;min-width:0;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 12px;font-size:14px;color:var(--tx);font-family:'JetBrains Mono',ui-monospace,monospace;">
+              <button onClick="{{ agregarHorario }}" aria-label="Agregar horario" style="width:46px;height:46px;flex-shrink:0;background:var(--bor);border:1px solid var(--bor2);border-radius:12px;color:var(--acc);cursor:pointer;display:grid;place-items:center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              </button>
+            </div>
+          </div>
+          <sc-if value="{{ mErrorHay }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:13px;color:#fb7185;">{{ mError }}</div>
+          </sc-if>
+          <div style="display:flex;gap:10px;margin-top:2px;">
+            <button onClick="{{ cerrarModal }}" style="background:none;border:1px solid var(--bor2);color:var(--tx2);border-radius:12px;font-weight:700;font-size:14px;min-height:48px;padding:0 18px;cursor:pointer;">Cancelar</button>
+            <button onClick="{{ guardarMateria }}" style="flex:1;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14.5px;min-height:48px;cursor:pointer;">Guardar materia</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ modalAviso }}" hint-placeholder-val="{{ false }}">
+    <div style="{{ ovStyle }}" onClick="{{ cerrarModal }}">
+      <div style="{{ panelStyle }}" onClick="{{ frenar }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+          <div style="font-size:17px;font-weight:800;">Nuevo aviso</div>
+          <button onClick="{{ cerrarModal }}" aria-label="Cerrar" style="background:none;border:none;color:var(--tx3);cursor:pointer;width:44px;height:44px;display:grid;place-items:center;margin-right:-12px;border-radius:12px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div>
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Título</label>
+            <input value="{{ avTitulo }}" onChange="{{ setAvTitulo }}" placeholder="Ej: Entrega del TP2" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+          </div>
+          <div>
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Materia</label>
+            <select value="{{ avMateria }}" onChange="{{ setAvMateria }}" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 12px;font-size:15px;color:var(--tx);">
+              <option value="">General</option>
+              <sc-for list="{{ matOpts }}" as="o" hint-placeholder-count="2">
+                <option value="{{ o.id }}">{{ o.nombre }}</option>
+              </sc-for>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Fecha</label>
+            <input type="date" value="{{ avFecha }}" onChange="{{ setAvFecha }}" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:14px;color:var(--tx);font-family:'JetBrains Mono',ui-monospace,monospace;">
+          </div>
+          <sc-if value="{{ avErrorHay }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:13px;color:#fb7185;">{{ avError }}</div>
+          </sc-if>
+          <div style="display:flex;gap:10px;margin-top:2px;">
+            <button onClick="{{ cerrarModal }}" style="background:none;border:1px solid var(--bor2);color:var(--tx2);border-radius:12px;font-weight:700;font-size:14px;min-height:48px;padding:0 18px;cursor:pointer;">Cancelar</button>
+            <button onClick="{{ guardarAviso }}" style="flex:1;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14.5px;min-height:48px;cursor:pointer;">Guardar aviso</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:844},&quot;horaSimulada&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;datosDeEjemplo&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;mostrarSincronizacion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;}}">
+class Component extends DCLogic {
+  state = { tab:'hoy', detalleId:null, detalleTab:'notas', modal:null, now:Date.now(), rev:0, isMobile:true, armado:false,
+    pantalla:'login', emailTxt:'', passTxt:'', perfilNombre:'', perfilInsti:'', fotoTomada:false, perfilError:'', tema:'oscuro',
+    notaVista:'doc', nuevoTxt:'', focusId:null, dragIdx:null, overIdx:null, dragBloqueId:null, kanOver:null,
+    archNombre:'', archUrl:'', daTitulo:'', daFecha:'',
+    avTitulo:'', avMateria:'', avFecha:'', avError:'',
+    mNombre:'', mProfe:'', mAula:'', mColor:'#38bdf8', mHorarios:[], mDia:'1', mIni:'18:10', mFin:'19:40', mError:'' };
+  componentDidMount(){
+    this._t = setInterval(()=>this.setState({now:Date.now()}), 30000);
+    this._mq = window.matchMedia('(max-width: 640px)');
+    this._onMq = ()=>this.setState({isMobile:this._mq.matches});
+    try { this._mq.addEventListener('change', this._onMq); } catch(e) { this._mq.addListener(this._onMq); }
+    this._onMq();
+    try { const ui = JSON.parse(localStorage.getItem('miCursada.ui.v1')||'null');
+      if (ui) this.setState({tema:ui.tema||'oscuro', perfilNombre:ui.nombre||'', perfilInsti:ui.insti||'', fotoTomada:!!ui.foto, pantalla:ui.dentro?'app':'login'});
+    } catch(e) {}
+  }
+  guardarUI(extra){ const S = Object.assign({}, this.state, extra);
+    try { localStorage.setItem('miCursada.ui.v1', JSON.stringify({tema:S.tema, nombre:S.perfilNombre, insti:S.perfilInsti, foto:S.fotoTomada, dentro:S.pantalla==='app'})); } catch(e) {}
+    this.setState(extra); }
+  componentWillUnmount(){
+    clearInterval(this._t); clearTimeout(this._arm);
+    try { this._mq.removeEventListener('change', this._onMq); } catch(e) { this._mq.removeListener(this._onMq); }
+  }
+  clave(){ return (this.props.datosDeEjemplo ?? true) ? 'miCursada.demo.v2' : 'miCursada.propia.v1'; }
+  migrar(d){
+    (d.materias||[]).forEach(m=>{ if (!m.doc) m.doc = (m.notas||[]).map(n=>({id:n.id, tipo:'texto', texto:n.texto, fecha:n.fecha, estado:'pendiente', hecho:false, url:''})); });
+    return d;
+  }
+  bloque(d, mid, bid){ const m = d.materias.find(x=>x.id===mid); return (m && m.doc) ? m.doc.find(b=>b.id===bid) : null; }
+  cargar(k){
+    try { const raw = localStorage.getItem(k); if (raw) return this.migrar(JSON.parse(raw)); } catch(e) {}
+    const d = this.migrar(k.indexOf('demo') >= 0 ? this.semilla() : { materias:[], avisos:[] });
+    try { localStorage.setItem(k, JSON.stringify(d)); } catch(e) {}
+    return d;
+  }
+  guardar(){ try { localStorage.setItem(this._dataKey, JSON.stringify(this._data)); } catch(e) {} }
+  mutar(fn){ fn(this._data); this.guardar(); this.setState(s=>({rev:s.rev+1})); }
+  iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  min(hm){ const p = String(hm).split(':'); return (+p[0])*60 + (+p[1]); }
+  durTxt(m){ const h = Math.floor(m/60), r = m%60; if (h>0 && r>0) return h+' h '+r+' min'; if (h>0) return h+' h'; return r+' min'; }
+  ahora(){
+    const d = new Date(this.state.now);
+    const hs = String(this.props.horaSimulada || '').trim();
+    const m = hs.match(/^(\d{1,2}):(\d{2})$/);
+    if (m) d.setHours(+m[1], +m[2], 0, 0);
+    return d;
+  }
+  semilla(){
+    const h = new Date();
+    const rel = n => { const d = new Date(h); d.setDate(d.getDate()+n); return this.iso(d); };
+    const ts = n => Date.now() - n*864e5;
+    return {
+      materias:[
+        { id:'m1', nombre:'Análisis Matemático', profe:'Marcela Ruiz', aula:'Aula 12', color:'#38bdf8',
+          horarios:[{dia:1,ini:'18:10',fin:'19:40'},{dia:4,ini:'19:50',fin:'21:30'}],
+          doc:[
+            {id:'n0', tipo:'titulo', texto:'Parcial — unidades 1 a 3', fecha:ts(1), estado:'pendiente', hecho:false, url:''},
+            {id:'n1', tipo:'texto', texto:'Entra integración por partes. Repasar la guía 5, ejercicios 3 al 8.', fecha:ts(1), estado:'proceso', hecho:false, url:''},
+            {id:'n1b', tipo:'tarea', texto:'Rehacer el ejercicio 7 de la guía 5', fecha:ts(1), estado:'pendiente', hecho:false, url:''},
+            {id:'n1c', tipo:'tarea', texto:'Pedirle los apuntes de la clase pasada a Vale', fecha:ts(2), estado:'listo', hecho:true, url:''},
+            {id:'n1d', tipo:'link', texto:'Video — integración por partes', fecha:ts(2), estado:'proceso', hecho:false, url:'https://www.youtube.com/watch?v=ejemplo'},
+            {id:'n1e', tipo:'divisor', texto:'', fecha:ts(6), estado:'pendiente', hecho:false, url:''},
+            {id:'n2', tipo:'texto', texto:'El profe toma asistencia 18:15 en punto. Llevar la tabla de derivadas impresa.', fecha:ts(6), estado:'pendiente', hecho:false, url:''}],
+          archivos:[{id:'f1', nombre:'Guía 5 — Integrales (PDF)', url:'https://example.com/guia-5-integrales.pdf'}] },
+        { id:'m2', nombre:'Programación II', profe:'Diego Sosa', aula:'Lab 3', color:'#a78bfa',
+          horarios:[{dia:2,ini:'18:10',fin:'21:30'}],
+          doc:[
+            {id:'n3', tipo:'texto', texto:'TP2: se entrega por el aula virtual, en grupos de dos. Usar el repo de ejemplos como base.', fecha:ts(2), estado:'proceso', hecho:false, url:''},
+            {id:'n3b', tipo:'tarea', texto:'Armar el README del TP2', fecha:ts(1), estado:'pendiente', hecho:false, url:''},
+            {id:'n3c', tipo:'link', texto:'Repo de ejemplos en clase', fecha:ts(2), estado:'pendiente', hecho:false, url:'https://github.com/ejemplo/prog2-clases'}],
+          archivos:[
+            {id:'f2', nombre:'Consigna TP2', url:'https://example.com/tp2-consigna.pdf'},
+            {id:'f3', nombre:'Repo de ejemplos en clase', url:'https://github.com/ejemplo/prog2-clases'}] },
+        { id:'m3', nombre:'Base de Datos', profe:'Carla Méndez', aula:'Lab 2', color:'#34d399',
+          horarios:[{dia:4,ini:'18:10',fin:'19:40'},{dia:5,ini:'18:10',fin:'19:40'}],
+          notas:[], archivos:[{id:'f4', nombre:'Apunte — Modelo entidad-relación', url:'https://example.com/der-apunte.pdf'}] },
+        { id:'m4', nombre:'Inglés Técnico', profe:'Laura Paz', aula:'Aula 5', color:'#fb7185',
+          horarios:[{dia:3,ini:'19:00',fin:'21:00'}], notas:[], archivos:[] },
+        { id:'m5', nombre:'Práctica Profesional', profe:'Rubén Álvarez', aula:'Taller 1', color:'#f97316',
+          horarios:[{dia:5,ini:'19:50',fin:'21:30'}], notas:[], archivos:[] }
+      ],
+      avisos:[
+        {id:'a1', titulo:'Entrega TP2', materiaId:'m2', fecha:rel(-1), hecho:false},
+        {id:'a2', titulo:'Parcial — unidades 1 a 3', materiaId:'m1', fecha:rel(0), hecho:false},
+        {id:'a3', titulo:'Cuestionario del capítulo 4', materiaId:'m3', fecha:rel(4), hecho:false},
+        {id:'a4', titulo:'Feriado — no hay clases', materiaId:null, fecha:rel(8), hecho:false},
+        {id:'a5', titulo:'Comprar la carpeta de Práctica', materiaId:'m5', fecha:rel(-3), hecho:true},
+        {id:'a6', titulo:'Mandarle el mail al profe de Análisis', materiaId:'m1', fecha:rel(-5), hecho:true}
+      ]
+    };
+  }
+  renderVals(){
+    const key = this.clave();
+    if (this._dataKey !== key) { this._data = this.cargar(key); this._dataKey = key; }
+    const D = this._data, S = this.state;
+    try { document.documentElement.setAttribute('data-tema', S.tema); } catch(e) {}
+    const app = S.pantalla==='app';
+    const now = this.ahora();
+    const nowMin = now.getHours()*60 + now.getMinutes();
+    const hoyDia = now.getDay();
+    const hoyIso = this.iso(now);
+    const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const fechaLarga = DIAS[hoyDia]+' '+now.getDate()+' de '+MESES[now.getMonth()];
+    const matDe = id => D.materias.find(m=>m.id===id);
+    const abrir = id => () => this.setState({detalleId:id, detalleTab:'notas', armado:false, notaVista:'doc', nuevoTxt:'', focusId:null, archNombre:'', archUrl:'', daTitulo:'', daFecha:hoyIso});
+    const clasesDia = dia => {
+      const out = [];
+      D.materias.forEach(m => m.horarios.forEach(h => { if (h.dia === dia) out.push({m,h}); }));
+      out.sort((a,b)=>this.min(a.h.ini)-this.min(b.h.ini));
+      return out;
+    };
+    const deHoy = (hoyDia>=1 && hoyDia<=6) ? clasesDia(hoyDia) : [];
+    const hoyClases = deHoy.map(({m,h})=>{
+      const ini = this.min(h.ini), fin = this.min(h.fin);
+      const pasada = fin <= nowMin, enCurso = ini <= nowMin && nowMin < fin;
+      return { nombre:m.nombre, color:m.color, aula:m.aula, horario:h.ini+'–'+h.fin,
+        op: pasada ? '0.4' : '1', hColor: enCurso ? 'var(--acc)' : 'var(--tx2)', abrir:abrir(m.id) };
+    });
+    let hero = null;
+    for (let off = 0; off < 8 && !hero; off++) {
+      const dia = (hoyDia + off) % 7;
+      if (dia < 1 || dia > 6) continue;
+      const lista = clasesDia(dia);
+      for (const {m,h} of lista) {
+        if (off === 0) { if (this.min(h.fin) <= nowMin) continue; hero = {m,h,off,enCurso:this.min(h.ini)<=nowMin}; break; }
+        hero = {m,h,off,enCurso:false}; break;
+      }
+    }
+    let heroKicker='Próxima clase', heroEstado='', heroNombre='', heroHorario='', heroAula='', heroColor='var(--acc)', heroAbrir=()=>{};
+    if (hero) {
+      heroNombre = hero.m.nombre; heroHorario = hero.h.ini+'–'+hero.h.fin; heroAula = hero.m.aula; heroColor = hero.m.color; heroAbrir = abrir(hero.m.id);
+      if (hero.off === 0) heroEstado = hero.enCurso ? 'En curso — termina '+hero.h.fin : 'Empieza en '+this.durTxt(this.min(hero.h.ini)-nowMin);
+      else if (hero.off === 1) heroEstado = 'Mañana a las '+hero.h.ini;
+      else heroEstado = 'El '+DIAS[(hoyDia+hero.off)%7].toLowerCase()+' a las '+hero.h.ini;
+    }
+    const fmtF = f => { const p = String(f).split('-'); return p[2]+'/'+p[1]; };
+    const avVm = a => {
+      const m = a.materiaId ? matDe(a.materiaId) : null;
+      const venc = !a.hecho && a.fecha < hoyIso, esHoy = !a.hecho && a.fecha === hoyIso;
+      return { titulo:a.titulo, matNombre:m?m.nombre:'General', matColor:m?m.color:'var(--tx3)',
+        fechaTxt:fmtF(a.fecha), suf: venc?'· vencido':esHoy?'· hoy':'',
+        fCol: venc?'#fb7185':esHoy?'var(--acc)':'var(--tx3)',
+        op: a.hecho?'0.5':'1', deco: a.hecho?'line-through':'none', cirBg: a.hecho?'var(--bor2)':'transparent',
+        toggle: ()=>this.mutar(d=>{ const x = d.avisos.find(v=>v.id===a.id); if (x) x.hecho = !x.hecho; }) };
+    };
+    const pendRaw = D.avisos.filter(a=>!a.hecho).sort((a,b)=>a.fecha<b.fecha?-1:1);
+    const pend = pendRaw.map(avVm);
+    const hechos = D.avisos.filter(a=>a.hecho).sort((a,b)=>a.fecha<b.fecha?1:-1).map(avVm);
+    const iniciales = S.perfilNombre.trim().split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+    const quedanHoy = deHoy.filter(({h})=>this.min(h.fin)>nowMin).length;
+    const statClasesN = String(deHoy.length);
+    const statClasesSub = deHoy.length===0 ? 'día libre' : (quedanHoy===0 ? 'ya terminaste' : (quedanHoy===deHoy.length ? 'todas por delante' : 'quedan '+quedanHoy));
+    const vencidosN = pendRaw.filter(a=>a.fecha<hoyIso).length;
+    const statPendN = String(pendRaw.length);
+    const statPendSub = pendRaw.length===0 ? 'al día' : (vencidosN>0 ? (vencidosN===1?'1 vencido':vencidosN+' vencidos') : 'nada vencido');
+    const colStatPend = pendRaw.length>0 ? 'var(--acc)' : 'var(--tx)';
+    const offLunes = hoyDia === 0 ? -1 : hoyDia - 1;
+    const lunes = new Date(now); lunes.setDate(now.getDate()-offLunes);
+    const dias = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(lunes); d.setDate(lunes.getDate()+i);
+      const nd = i+1;
+      const cls = clasesDia(nd);
+      dias.push({ nombre:DIAS[nd], esHoy: nd===hoyDia,
+        fecha: String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'),
+        borde: nd===hoyDia ? 'var(--acc)' : 'var(--bor)', libre: cls.length===0,
+        clases: cls.map(({m,h})=>({nombre:m.nombre,color:m.color,horario:h.ini+'–'+h.fin,abrir:abrir(m.id)})) });
+    }
+    const nTxt = (n,s,p) => n+' '+(n===1?s:p);
+    const materias = D.materias.map(m => {
+      const nA = D.avisos.filter(a=>a.materiaId===m.id && !a.hecho).length;
+      return { nombre:m.nombre, color:m.color,
+        horarios: m.horarios.map(h=>({txt: DIAS[h.dia].slice(0,3)+' '+h.ini+'–'+h.fin})),
+        tNotas:nTxt((m.doc||[]).filter(b=>b.tipo!=='divisor').length,'nota','notas'), tArch:nTxt(m.archivos.length,'arch.','arch.'),
+        tAvisos:nTxt(nA,'aviso','avisos'), avCol: nA>0 ? 'var(--acc)' : 'var(--tx3)', abrir:abrir(m.id) };
+    });
+    const det = S.detalleId ? matDe(S.detalleId) : null;
+    let detArchivos = [], detAvisos = [], detHorarios = [];
+    let nAvDet = 0;
+    const doc = det ? (det.doc || []) : [];
+    const EST = { pendiente:['Por hacer','var(--tx3)'], proceso:['En proceso','#38bdf8'], listo:['Listo','#34d399'] };
+    const CICLO = { pendiente:'proceso', proceso:'listo', listo:'pendiente' };
+    const dominioDe = u => { try { return new URL(u).hostname.replace(/^www\./,''); } catch(e) { return u || ''; } };
+    const fmtTs = t => { const d = new Date(t); return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); };
+    const editaBloque = (bid, fn) => this.mutar(d=>{ const b = this.bloque(d, det.id, bid); if (b) fn(b); });
+    const detBloques = doc.map((b,i)=>{
+      const est = b.estado || 'pendiente';
+      const urlOk = /^https?:\/\//i.test(b.url || '');
+      const fijar = () => editaBloque(b.id, x=>{ const u = (x.url||'').trim(); if (u && !/^https?:\/\//i.test(u)) x.url = 'https://'+u; });
+      return { id:b.id,
+        esTexto:b.tipo==='texto', esTitulo:b.tipo==='titulo', esTarea:b.tipo==='tarea', esLink:b.tipo==='link', esDivisor:b.tipo==='divisor',
+        texto:b.texto||'', rows:String(Math.max(1, Math.ceil(((b.texto||'').length+1)/42))),
+        deco:b.hecho?'line-through':'none', colTxt:b.hecho?'var(--tx3)':'var(--tx)',
+        cirBg:b.hecho?'var(--bor)':'transparent', checkOp:b.hecho?'1':'0', af:b.id===S.focusId,
+        url:b.url||'', urlOk, urlPend:!urlOk,
+        favicon:'https://www.google.com/s2/favicons?domain='+dominioDe(b.url||'')+'&sz=64',
+        dominio:dominioDe(b.url||''), tituloLink:(b.texto||dominioDe(b.url||'')),
+        estadoColor:EST[est][1], estadoNombre:'Estado: '+EST[est][0]+' — tocá para cambiar',
+        marca:(S.dragIdx!==null && S.overIdx===i)?'var(--acc)':'transparent',
+        setTexto:e=>editaBloque(b.id, x=>{ x.texto = e.target.value; }),
+        setUrl:e=>editaBloque(b.id, x=>{ x.url = e.target.value; }),
+        fijarUrl:fijar,
+        urlKey:e=>{ if (e.key==='Enter') { e.preventDefault(); fijar(); } },
+        toggle:()=>editaBloque(b.id, x=>{ x.hecho = !x.hecho; x.estado = x.hecho ? 'listo' : 'pendiente'; }),
+        cicloEstado:()=>editaBloque(b.id, x=>{ x.estado = CICLO[x.estado||'pendiente']; x.hecho = x.estado==='listo'; }),
+        borrar:()=>this.mutar(d=>{ const m = d.materias.find(v=>v.id===det.id); m.doc = (m.doc||[]).filter(v=>v.id!==b.id); }),
+        dragStart:e=>{ this.setState({dragIdx:i, dragBloqueId:b.id}); try { e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', b.id); } catch(err) {} },
+        dragEnd:()=>this.setState({dragIdx:null, overIdx:null, dragBloqueId:null, kanOver:null}),
+        dragOver:e=>{ e.preventDefault(); if (this.state.overIdx !== i) this.setState({overIdx:i}); },
+        drop:e=>{ e.preventDefault(); const from = this.state.dragIdx;
+          this.setState({dragIdx:null, overIdx:null, dragBloqueId:null});
+          if (from === null || from === i) return;
+          this.mutar(d=>{ const arr = d.materias.find(v=>v.id===det.id).doc; const mov = arr.splice(from,1)[0]; arr.splice(from < i ? i-1 : i, 0, mov); }); } };
+    });
+    const agregarBloque = (tipo, estado, txt) => { if (!det) return;
+      const id = 'b'+Date.now()+Math.floor(Math.random()*99);
+      this.mutar(d=>{ const m = d.materias.find(v=>v.id===det.id); if (!m.doc) m.doc = [];
+        m.doc.push({id, tipo, texto:txt||'', url:'', estado:estado||'pendiente', hecho:false, fecha:Date.now()}); });
+      this.setState({nuevoTxt:'', focusId: tipo==='divisor' ? null : id}); };
+    const slashAbierto = !!det && S.nuevoTxt.charAt(0)==='/';
+    const slashQ = slashAbierto ? S.nuevoTxt.slice(1).toLowerCase() : '';
+    const CMDS = [
+      {k:'texto nota parrafo', nombre:'Texto', ic:'T', cmd:'/texto', run:()=>agregarBloque('texto')},
+      {k:'titulo encabezado', nombre:'Título', ic:'#', cmd:'/titulo', run:()=>agregarBloque('titulo')},
+      {k:'tarea pendiente check', nombre:'Tarea', ic:'✓', cmd:'/tarea', run:()=>agregarBloque('tarea')},
+      {k:'link url preview', nombre:'Link con preview', ic:'↗', cmd:'/link', run:()=>agregarBloque('link')},
+      {k:'divisor separador linea', nombre:'Divisor', ic:'—', cmd:'/divisor', run:()=>agregarBloque('divisor')},
+      {k:'tablero kanban board', nombre:'Ver tablero', ic:'▦', cmd:'/tablero', run:()=>this.setState({nuevoTxt:'', notaVista:'kanban'})} ];
+    const slashOpts = CMDS.filter(c=>c.k.indexOf(slashQ)>=0 || c.cmd.indexOf(slashQ)>=0).map(c=>({nombre:c.nombre, ic:c.ic, cmd:c.cmd, elegir:c.run}));
+    const agregarNuevo = () => { const t = S.nuevoTxt.trim();
+      if (slashAbierto) { if (slashOpts.length > 0) slashOpts[0].elegir(); return; }
+      if (t) agregarBloque('texto', 'pendiente', t); };
+    const kanbanCols = ['pendiente','proceso','listo'].map(est=>{
+      const cards = doc.filter(b=>b.tipo!=='divisor' && (b.estado||'pendiente')===est).map(b=>({
+        texto:b.texto||'', rows:String(Math.max(1, Math.ceil(((b.texto||'').length+1)/26))),
+        deco:b.hecho?'line-through':'none', af:b.id===S.focusId,
+        fechaTxt:fmtTs(b.fecha||Date.now()), tipoTxt:({texto:'nota',titulo:'título',tarea:'tarea',link:'link'})[b.tipo]||'nota',
+        setTexto:e=>editaBloque(b.id, x=>{ x.texto = e.target.value; }),
+        dragStart:e=>{ this.setState({dragBloqueId:b.id}); try { e.dataTransfer.setData('text/plain', b.id); } catch(err) {} } }));
+      return { nombre:EST[est][0], color:EST[est][1], n:String(cards.length), cards,
+        borde: S.kanOver===est ? 'var(--acc)' : 'var(--bor)',
+        dragOver:e=>{ e.preventDefault(); if (this.state.kanOver !== est) this.setState({kanOver:est}); },
+        drop:e=>{ e.preventDefault(); const id = this.state.dragBloqueId;
+          this.setState({dragBloqueId:null, kanOver:null, dragIdx:null, overIdx:null});
+          if (id) editaBloque(id, x=>{ x.estado = est; x.hecho = est==='listo'; }); },
+        agregar:()=>agregarBloque('texto', est) };
+    });
+    if (det) {
+      detHorarios = det.horarios.map(h=>({txt: DIAS[h.dia]+' '+h.ini+'–'+h.fin}));
+      detArchivos = det.archivos.map(f=>({nombre:f.nombre, url:f.url}));
+      const deLaMateria = D.avisos.filter(a=>a.materiaId===det.id);
+      nAvDet = deLaMateria.filter(a=>!a.hecho).length;
+      detAvisos = deLaMateria.sort((a,b)=>(a.hecho===b.hecho)?(a.fecha<b.fecha?-1:1):(a.hecho?1:-1)).map(avVm);
+    }
+    const set = k => e => this.setState({[k]: e.target.value});
+    const COLORES = [['#38bdf8','Celeste'],['#a78bfa','Violeta'],['#34d399','Verde'],['#fb7185','Rosa'],['#f97316','Naranja'],['#e2e8f0','Tiza']];
+    const colores = COLORES.map(([hex,nombre])=>({ hex, nombre,
+      ring: S.mColor===hex ? '0 0 0 3px var(--sup), 0 0 0 5px #fbbf24' : '0 0 0 1px rgba(255,255,255,.1)',
+      elegir: ()=>this.setState({mColor:hex}) }));
+    const chips = S.mHorarios.map((h,i)=>({ txt: DIAS[h.dia].slice(0,3)+' '+h.ini+'–'+h.fin,
+      quitar: ()=>this.setState(s=>({mHorarios: s.mHorarios.filter((_,j)=>j!==i)})) }));
+    const tabCol = t => (S.detalleTab===t ? 'var(--acc)' : 'var(--tx3)');
+    const tabB = t => (S.detalleTab===t ? 'var(--acc)' : 'transparent');
+    const irTab = t => () => this.setState({detalleTab:t});
+    const ovStyle = { position:'fixed', inset:0, zIndex:50, background:'var(--scrim)', display:'flex',
+      justifyContent:'center', alignItems: S.isMobile?'flex-end':'center', padding: S.isMobile?'0':'24px', animation:'fadeIn .18s ease' };
+    const panelStyle = { background:'var(--sup)', border:'1px solid var(--bor)', width:S.isMobile?'100%':'440px', maxWidth:'100%',
+      maxHeight:S.isMobile?'92dvh':'86dvh', overflowY:'auto', borderRadius:S.isMobile?'20px 20px 0 0':'16px',
+      padding:'20px 20px 30px', animation:'sheetUp .28s cubic-bezier(.22,.8,.3,1)' };
+    const delStyle = { width:'100%', marginTop:'30px', minHeight:'48px', borderRadius:'12px', fontWeight:700, fontSize:'14px',
+      cursor:'pointer', border:'1px solid rgba(251,113,133,.45)', transition:'background .15s ease, color .15s ease',
+      background: S.armado?'#fb7185':'transparent', color: S.armado?'#20060b':'#fb7185' };
+    const nav = t => () => this.setState({tab:t, detalleId:null, armado:false});
+    const colNav = t => (S.tab===t ? 'var(--acc)' : 'var(--tx3)');
+    return {
+      mostrarSync: (this.props.mostrarSincronizacion ?? true) && D.materias.length > 0,
+      fechaLarga,
+      verLogin: S.pantalla==='login', verPerfil: S.pantalla==='perfil', verApp: app,
+      verHoy: app && S.tab==='hoy' && !det, verSemana: app && S.tab==='semana' && !det,
+      verMaterias: app && S.tab==='materias' && !det, verAvisos: app && S.tab==='avisos' && !det, verDetalle: app && !!det,
+      emailTxt:S.emailTxt, setEmail:set('emailTxt'), passTxt:S.passTxt, setPass:set('passTxt'),
+      entrar: ()=>this.setState({pantalla:'perfil', perfilError:''}),
+      volverLogin: ()=>this.setState({pantalla:'login'}),
+      editarPerfil: ()=>this.setState({pantalla:'perfil', perfilError:''}),
+      perfilNombre:S.perfilNombre, setPerfilNombre:set('perfilNombre'), perfilInsti:S.perfilInsti, setPerfilInsti:set('perfilInsti'),
+      perfilError:S.perfilError, perfilErrorHay: !!S.perfilError,
+      tomarFoto: ()=>this.setState({fotoTomada:true}),
+      fotoLista: S.fotoTomada, fotoLabel: S.fotoTomada ? 'Sacar otra foto' : 'Sacate una foto',
+      empezar: ()=>{ if (!S.perfilNombre.trim()) { this.setState({perfilError:'Poné tu nombre así te saludamos.'}); return; } this.guardarUI({pantalla:'app', perfilError:''}); },
+      iniciales, tieneIniciales: !!iniciales, sinIniciales: !iniciales,
+      avatarBg: iniciales ? '#FBBF24' : 'var(--sup)', avatarCol: iniciales ? '#221a00' : 'var(--tx3)',
+      avatarRing: S.fotoTomada ? '0 0 0 3px var(--bg), 0 0 0 5px #34d399' : '0 0 0 1px var(--bor2)',
+      toggleTema: ()=>this.guardarUI({tema: S.tema==='oscuro' ? 'claro' : 'oscuro'}),
+      esOscuro: S.tema==='oscuro', esClaro: S.tema==='claro',
+      statClasesN, statClasesSub, statPendN, statPendSub, colStatPend,
+      irHoy:nav('hoy'), irSemana:nav('semana'), irMaterias:nav('materias'), irAvisos:nav('avisos'),
+      colHoy:colNav('hoy'), colSemana:colNav('semana'), colMaterias:colNav('materias'), colAvisos:colNav('avisos'),
+      sinMaterias: D.materias.length===0, hayHero: !!hero,
+      heroKicker, heroNombre, heroHorario, heroAula, heroEstado, heroColor, heroAbrir,
+      hoyClases, sinClasesHoy: D.materias.length>0 && hoyClases.length===0,
+      avisosHoy: pend.slice(0,3), sinAvisosHoy: pend.length===0,
+      verTodos: ()=>this.setState({tab:'avisos', detalleId:null}),
+      dias, semanaRango: dias[0].fecha+' – '+dias[5].fecha,
+      materias, abrirModalMateria: ()=>this.setState({modal:'materia', mNombre:'', mProfe:'', mAula:'', mColor:'#38bdf8', mHorarios:[], mDia:'1', mIni:'18:10', mFin:'19:40', mError:''}),
+      pend, hechos, sinPend: pend.length===0, hayHechos: hechos.length>0,
+      abrirModalAviso: ()=>this.setState({modal:'aviso', avTitulo:'', avMateria:'', avFecha:hoyIso, avError:''}),
+      detNombre: det?det.nombre:'', detColor: det?det.color:'var(--acc)',
+      detProfe: det&&det.profe?det.profe:'—', detAula: det&&det.aula?det.aula:'—', detHorarios,
+      colTabNotas:tabCol('notas'), colTabArch:tabCol('archivos'), colTabAv:tabCol('avisos'),
+      bTabNotas:tabB('notas'), bTabArch:tabB('archivos'), bTabAv:tabB('avisos'),
+      irTabNotas:irTab('notas'), irTabArch:irTab('archivos'), irTabAv:irTab('avisos'),
+      detTabNotas: S.detalleTab==='notas', detTabArch: S.detalleTab==='archivos', detTabAv: S.detalleTab==='avisos',
+      nNotasDet: doc.filter(b=>b.tipo!=='divisor').length, nArchDet: det?det.archivos.length:0, nAvDet,
+      vistaDoc: S.notaVista!=='kanban', vistaKanban: S.notaVista==='kanban',
+      verDoc: ()=>this.setState({notaVista:'doc'}), verKanban: ()=>this.setState({notaVista:'kanban'}),
+      colVDoc: S.notaVista!=='kanban'?'var(--acc)':'var(--tx3)', bgVDoc: S.notaVista!=='kanban'?'var(--bor)':'transparent',
+      colVKan: S.notaVista==='kanban'?'var(--acc)':'var(--tx3)', bgVKan: S.notaVista==='kanban'?'var(--bor)':'transparent',
+      pista: S.notaVista==='kanban' ? 'arrastrá entre columnas' : 'tocá / para bloques',
+      nuevoTxt:S.nuevoTxt, setNuevo:set('nuevoTxt'), agregarNuevo,
+      nuevoKey: e=>{ if (e.key==='Enter') { e.preventDefault(); agregarNuevo(); } if (e.key==='Escape') this.setState({nuevoTxt:''}); },
+      slashAbierto, slashOpts, sinSlash: slashOpts.length===0, slashQ,
+      detBloques, kanbanCols, sinNotasDet: doc.length===0,
+      archNombre:S.archNombre, setArchNombre:set('archNombre'), archUrl:S.archUrl, setArchUrl:set('archUrl'),
+      agregarArchivo: ()=>{ const n = S.archNombre.trim(); let u = S.archUrl.trim(); if (!n || !u || !det) return;
+        if (!/^https?:\/\//i.test(u)) u = 'https://'+u;
+        this.mutar(d=>{ d.materias.find(m=>m.id===det.id).archivos.unshift({id:'f'+Date.now(), nombre:n, url:u}); });
+        this.setState({archNombre:'', archUrl:''}); },
+      detArchivos, sinArchDet: det ? det.archivos.length===0 : true,
+      daTitulo:S.daTitulo, setDaTitulo:set('daTitulo'), daFecha:S.daFecha, setDaFecha:set('daFecha'),
+      agregarAvisoDet: ()=>{ const t = S.daTitulo.trim(); if (!t || !S.daFecha || !det) return;
+        this.mutar(d=>{ d.avisos.push({id:'a'+Date.now(), titulo:t, materiaId:det.id, fecha:S.daFecha, hecho:false}); });
+        this.setState({daTitulo:''}); },
+      detAvisos, sinAvDet: nAvDet===0,
+      delLabel: S.armado ? '¿Seguro? Tocá de nuevo para eliminar' : 'Eliminar materia', delStyle,
+      eliminar: ()=>{ if (!det) return;
+        if (!S.armado) { this.setState({armado:true}); clearTimeout(this._arm); this._arm = setTimeout(()=>this.setState({armado:false}), 3500); return; }
+        clearTimeout(this._arm); const id = det.id;
+        this.setState({armado:false, detalleId:null});
+        this.mutar(d=>{ d.materias = d.materias.filter(m=>m.id!==id); d.avisos = d.avisos.filter(a=>a.materiaId!==id); }); },
+      volver: ()=>this.setState({detalleId:null, armado:false}),
+      modalMateria: S.modal==='materia', modalAviso: S.modal==='aviso',
+      cerrarModal: ()=>this.setState({modal:null}), frenar: e=>e.stopPropagation(),
+      ovStyle, panelStyle,
+      mNombre:S.mNombre, setMNombre:set('mNombre'), mProfe:S.mProfe, setMProfe:set('mProfe'), mAula:S.mAula, setMAula:set('mAula'),
+      colores, chips, mDia:S.mDia, setMDia:set('mDia'), mIni:S.mIni, setMIni:set('mIni'), mFin:S.mFin, setMFin:set('mFin'),
+      agregarHorario: ()=>{ if (!S.mIni || !S.mFin) return;
+        if (this.min(S.mFin) <= this.min(S.mIni)) { this.setState({mError:'El fin tiene que ser después del inicio.'}); return; }
+        this.setState(s=>({mHorarios:[...s.mHorarios, {dia:+s.mDia, ini:s.mIni, fin:s.mFin}], mError:''})); },
+      mError:S.mError, mErrorHay: !!S.mError,
+      guardarMateria: ()=>{ const n = S.mNombre.trim();
+        if (!n || S.mHorarios.length===0) { this.setState({mError:'Poné un nombre y agregá al menos un horario.'}); return; }
+        this.mutar(d=>{ d.materias.push({id:'m'+Date.now(), nombre:n, profe:S.mProfe.trim(), aula:S.mAula.trim(), color:S.mColor, horarios:S.mHorarios, notas:[], doc:[], archivos:[]}); });
+        this.setState({modal:null}); },
+      avTitulo:S.avTitulo, setAvTitulo:set('avTitulo'), avMateria:S.avMateria, setAvMateria:set('avMateria'), avFecha:S.avFecha, setAvFecha:set('avFecha'),
+      matOpts: D.materias.map(m=>({id:m.id, nombre:m.nombre})),
+      avError:S.avError, avErrorHay: !!S.avError,
+      guardarAviso: ()=>{ const t = S.avTitulo.trim();
+        if (!t || !S.avFecha) { this.setState({avError:'Poné un título y una fecha.'}); return; }
+        this.mutar(d=>{ d.avisos.push({id:'a'+Date.now(), titulo:t, materiaId:S.avMateria||null, fecha:S.avFecha, hecho:false}); });
+        this.setState({modal:null}); }
+    };
+  }
+}
+</script>
+</body>
+</html>

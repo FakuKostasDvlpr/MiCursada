@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Mi Cursada — tokens de tema (fuente de verdad: HANDOFF.md)
+   Oscuro = default (:root). Claro = html[data-tema="claro"].
+   ============================================================ */
+
+:root {
+  color-scheme: dark;
+
+  --bg: #020617; /* body, chips de clase, inputs de modal, cards kanban */
+  --sup: #0f172a; /* cards, nav, modales, inputs */
+  --bor: #1e293b; /* bordes de card/input, divisores */
+  --bor2: #334155; /* círculos de check, botón secundario, menú / */
+  --tx: #e2e8f0; /* texto principal */
+  --tx2: #94a3b8; /* texto secundario */
+  --tx3: #64748b; /* kickers, labels, contadores */
+  --tx4: #475569; /* placeholders, hints, "— libre" */
+  --acc: #fbbf24; /* acento: botón primario, tab activa, links, foco, "hoy" */
+  --scrim: rgba(2, 6, 23, 0.72); /* overlay de modal */
+  --navbg: rgba(2, 6, 23, 0.93); /* bottom nav (+ blur(14px)) */
+
+  /* Ámbar de FONDO de botones primarios/pills: constante en ambos temas.
+     (--acc oscurecido en claro es solo para TEXTO.) */
+  --acc-bg: #fbbf24;
+  --acc-fg: #221a00;
+
+  /* Estados */
+  --vencido: #fb7185;
+  --sync-ok: #34d399;
+
+  /* Colores de materia (solo riel 4px o punto 6–8px, nunca fondos) */
+  --mat-celeste: #38bdf8;
+  --mat-violeta: #a78bfa;
+  --mat-verde: #34d399;
+  --mat-rosa: #fb7185;
+  --mat-naranja: #f97316;
+  --mat-tiza: #e2e8f0;
+
+  /* Estados kanban */
+  --kanban-por-hacer: #64748b;
+  --kanban-en-proceso: #38bdf8;
+  --kanban-listo: #34d399;
+}
+
+html[data-tema="claro"] {
+  color-scheme: light;
+
+  --bg: #f1f5f9;
+  --sup: #ffffff;
+  --bor: #e2e8f0;
+  --bor2: #cbd5e1;
+  --tx: #0f172a;
+  --tx2: #475569;
+  --tx3: #64748b;
+  --tx4: #94a3b8;
+  --acc: #b45309;
+  --scrim: rgba(15, 23, 42, 0.4);
+  --navbg: rgba(241, 245, 249, 0.93);
+  /* --acc-bg / --acc-fg NO cambian: fondo ámbar #fbbf24 + texto #221a00 en ambos temas */
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-sup: var(--sup);
+  --color-bor: var(--bor);
+  --color-bor2: var(--bor2);
+  --color-tx: var(--tx);
+  --color-tx2: var(--tx2);
+  --color-tx3: var(--tx3);
+  --color-tx4: var(--tx4);
+  --color-acc: var(--acc);
+  --color-acc-bg: var(--acc-bg);
+  --color-acc-fg: var(--acc-fg);
+  --color-scrim: var(--scrim);
+  --color-navbg: var(--navbg);
+  --color-vencido: var(--vencido);
+  --color-sync-ok: var(--sync-ok);
+  --color-mat-celeste: var(--mat-celeste);
+  --color-mat-violeta: var(--mat-violeta);
+  --color-mat-verde: var(--mat-verde);
+  --color-mat-rosa: var(--mat-rosa);
+  --color-mat-naranja: var(--mat-naranja);
+  --color-mat-tiza: var(--mat-tiza);
+  --color-kanban-por-hacer: var(--kanban-por-hacer);
+  --color-kanban-en-proceso: var(--kanban-en-proceso);
+  --color-kanban-listo: var(--kanban-listo);
+
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+/* html y body SIEMPRE scrollean: pantallas largas (Semana) no se cortan */
+html,
+body {
+  height: auto;
+  min-height: 100%;
+  overflow-y: auto;
+}
+
+body {
+  background: var(--bg);
+  color: var(--tx);
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+}
+
+/* Links por defecto en ámbar */
+a {
+  color: var(--acc-bg);
+}
+a:hover {
+  color: #fde68a;
+}
+
+/* Foco visible — sin sombras en todo el sistema */
+:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+/* Kicker: PRÓXIMA CLASE, CLASES DE HOY, … */
+.kicker {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tx3);
+}
+
+/* Mínimo táctil 44px para controles interactivos */
+.tactil {
+  min-width: 44px;
+  min-height: 44px;
+}
