@@ -106,7 +106,7 @@ body {
 
 /* Links por defecto en ámbar */
 a {
-  color: var(--acc-bg);
+  color: var(--acc);
 }
 a:hover {
   color: #fde68a;
