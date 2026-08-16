@@ -54,18 +54,6 @@ export function rutaSesiones(): string {
   return path.join(dirDatos(), 'sesiones.json');
 }
 
-/**
- * Escape hatch para correr sin login: `CURSADA_SIN_LOGIN=1`.
- *
- * Sirve para desarrollo y para no quedarte afuera de tus propios datos si el
- * aula virtual está caída (el login necesita hablar con Moodle). Con esto
- * prendido NO hay ninguna autenticación: usalo solo en tu máquina o en una red
- * privada.
- */
-export function loginDeshabilitado(): boolean {
-  return process.env.CURSADA_SIN_LOGIN === '1';
-}
-
 /** El id que se guarda en disco: el hash del token, nunca el token. */
 function hashear(token: string): string {
   return createHash('sha256').update(token).digest('hex');

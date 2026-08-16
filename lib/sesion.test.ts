@@ -10,32 +10,22 @@ import {
   borrarSesion,
   borrarTodasLasSesiones,
   crearSesion,
-  loginDeshabilitado,
   rutaSesiones,
   validarSesion,
 } from './sesion';
 
 let dir = '';
-const entornoPrevio = {
-  datos: process.env.CURSADA_DATOS_DIR,
-  sinLogin: process.env.CURSADA_SIN_LOGIN,
-};
+const datosPrevios = process.env.CURSADA_DATOS_DIR;
 
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cursada-sesion-'));
   process.env.CURSADA_DATOS_DIR = dir;
-  delete process.env.CURSADA_SIN_LOGIN;
 });
 
 afterEach(async () => {
   await fs.rm(dir, { recursive: true, force: true });
-  for (const [clave, valor] of [
-    ['CURSADA_DATOS_DIR', entornoPrevio.datos],
-    ['CURSADA_SIN_LOGIN', entornoPrevio.sinLogin],
-  ] as const) {
-    if (valor === undefined) delete process.env[clave];
-    else process.env[clave] = valor;
-  }
+  if (datosPrevios === undefined) delete process.env.CURSADA_DATOS_DIR;
+  else process.env.CURSADA_DATOS_DIR = datosPrevios;
 });
 
 const enDias = (d: number) => new Date(Date.now() + d * 24 * 60 * 60 * 1000);
@@ -121,12 +111,3 @@ describe('borrarTodasLasSesiones', () => {
   });
 });
 
-describe('loginDeshabilitado', () => {
-  it('solo con CURSADA_SIN_LOGIN=1', () => {
-    expect(loginDeshabilitado()).toBe(false);
-    process.env.CURSADA_SIN_LOGIN = '0';
-    expect(loginDeshabilitado()).toBe(false);
-    process.env.CURSADA_SIN_LOGIN = '1';
-    expect(loginDeshabilitado()).toBe(true);
-  });
-});

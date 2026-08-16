@@ -56,12 +56,18 @@ cada vez que se verifica el token, así que si el aula virtual cambia de nombre,
 la app lo sigue. La carrera, la sede y el turno siguen siendo constantes de
 `lib/instituto.ts` porque la API de Moodle no los expone.
 
-### Correr sin login
+### No hay forma de saltear el login
 
-`CURSADA_SIN_LOGIN=1` desactiva la autenticación por completo. Sirve para
-desarrollo y para no quedarte afuera de tus propios datos si el aula virtual
-está caída (el login necesita hablar con Moodle). **Con eso prendido cualquiera
-que llegue a la app entra**: usalo solo en tu máquina o en tu red privada.
+Existió un `CURSADA_SIN_LOGIN=1` que desactivaba la autenticación, y estaba mal:
+con eso prendido, cerrar sesión borraba la sesión, redirigía a `/login`… y
+`/login` te devolvía a la app de una, porque seguía habiendo acceso. O sea, el
+botón de cerrar sesión parecía no hacer nada. Se eliminó: entrar es tener
+sesión, y nada más.
+
+Si alguna vez el aula virtual está caída y necesitás ver tus datos sin poder
+loguearte, la salida es abrir `datos/` a mano (son JSON) o levantar la app con
+un `datos/sesiones.json` armado; no hay un interruptor que deje la puerta
+abierta sin querer.
 
 ## Correr con Docker
 
@@ -125,7 +131,7 @@ arriba), así que ya no está abierta de par en par; aun así, cualquiera que ll
 **volumen de datos** se lleva el token igual. Sigue siendo una app pensada para correr
 **en tu máquina o en tu red privada** (Docker + Tailscale); si la exponés, que sea por
 https (la cookie de sesión se marca `secure` sola cuando el request llega por
-`x-forwarded-proto: https`) y **nunca con `CURSADA_SIN_LOGIN=1`**.
+`x-forwarded-proto: https`).
 
 El cliente es incapaz de escribir en Moodle: `lib/moodle/cliente.ts` solo acepta funciones
 de una allowlist de lectura, validada en tipos **y** en runtime antes del fetch. La

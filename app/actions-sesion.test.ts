@@ -33,7 +33,23 @@ vi.mock('next/headers', () => ({
   headers: async () => new Headers(),
 }));
 
-import { cerrarSesion, iniciarSesion } from '@/app/actions-sesion';
+// La sincronización real vive en actions-moodle (habla con Moodle de verdad):
+// acá interesa CUÁNDO se la llama, no lo que hace.
+const sync = vi.hoisted(() => ({
+  llamadas: 0,
+  resultado: { ok: true, materias: 5, archivos: 9, avisos: 3, cuando: '2026-08-16T20:00:00.000Z' } as
+    | { ok: true; materias: number; archivos: number; avisos: number; cuando: string }
+    | { ok: false; error: string },
+}));
+vi.mock('@/app/actions-moodle', () => ({
+  sincronizarAhora: async () => {
+    sync.llamadas++;
+    return sync.resultado;
+  },
+}));
+
+import { cerrarSesion, iniciarSesion, montarCursada } from '@/app/actions-sesion';
+import { rutaDatos } from '@/lib/datos-locales';
 import { leerPerfilLocal } from '@/lib/datos-locales';
 import { leerCredenciales } from '@/lib/moodle/credenciales';
 import { crearSesion, validarSesion } from '@/lib/sesion';
@@ -50,6 +66,14 @@ beforeEach(async () => {
   delete process.env.MOODLE_TOKEN;
   jar.valor = undefined;
   nav.destino = '';
+  sync.llamadas = 0;
+  sync.resultado = {
+    ok: true,
+    materias: 5,
+    archivos: 9,
+    avisos: 3,
+    cuando: '2026-08-16T20:00:00.000Z',
+  };
 });
 
 afterEach(async () => {
@@ -137,6 +161,67 @@ describe('iniciarSesion', () => {
     expect(r.ok).toBe(false);
     expect(jar.valor).toBeUndefined();
     expect((await leerCredenciales())?.token).toBe('tok-nuevo');
+  });
+});
+
+describe('montarCursada', () => {
+  /** Snapshot mínimo con la fecha de generado que se le pida. */
+  async function snapshot(generado: string) {
+    await fs.writeFile(
+      rutaDatos('snapshot'),
+      JSON.stringify({
+        generado,
+        materias: [
+          { id: 'curso:1', nombre: 'Programación', color: '#38bdf8', archivos: [], bloques: [] },
+        ],
+        avisos: [{ id: 'assign:1', materiaId: 'curso:1', titulo: 'TP1', fecha: '2026-08-20' }],
+      }),
+      'utf8'
+    );
+  }
+
+  it('sin snapshot baja todo', async () => {
+    jar.valor = await crearSesion();
+
+    const r = await montarCursada();
+
+    expect(sync.llamadas).toBe(1);
+    expect(r).toEqual({ ok: true, sincronizado: true, materias: 5, avisos: 3 });
+  });
+
+  it('con un snapshot fresco no vuelve a bajar nada', async () => {
+    jar.valor = await crearSesion();
+    await snapshot(new Date().toISOString());
+
+    const r = await montarCursada();
+
+    expect(sync.llamadas).toBe(0);
+    expect(r).toEqual({ ok: true, sincronizado: false, materias: 1, avisos: 1 });
+  });
+
+  it('con un snapshot viejo vuelve a bajar', async () => {
+    jar.valor = await crearSesion();
+    await snapshot(new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString());
+
+    await montarCursada();
+
+    expect(sync.llamadas).toBe(1);
+  });
+
+  it('si la sincronización falla lo dice, pero no rompe', async () => {
+    jar.valor = await crearSesion();
+    sync.resultado = { ok: false, error: 'No pudimos conectarnos al aula virtual.' };
+
+    const r = await montarCursada();
+
+    expect(r).toEqual({ ok: false, error: 'No pudimos conectarnos al aula virtual.' });
+  });
+
+  it('sin sesión no monta nada', async () => {
+    const r = await montarCursada();
+
+    expect(r.ok).toBe(false);
+    expect(sync.llamadas).toBe(0);
   });
 });
 

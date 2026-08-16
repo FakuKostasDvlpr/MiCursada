@@ -15,7 +15,6 @@ import {
   type Sesion,
   borrarSesion,
   crearSesion,
-  loginDeshabilitado,
   validarSesion,
 } from '@/lib/sesion';
 
@@ -36,9 +35,12 @@ export async function sesionActual(): Promise<Sesion | null> {
   return validarSesion(token);
 }
 
-/** ¿Este request puede ver los datos? (con CURSADA_SIN_LOGIN=1, siempre). */
+/**
+ * ¿Este request puede ver los datos? Es que haya sesión, y nada más: no hay
+ * variable de entorno que lo saltee. Una que lo saltee vuelve inalcanzable la
+ * pantalla de login (cerrar sesión te devolvía a la app de una).
+ */
 export async function hayAcceso(): Promise<boolean> {
-  if (loginDeshabilitado()) return true;
   return (await sesionActual()) !== null;
 }
 

@@ -16,7 +16,8 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { escribirPerfilLocal, leerPerfilLocal } from '@/lib/datos-locales';
+import { sincronizarAhora } from '@/app/actions-moodle';
+import { escribirPerfilLocal, getDatosLocales, leerPerfilLocal } from '@/lib/datos-locales';
 import { sanitizar } from '@/lib/moodle/cliente';
 import {
   URL_MOODLE_DEFAULT,
@@ -27,7 +28,7 @@ import {
 } from '@/lib/moodle/credenciales';
 import { pedirToken } from '@/lib/moodle/login';
 import { obtenerSiteInfo } from '@/lib/moodle/plan';
-import { abrirSesion, cerrarSesionActual } from '@/lib/sesion-actual';
+import { abrirSesion, cerrarSesionActual, hayAcceso } from '@/lib/sesion-actual';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 
 export type ResultadoLogin = { ok: true; nombre: string } | { ok: false; error: string };
@@ -122,6 +123,41 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
   await abrirSesion(site.fullname);
   revalidatePath('/', 'layout');
   return { ok: true, nombre: site.fullname };
+}
+
+/** Un snapshot más nuevo que esto no se vuelve a bajar al entrar. */
+const HORAS_FRESCO = 3;
+
+export type ResultadoMontaje =
+  | { ok: true; sincronizado: boolean; materias: number; avisos: number }
+  | { ok: false; error: string };
+
+/**
+ * Deja la cursada lista apenas entrás: si no hay snapshot del aula virtual (o
+ * el que hay ya tiene sus horas), lo baja. Si está fresco no hace nada, para
+ * que volver a entrar no se coma una sincronización entera de gusto.
+ *
+ * Un error acá NO tiene que dejarte afuera: el que llama entra igual y la app
+ * muestra lo que haya, con el indicador del aula virtual contando el problema.
+ */
+export async function montarCursada(): Promise<ResultadoMontaje> {
+  if (!(await hayAcceso())) return { ok: false, error: 'No pudimos verificar tu sesión.' };
+
+  const datos = await getDatosLocales();
+  const generado = datos.generado ? new Date(datos.generado).getTime() : 0;
+  const fresco = generado > 0 && Date.now() - generado < HORAS_FRESCO * 60 * 60 * 1000;
+  if (fresco) {
+    return {
+      ok: true,
+      sincronizado: false,
+      materias: datos.materias.length,
+      avisos: datos.avisos.length,
+    };
+  }
+
+  const r = await sincronizarAhora();
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, sincronizado: true, materias: r.materias, avisos: r.avisos };
 }
 
 /**
