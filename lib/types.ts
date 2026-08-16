@@ -27,9 +27,9 @@ export type Horario = {
   id: string;
   materiaId: string;
   dia: Dia;
-  /** 'HH:MM' */
+  /** 'HH:MM'. Ojo: PostgREST devuelve time como 'HH:MM:SS'; la capa de queries (Fase 3) normaliza a 'HH:MM'. */
   inicio: string;
-  /** 'HH:MM' */
+  /** 'HH:MM'. Ojo: PostgREST devuelve time como 'HH:MM:SS'; la capa de queries (Fase 3) normaliza a 'HH:MM'. */
   fin: string;
 };
 

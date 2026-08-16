@@ -7,7 +7,7 @@
 -- ---------------------------------------------------------------------------
 create table public.perfil (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid() unique,
+  user_id uuid not null default auth.uid() unique references auth.users (id) on delete cascade,
   nombre text not null,
   instituto text,
   avatar_url text,
@@ -19,7 +19,7 @@ create table public.perfil (
 -- ---------------------------------------------------------------------------
 create table public.materias (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   nombre text not null,
   profe text not null default '',
   aula text not null default '',
@@ -42,7 +42,7 @@ create unique index materias_user_external_uidx
 -- ---------------------------------------------------------------------------
 create table public.horarios (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   materia_id uuid not null references public.materias (id) on delete cascade,
   dia smallint not null check (dia between 1 and 6),
   inicio time not null,
@@ -56,7 +56,7 @@ create index horarios_materia_id_idx on public.horarios (materia_id);
 -- ---------------------------------------------------------------------------
 create table public.bloques (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   materia_id uuid not null references public.materias (id) on delete cascade,
   tipo text not null check (tipo in ('texto', 'titulo', 'tarea', 'link', 'divisor')),
   texto text not null default '',
@@ -74,7 +74,7 @@ create index bloques_materia_orden_idx on public.bloques (materia_id, orden);
 -- ---------------------------------------------------------------------------
 create table public.archivos (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   materia_id uuid not null references public.materias (id) on delete cascade,
   nombre text not null,
   url text not null,
@@ -93,7 +93,7 @@ create unique index archivos_user_external_uidx
 -- ---------------------------------------------------------------------------
 create table public.avisos (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   materia_id uuid references public.materias (id) on delete set null,
   titulo text not null,
   fecha date not null,
@@ -113,7 +113,7 @@ create unique index avisos_user_external_uidx
 -- ---------------------------------------------------------------------------
 create table public.sync_log (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null default auth.uid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   corrida_at timestamptz not null default now(),
   resultado text not null default 'ok',
   detalle text not null default ''
@@ -134,70 +134,70 @@ alter table public.sync_log enable row level security;
 
 -- perfil
 create policy "perfil select propio" on public.perfil
-  for select using (auth.uid() = user_id);
+  for select to authenticated using ((select auth.uid()) = user_id);
 create policy "perfil insert propio" on public.perfil
-  for insert with check (auth.uid() = user_id);
+  for insert to authenticated with check ((select auth.uid()) = user_id);
 create policy "perfil update propio" on public.perfil
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "perfil delete propio" on public.perfil
-  for delete using (auth.uid() = user_id);
+  for delete to authenticated using ((select auth.uid()) = user_id);
 
 -- materias
 create policy "materias select propio" on public.materias
-  for select using (auth.uid() = user_id);
+  for select to authenticated using ((select auth.uid()) = user_id);
 create policy "materias insert propio" on public.materias
-  for insert with check (auth.uid() = user_id);
+  for insert to authenticated with check ((select auth.uid()) = user_id);
 create policy "materias update propio" on public.materias
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "materias delete propio" on public.materias
-  for delete using (auth.uid() = user_id);
+  for delete to authenticated using ((select auth.uid()) = user_id);
 
 -- horarios
 create policy "horarios select propio" on public.horarios
-  for select using (auth.uid() = user_id);
+  for select to authenticated using ((select auth.uid()) = user_id);
 create policy "horarios insert propio" on public.horarios
-  for insert with check (auth.uid() = user_id);
+  for insert to authenticated with check ((select auth.uid()) = user_id);
 create policy "horarios update propio" on public.horarios
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "horarios delete propio" on public.horarios
-  for delete using (auth.uid() = user_id);
+  for delete to authenticated using ((select auth.uid()) = user_id);
 
 -- bloques
 create policy "bloques select propio" on public.bloques
-  for select using (auth.uid() = user_id);
+  for select to authenticated using ((select auth.uid()) = user_id);
 create policy "bloques insert propio" on public.bloques
-  for insert with check (auth.uid() = user_id);
+  for insert to authenticated with check ((select auth.uid()) = user_id);
 create policy "bloques update propio" on public.bloques
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "bloques delete propio" on public.bloques
-  for delete using (auth.uid() = user_id);
+  for delete to authenticated using ((select auth.uid()) = user_id);
 
 -- archivos
 create policy "archivos select propio" on public.archivos
-  for select using (auth.uid() = user_id);
+  for select to authenticated using ((select auth.uid()) = user_id);
 create policy "archivos insert propio" on public.archivos
-  for insert with check (auth.uid() = user_id);
+  for insert to authenticated with check ((select auth.uid()) = user_id);
 create policy "archivos update propio" on public.archivos
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "archivos delete propio" on public.archivos
-  for delete using (auth.uid() = user_id);
+  for delete to authenticated using ((select auth.uid()) = user_id);
 
 -- avisos
 create policy "avisos select propio" on public.avisos
-  for select using (auth.uid() = user_id);
+  for select to authenticated using ((select auth.uid()) = user_id);
 create policy "avisos insert propio" on public.avisos
-  for insert with check (auth.uid() = user_id);
+  for insert to authenticated with check ((select auth.uid()) = user_id);
 create policy "avisos update propio" on public.avisos
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "avisos delete propio" on public.avisos
-  for delete using (auth.uid() = user_id);
+  for delete to authenticated using ((select auth.uid()) = user_id);
 
 -- sync_log
 create policy "sync_log select propio" on public.sync_log
-  for select using (auth.uid() = user_id);
+  for select to authenticated using ((select auth.uid()) = user_id);
 create policy "sync_log insert propio" on public.sync_log
-  for insert with check (auth.uid() = user_id);
+  for insert to authenticated with check ((select auth.uid()) = user_id);
 create policy "sync_log update propio" on public.sync_log
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 create policy "sync_log delete propio" on public.sync_log
-  for delete using (auth.uid() = user_id);
+  for delete to authenticated using ((select auth.uid()) = user_id);
