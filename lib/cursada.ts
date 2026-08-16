@@ -2,6 +2,8 @@
 // Todo cálculo calendario se hace en hora de pared de Buenos Aires vía date-fns-tz;
 // nunca se usa la timezone del proceso. `ahora` siempre llega por parámetro.
 
+import { formatDistanceStrict } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { toZonedTime } from 'date-fns-tz';
 import type { Aviso, Horario, Materia } from '@/lib/types';
 
@@ -243,6 +245,20 @@ export function iniciales(nombre: string): string {
     .slice(0, 2)
     .map((w) => w.charAt(0).toUpperCase())
     .join('');
+}
+
+/**
+ * "hace 2 min" / "hace 3 h" / "hace 5 d". Distancia absoluta (no relativa al
+ * reloj del proceso): `ahora` llega por parámetro, como el resto del módulo.
+ */
+export function hace(iso: string, ahora: Date): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `hace ${formatDistanceStrict(d, ahora, { locale: es })}`
+    .replace(/ horas?/, ' h')
+    .replace(/ minutos?/, ' min')
+    .replace(/ segundos?/, ' s')
+    .replace(/ días?/, ' d');
 }
 
 /** "Jueves 13 de agosto" para el H1 de Hoy (fecha de pared BA). */

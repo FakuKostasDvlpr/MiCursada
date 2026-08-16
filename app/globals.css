@@ -152,6 +152,27 @@ html[data-tema="claro"] {
   }
 }
 
+/* Dot "verificando" del indicador del aula virtual: pulso sutil */
+@keyframes pulso-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.dot-pulso {
+  animation: pulso-dot 1.3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot-pulso {
+    animation: none;
+  }
+}
+
 /* Kicker: PRÓXIMA CLASE, CLASES DE HOY, … */
 @utility kicker {
   font-family: var(--font-mono);

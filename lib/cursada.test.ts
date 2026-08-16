@@ -10,6 +10,7 @@ import {
   estadoAviso,
   iniciales,
   fechaLargaHoy,
+  hace,
 } from '@/lib/cursada';
 
 const TZ = 'America/Argentina/Buenos_Aires';
@@ -328,5 +329,24 @@ describe('fechaLargaHoy', () => {
   it('usa el día local BA en el borde de medianoche', () => {
     expect(fechaLargaHoy(ba(`${JUEVES} 23:50`))).toBe('Jueves 13 de agosto');
     expect(fechaLargaHoy(ba('2026-08-16 00:10'))).toBe('Domingo 16 de agosto');
+  });
+});
+
+describe('hace', () => {
+  const AHORA = new Date('2026-08-16T21:00:00.000Z');
+
+  it('abrevia minutos, horas y días', () => {
+    expect(hace('2026-08-16T20:58:00.000Z', AHORA)).toBe('hace 2 min');
+    expect(hace('2026-08-16T18:00:00.000Z', AHORA)).toBe('hace 3 h');
+    expect(hace('2026-08-11T21:00:00.000Z', AHORA)).toBe('hace 5 d');
+  });
+
+  it('abrevia el singular igual que el plural', () => {
+    expect(hace('2026-08-16T20:59:00.000Z', AHORA)).toBe('hace 1 min');
+    expect(hace('2026-08-16T20:00:00.000Z', AHORA)).toBe('hace 1 h');
+  });
+
+  it('una fecha inválida da vacío', () => {
+    expect(hace('no es una fecha', AHORA)).toBe('');
   });
 });

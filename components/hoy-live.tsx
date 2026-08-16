@@ -2,11 +2,19 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import {
+  IndicadorAula,
+  PanelAulaVirtual,
+  detallesAula,
+  nombreAula,
+  useAulaVirtual,
+} from '@/components/aula-virtual';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
   clasesDeHoy,
   estadoAviso,
   fechaLargaHoy,
+  hace,
   proximaClase,
   statsBento,
   textoEstado,
@@ -23,6 +31,8 @@ type Props = {
   avatarUrl?: string | null;
   /** Instante del render en el server, para hidratar sin desajuste. */
   inicialIso: string;
+  /** ISO de la última sincronización con el aula virtual, o null si nunca corrió. */
+  syncIso?: string | null;
 };
 
 /**
@@ -30,8 +40,17 @@ type Props = {
  * próximos avisos). Un tick de 30s recalcula countdown y estados; los datos
  * llegan serializados del server.
  */
-export function HoyLive({ materias, avisos, iniciales, avatarUrl = null, inicialIso }: Props) {
+export function HoyLive({
+  materias,
+  avisos,
+  iniciales,
+  avatarUrl = null,
+  inicialIso,
+  syncIso = null,
+}: Props) {
   const [ahora, setAhora] = useState(() => new Date(inicialIso));
+  const [panel, setPanel] = useState(false);
+  const { estado, clave, refrescar } = useAulaVirtual();
 
   useEffect(() => {
     setAhora(new Date());
@@ -44,6 +63,7 @@ export function HoyLive({ materias, avisos, iniciales, avatarUrl = null, inicial
   const stats = statsBento(materias, avisos, ahora);
   const proximos = avisos.filter((a) => !a.hecho).slice(0, 3);
   const materiaDe = (id: string | null) => materias.find((m) => m.id === id) ?? null;
+  const detalles = detallesAula(estado, ahora, syncIso);
 
   return (
     <>
@@ -54,6 +74,12 @@ export function HoyLive({ materias, avisos, iniciales, avatarUrl = null, inicial
             {fechaLargaHoy(ahora)}
           </h1>
         </div>
+        <IndicadorAula
+          clave={clave}
+          nombre={nombreAula(estado)}
+          detalles={detalles}
+          onAbrirPanel={() => setPanel(true)}
+        />
         {/* En desktop el tema y el perfil viven en la sidebar. */}
         <div className="flex items-start gap-[10px] min-[641px]:hidden">
           <ThemeToggle />
@@ -233,6 +259,28 @@ export function HoyLive({ materias, avisos, iniciales, avatarUrl = null, inicial
           )}
         </div>
       </div>
+
+      {syncIso && (
+        <button
+          type="button"
+          onClick={() => setPanel(true)}
+          className="mt-[34px] flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-2"
+        >
+          <span aria-hidden className="h-[6px] w-[6px] shrink-0 rounded-full bg-sync-ok" />
+          <span className="font-mono text-[11px] text-tx3">
+            Sincronizado con el aula virtual · {hace(syncIso, ahora)}
+          </span>
+        </button>
+      )}
+
+      <PanelAulaVirtual
+        abierto={panel}
+        onCerrar={() => setPanel(false)}
+        clave={clave}
+        nombre={nombreAula(estado)}
+        detalles={detalles}
+        onRefrescar={refrescar}
+      />
     </>
   );
 }
