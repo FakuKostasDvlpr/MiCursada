@@ -60,17 +60,44 @@ docker compose down
 
 ## Actualizar los datos del aula virtual
 
-El snapshot lo genera el repo hermano [`cursada-sync`](../cursada-sync), que habla con la
-API de Moodle usando el token de su `.env`:
+La app habla directamente con la API de Moodle del aula virtual: el cliente vive en
+`lib/moodle/` (allowlist de **solo lectura**, cola de 500 ms entre llamadas) y las
+mutaciones son server actions de `app/actions-moodle.ts`:
+
+- `estadoToken()` — verifica el token contra `core_webservice_get_site_info`. Moodle **no
+  expone la expiración** del token, así que lo que se muestra es "activo sí/no", cuándo se
+  verificó y hace cuánto se generó — nunca un countdown.
+- `generarToken(usuario, password)` — pide un token nuevo a `/login/token.php`.
+- `sincronizarAhora()` — reescribe `datos/aula-virtual.json`.
+- `olvidarToken()` — borra `datos/moodle.json`.
+
+El token queda en `datos/moodle.json` (carpeta ignorada por git). Alternativa: exportar
+`MOODLE_TOKEN` en el entorno, que se usa si no existe ese archivo.
+
+### ⚠️ Dónde puede correr esto
+
+La pantalla de login guarda **un token con acceso de LECTURA a tu cuenta del aula
+virtual** en un archivo local, en texto plano. Cualquiera que llegue a la app (o al
+volumen de datos) puede sincronizar con tu cuenta. Por eso la app está pensada para correr
+**en tu máquina o en tu red privada** (Docker + Tailscale), **nunca expuesta a internet
+sin una capa de autenticación propia** delante.
+
+El cliente es incapaz de escribir en Moodle: `lib/moodle/cliente.ts` solo acepta funciones
+de una allowlist de lectura, validada en tipos **y** en runtime antes del fetch. La
+contraseña del login se usa únicamente para el fetch a `/login/token.php`: no se guarda,
+no se loguea y no vuelve al cliente.
+
+También sigue funcionando el flujo viejo por terminal, con el repo hermano
+[`cursada-sync`](../cursada-sync):
 
 ```bash
 cd ../cursada-sync
 npm run exportar
 ```
 
-Eso reescribe `datos/aula-virtual.json` de este repo. La app relee el archivo sola cuando
-cambia el mtime: alcanza con **refrescar la página**, no hace falta reiniciar el
-contenedor.
+Cualquiera de los dos reescribe `datos/aula-virtual.json` de este repo. La app relee el
+archivo sola cuando cambia el mtime: alcanza con **refrescar la página**, no hace falta
+reiniciar el contenedor.
 
 Los overlays (`horarios.json`, `materias-extra.json`, `avisos-manuales.json`,
 `archivos-manuales.json`, `avisos-estado.json`) los escribe la app y el export no los
