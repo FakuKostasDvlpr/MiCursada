@@ -11,6 +11,7 @@ import {
   filtrarCursosVigentes,
   nombreCortoCurso,
   urlAsistenciaDesdeContenidos,
+  urlClaseDesdeContenidos,
   type PlanMoodle,
 } from './plan';
 
@@ -358,12 +359,104 @@ describe('urlAsistenciaDesdeContenidos', () => {
   });
 });
 
+describe('urlClaseDesdeContenidos', () => {
+  const BASE = 'https://aula.example';
+  const sala = (id: number, name: string, uservisible = true) => ({
+    id,
+    name,
+    modname: 'zoom',
+    uservisible,
+  });
+
+  it('devuelve la URL de la sala de cursada de la comisión', () => {
+    expect(
+      urlClaseDesdeContenidos(
+        [
+          {
+            modules: [
+              { id: 10, name: 'Apunte', modname: 'resource', uservisible: true },
+              sala(144695, 'Clases Organización Empresarial [asc-ya-11a]'),
+            ],
+          },
+        ],
+        BASE
+      )
+    ).toBe(`${BASE}/mod/zoom/view.php?id=144695`);
+  });
+
+  it('prefiere la sala de cursada por sobre la de recuperatorio', () => {
+    expect(
+      urlClaseDesdeContenidos(
+        [
+          {
+            modules: [
+              sala(143226, 'Recuperatorio Fundamentos de Programación'),
+              sala(143242, 'Clases Fundamentos de Programación [asc-ya-11a]'),
+            ],
+          },
+        ],
+        BASE
+      )
+    ).toBe(`${BASE}/mod/zoom/view.php?id=143242`);
+  });
+
+  it('null si solo hay salas de recuperatorio/examen', () => {
+    expect(
+      urlClaseDesdeContenidos(
+        [
+          {
+            modules: [
+              sala(1, 'Recuperatorio del 2° parcial'),
+              sala(2, 'Examen final Matemáticas'),
+            ],
+          },
+        ],
+        BASE
+      )
+    ).toBeNull();
+  });
+
+  it('null si el curso no tiene módulo zoom', () => {
+    expect(
+      urlClaseDesdeContenidos(
+        [{ modules: [{ id: 1, name: 'Apunte', modname: 'resource', uservisible: true }] }],
+        BASE
+      )
+    ).toBeNull();
+  });
+
+  it('ignora la sala no visible para el alumno', () => {
+    expect(
+      urlClaseDesdeContenidos(
+        [{ modules: [sala(1, 'Clases [asc-ya-11a]', false)] }],
+        BASE
+      )
+    ).toBeNull();
+  });
+
+  it('el zoom se sigue salteando como archivo', () => {
+    const { archivos, salteados } = archivosDesdeContenidos(
+      7,
+      [{ modules: [sala(143242, 'Clases [asc-ya-11a]')] }],
+      BASE
+    );
+    expect(archivos).toEqual([]);
+    expect(salteados[0]?.modname).toBe('zoom');
+  });
+});
+
 describe('armarSnapshot con asistencia', () => {
   const planBase: PlanMoodle = {
     site: { fullname: 'Alumno', sitename: 'Aula', userid: 1 } as PlanMoodle['site'],
     cursos: [],
     materias: [
-      { externalId: 'curso:1', nombre: 'Con asistencia', cursoId: 1, asistenciaUrl: 'https://a/x' },
+      {
+        externalId: 'curso:1',
+        nombre: 'Con asistencia',
+        cursoId: 1,
+        asistenciaUrl: 'https://a/x',
+        claseUrl: 'https://a/z',
+      },
       { externalId: 'curso:2', nombre: 'Sin asistencia', cursoId: 2 },
     ],
     archivos: [],
@@ -376,5 +469,11 @@ describe('armarSnapshot con asistencia', () => {
     const snap = armarSnapshot(planBase, '2026-08-16T00:00:00.000Z');
     expect(snap.materias[0]?.asistenciaUrl).toBe('https://a/x');
     expect(snap.materias[1]).not.toHaveProperty('asistenciaUrl');
+  });
+
+  it('copia claseUrl solo en las materias que la tienen', () => {
+    const snap = armarSnapshot(planBase, '2026-08-16T00:00:00.000Z');
+    expect(snap.materias[0]?.claseUrl).toBe('https://a/z');
+    expect(snap.materias[1]).not.toHaveProperty('claseUrl');
   });
 });

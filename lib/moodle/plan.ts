@@ -200,6 +200,39 @@ export function urlAsistenciaDesdeContenidos(
   return null;
 }
 
+// ─── clase virtual (Zoom) ────────────────────────────────────────────────────
+
+/**
+ * Nombres que delatan una sala que NO es la de cursada semanal. Las salas de
+ * recuperatorio/examen conviven en el mismo curso que la de la comisión, y
+ * mandar al alumno a la equivocada es peor que no mostrar el botón.
+ */
+const RE_SALA_NO_CURSADA = /recuperatorio|examen|parcial|final/i;
+
+/**
+ * URL del módulo de Zoom de la cursada ("mod/zoom/view.php?id={cmid}"), o null
+ * si el curso no tiene una sala de cursada visible para el alumno.
+ *
+ * Criterio: solo módulos `zoom` con `uservisible`, descartando los que en el
+ * nombre digan recuperatorio/examen/parcial/final. Si quedan varios se toma el
+ * primero (el orden de las secciones del curso). Si SOLO hay salas de
+ * recuperatorio/examen devuelve null: mejor sin botón que mandarlo al examen.
+ */
+export function urlClaseDesdeContenidos(
+  secciones: readonly SeccionContenido[],
+  baseUrl: string
+): string | null {
+  for (const seccion of secciones) {
+    for (const mod of seccion.modules) {
+      if (mod.modname !== 'zoom') continue;
+      if (mod.uservisible === false) continue;
+      if (RE_SALA_NO_CURSADA.test(decodificarHtml(mod.name))) continue;
+      return urlModuloAbsoluta(baseUrl, mod.modname, mod.id);
+    }
+  }
+  return null;
+}
+
 // ─── avisos ──────────────────────────────────────────────────────────────────
 
 export interface AssignmentBasico {
@@ -375,6 +408,8 @@ export interface MateriaPlaneada {
   cursoId: number;
   /** URL del módulo de asistencia del curso, si tiene uno visible. */
   asistenciaUrl?: string;
+  /** URL de la sala de Zoom de la cursada, si el curso tiene una visible. */
+  claseUrl?: string;
 }
 
 export interface PlanMoodle {
@@ -412,6 +447,7 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
   const archivos: ArchivoPlaneado[] = [];
   const modulosSalteados: ModuloSalteado[] = [];
   const asistenciaPorCurso = new Map<number, string>();
+  const clasePorCurso = new Map<number, string>();
   for (const curso of cursos) {
     const secciones = await obtenerContenidos(curso.id, cred);
     const r = archivosDesdeContenidos(curso.id, secciones, cred.url);
@@ -421,10 +457,15 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
     // para el recordatorio de "Dar el presente".
     const asistencia = urlAsistenciaDesdeContenidos(secciones, cred.url);
     if (asistencia !== null) asistenciaPorCurso.set(curso.id, asistencia);
+    // Ídem el zoom de la comisión, para "Entrar a la clase".
+    const clase = urlClaseDesdeContenidos(secciones, cred.url);
+    if (clase !== null) clasePorCurso.set(curso.id, clase);
   }
   for (const m of materias) {
     const url = asistenciaPorCurso.get(m.cursoId);
     if (url !== undefined) m.asistenciaUrl = url;
+    const clase = clasePorCurso.get(m.cursoId);
+    if (clase !== undefined) m.claseUrl = clase;
   }
 
   // assignments (una sola llamada) + calendario (+60 días) → avisos
@@ -471,6 +512,8 @@ export type SnapshotMateria = {
   source: 'moodle';
   /** Solo si el curso tiene módulo de asistencia visible. */
   asistenciaUrl?: string;
+  /** Solo si el curso tiene sala de Zoom de cursada visible. */
+  claseUrl?: string;
   horarios: [];
   archivos: SnapshotArchivo[];
   bloques: [];
@@ -505,6 +548,7 @@ export function armarSnapshot(plan: PlanMoodle, generado = new Date().toISOStrin
     color: colorRoundRobin(i),
     source: 'moodle',
     ...(m.asistenciaUrl ? { asistenciaUrl: m.asistenciaUrl } : {}),
+    ...(m.claseUrl ? { claseUrl: m.claseUrl } : {}),
     horarios: [],
     archivos: plan.archivos
       .filter((a) => a.cursoId === m.cursoId)

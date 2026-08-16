@@ -72,6 +72,12 @@ export type Materia = {
    * La app NO marca el presente: solo abre el módulo en el aula virtual.
    */
   asistenciaUrl?: string;
+  /**
+   * URL del módulo de Zoom de la comisión en el aula virtual
+   * ("…/mod/zoom/view.php?id={cmid}"), si el curso tiene una sala de cursada
+   * visible. Las salas de recuperatorio/examen NO se guardan acá.
+   */
+  claseUrl?: string;
   horarios: Horario[];
   bloques: Bloque[];
   archivos: Archivo[];
