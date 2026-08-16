@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { guardarAvatarLocal, guardarPerfil } from '@/app/actions';
 import { iniciales } from '@/lib/cursada';
+import { INSTITUTO } from '@/lib/instituto';
 import { createClient } from '@/lib/supabase/client';
 import type { Perfil } from '@/lib/types';
 
@@ -159,9 +160,18 @@ export function PerfilForm({ perfil, configurado }: Props) {
         <input
           value={instituto}
           onChange={(e) => setInstituto(e.target.value)}
-          placeholder="Instituto (opcional)"
+          placeholder={`${INSTITUTO.nombre} (opcional)`}
           className="min-h-12 w-full rounded-xl border border-bor bg-sup px-[14px] text-[15px] text-tx"
         />
+      </div>
+
+      {/* Carrera y sede son fijas: se muestran como dato, no se editan. */}
+      <div className="mt-3 rounded-xl border border-bor px-[14px] py-3">
+        <div className="kicker">Tu cursada</div>
+        <div className="mt-[6px] text-[13.5px] font-semibold text-tx">{INSTITUTO.carrera}</div>
+        <div className="mt-px text-[12.5px] text-tx3">
+          Sede {INSTITUTO.sede} · {INSTITUTO.turno}
+        </div>
       </div>
 
       {error && <div className="mt-[10px] text-center text-[13px] text-vencido">{error}</div>}

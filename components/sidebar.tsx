@@ -1,10 +1,12 @@
 'use client';
 
 import { Bell, BookOpen, Calendar, Moon } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { CerrarSesion } from '@/components/cerrar-sesion';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { INSTITUTO, SEDE_Y_TURNO } from '@/lib/instituto';
 
 const ITEMS = [
   { href: '/', label: 'Hoy', Icono: Moon },
@@ -29,17 +31,23 @@ export function Sidebar({ nombre, iniciales, avatarUrl = null }: Props) {
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col border-r border-bor bg-sup px-[14px] py-[22px] min-[641px]:flex">
-      <div className="flex items-center gap-[10px] px-2">
-        <span
-          aria-hidden
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-acc-bg text-acc-fg"
-        >
-          <Moon size={18} strokeWidth={2} />
+      <div className="min-w-0 px-2">
+        {/* El logo es azul sobre transparente: en tema oscuro se perdería,
+            así que va sobre un chip blanco (idéntico en ambos temas). */}
+        <span className="inline-flex items-center rounded-md bg-white px-[6px] py-[3px]">
+          <Image
+            src={INSTITUTO.logo}
+            alt={INSTITUTO.logoAlt}
+            width={32}
+            height={17}
+            priority
+            className="h-[17px] w-auto"
+          />
         </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-extrabold tracking-[-0.01em]">Mi Cursada</span>
-          <span className="kicker mt-px block text-[9.5px]">Turno noche</span>
-        </span>
+        <div className="mt-[10px] truncate text-sm font-extrabold tracking-[-0.01em]">
+          {INSTITUTO.carrera}
+        </div>
+        <div className="kicker mt-px truncate text-[9.5px]">{SEDE_Y_TURNO}</div>
       </div>
 
       <nav className="mt-[26px] flex flex-col gap-1">
