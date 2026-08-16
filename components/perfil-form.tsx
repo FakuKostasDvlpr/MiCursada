@@ -3,7 +3,7 @@
 import { Camera, Check, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
-import { guardarPerfil } from '@/app/actions';
+import { guardarAvatarLocal, guardarPerfil } from '@/app/actions';
 import { iniciales } from '@/lib/cursada';
 import { createClient } from '@/lib/supabase/client';
 import type { Perfil } from '@/lib/types';
@@ -16,8 +16,9 @@ type Props = {
 /**
  * Formulario de perfil: avatar 104px (foto con anillo verde + badge check, o
  * iniciales sobre ámbar, o ícono de persona), captura de foto con
- * <input type="file" capture="user"> que sube al bucket "avatares" de Storage,
- * y campos nombre + instituto. "Empezar" guarda y manda a Hoy.
+ * <input type="file" capture="user"> que sube al bucket "avatares" de Storage
+ * (o al disco vía Server Action si no hay Supabase), y campos nombre +
+ * instituto. "Empezar" guarda y manda a Hoy.
  */
 export function PerfilForm({ perfil, configurado }: Props) {
   const router = useRouter();
@@ -35,13 +36,23 @@ export function PerfilForm({ perfil, configurado }: Props) {
   const inis = iniciales(nombre);
 
   const subirFoto = async (file: File) => {
-    if (!configurado) {
-      setError('Falta configurar Supabase (.env.local).');
-      return;
-    }
     setSubiendo(true);
     setError('');
     try {
+      // Sin Supabase Storage la foto va al disco (datos/avatar.<ext>) vía Server
+      // Action y se sirve por /api/avatar.
+      if (!configurado) {
+        const formData = new FormData();
+        formData.append('foto', file);
+        const resultado = await guardarAvatarLocal(formData);
+        if (!resultado.ok) {
+          setError(resultado.error);
+          return;
+        }
+        setFotoUrl(resultado.url);
+        setFotoNueva(resultado.url);
+        return;
+      }
       const supabase = createClient();
       const {
         data: { user },

@@ -6,14 +6,24 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  actualizarBloqueLocal,
+  borrarAvatarLocal,
   crearArchivoLocal,
   crearAvisoLocal,
+  crearBloqueLocal,
   eliminarArchivoLocal,
   eliminarAvisoLocal,
+  eliminarBloqueLocal,
+  escribirAvatarLocal,
   escribirEstadoAviso,
   escribirHorariosLocales,
   escribirMateriaExtra,
+  escribirPerfilLocal,
+  extensionAvatar,
   getDatosLocales,
+  leerAvatarLocal,
+  leerPerfilLocal,
+  reordenarBloquesLocales,
   rutaDatos,
 } from '@/lib/datos-locales';
 import { esManual } from '@/lib/types';
@@ -186,6 +196,123 @@ describe('avisos-manuales.json', () => {
     expect(await eliminarAvisoLocal('assign:14782')).toBe(false);
     const { avisos } = await getDatosLocales();
     expect(avisos.map((a) => a.id)).toEqual(['assign:14782']);
+  });
+});
+
+describe('bloques.json', () => {
+  it('crea bloques con orden en huecos de 1000 y los mergea en la materia', async () => {
+    const uno = await crearBloqueLocal('curso:2756', { tipo: 'titulo', texto: 'Unidad 1' });
+    const dos = await crearBloqueLocal('curso:2756', { tipo: 'tarea', texto: 'Leer capítulo 3' });
+    expect(uno.startsWith('manual:')).toBe(true);
+
+    const guardados = await leer('bloques');
+    expect(guardados['curso:2756'].map((b: { orden: number }) => b.orden)).toEqual([1000, 2000]);
+
+    const { materias } = await getDatosLocales();
+    expect(materias[0]!.bloques.map((b) => b.id)).toEqual([uno, dos]);
+    expect(materias[0]!.bloques[0]).toMatchObject({
+      materiaId: 'curso:2756',
+      tipo: 'titulo',
+      texto: 'Unidad 1',
+      estado: 'pendiente',
+      hecho: false,
+      url: '',
+    });
+  });
+
+  it('actualiza texto, url, estado y hecho', async () => {
+    const id = await crearBloqueLocal('curso:2756', { tipo: 'tarea' });
+    expect(await actualizarBloqueLocal(id, { texto: 'Entregar TP', hecho: true, estado: 'listo' }))
+      .toBe(true);
+
+    const { materias } = await getDatosLocales();
+    expect(materias[0]!.bloques[0]).toMatchObject({
+      texto: 'Entregar TP',
+      hecho: true,
+      estado: 'listo',
+    });
+  });
+
+  it('devuelve false si el bloque no existe', async () => {
+    expect(await actualizarBloqueLocal('manual:no-existe', { texto: 'x' })).toBe(false);
+    expect(await eliminarBloqueLocal('manual:no-existe')).toBe(false);
+  });
+
+  it('elimina un bloque y limpia la clave de la materia cuando queda vacía', async () => {
+    const id = await crearBloqueLocal('curso:2756', { tipo: 'texto', texto: 'Nota' });
+    expect(await eliminarBloqueLocal(id)).toBe(true);
+    expect(await leer('bloques')).toEqual({});
+    expect((await getDatosLocales()).materias[0]!.bloques).toHaveLength(0);
+  });
+
+  it('reordena por orden', async () => {
+    const uno = await crearBloqueLocal('curso:2756', { tipo: 'texto', texto: 'A' });
+    const dos = await crearBloqueLocal('curso:2756', { tipo: 'texto', texto: 'B' });
+
+    await reordenarBloquesLocales([
+      { id: dos, orden: 1000 },
+      { id: uno, orden: 2000 },
+    ]);
+
+    const { materias } = await getDatosLocales();
+    expect(materias[0]!.bloques.map((b) => b.texto)).toEqual(['B', 'A']);
+  });
+});
+
+describe('perfil.json', () => {
+  it('null mientras no exista el archivo', async () => {
+    expect(await leerPerfilLocal()).toBeNull();
+  });
+
+  it('escribe y relee el perfil (instituto vacío → null)', async () => {
+    await escribirPerfilLocal({ nombre: 'Facundo Costas', instituto: '' });
+    expect(await leerPerfilLocal()).toEqual({
+      nombre: 'Facundo Costas',
+      instituto: null,
+      avatarUrl: null,
+    });
+
+    await escribirPerfilLocal({ nombre: 'Facu', instituto: 'ORT' });
+    expect(await leerPerfilLocal()).toMatchObject({ nombre: 'Facu', instituto: 'ORT' });
+  });
+
+  it('sin avatarUrl conserva la foto guardada', async () => {
+    await escribirPerfilLocal({
+      nombre: 'Facu',
+      instituto: 'ORT',
+      avatarUrl: '/api/avatar?v=1',
+    });
+    await escribirPerfilLocal({ nombre: 'Facu Costas', instituto: 'ORT' });
+    expect(await leerPerfilLocal()).toEqual({
+      nombre: 'Facu Costas',
+      instituto: 'ORT',
+      avatarUrl: '/api/avatar?v=1',
+    });
+  });
+});
+
+describe('avatar en disco', () => {
+  it('mapea el mime a extensión y rechaza lo que no es imagen conocida', () => {
+    expect(extensionAvatar('image/jpeg')).toBe('jpg');
+    expect(extensionAvatar('image/png')).toBe('png');
+    expect(extensionAvatar('application/pdf')).toBeNull();
+  });
+
+  it('escribe, sirve y reemplaza la foto aunque cambie la extensión', async () => {
+    expect(await leerAvatarLocal()).toBeNull();
+
+    await escribirAvatarLocal(new Uint8Array([1, 2, 3]), 'png');
+    const png = await leerAvatarLocal();
+    expect(png!.contentType).toBe('image/png');
+    expect([...png!.datos]).toEqual([1, 2, 3]);
+
+    // La foto nueva borra la anterior: nunca queda más de un avatar.*
+    await escribirAvatarLocal(new Uint8Array([9]), 'jpg');
+    expect((await fs.readdir(dir)).filter((f) => f.startsWith('avatar.'))).toEqual(['avatar.jpg']);
+    expect((await leerAvatarLocal())!.contentType).toBe('image/jpeg');
+
+    await borrarAvatarLocal();
+    expect(await leerAvatarLocal()).toBeNull();
   });
 });
 

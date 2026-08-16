@@ -8,6 +8,9 @@
 //   datos/materias-extra.json    → profe/aula/color por materia  { "curso:2756": { profe, aula, color } }
 //   datos/archivos-manuales.json → archivos agregados a mano     { "curso:2756": [{ id, nombre, url }] }
 //   datos/avisos-manuales.json   → avisos agregados a mano       [{ id, materiaId, titulo, fecha, hecho }]
+//   datos/bloques.json           → notas del editor por materia  { "curso:2756": [{ id, tipo, texto, … }] }
+//   datos/perfil.json            → perfil del usuario            { nombre, instituto, avatarUrl }
+//   datos/avatar.<ext>           → la foto de perfil (la sirve app/api/avatar/route.ts)
 //
 // Las filas que vienen del snapshot NO se pueden borrar (las regenera el sync);
 // las manuales llevan id "manual:<uuid>" para no chocar con "curso:"/"mod:"/"assign:".
@@ -19,7 +22,20 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
-import { COLORES_MATERIA, type Archivo, type Aviso, type Dia, type Horario, type Materia } from '@/lib/types';
+import {
+  COLORES_MATERIA,
+  ESTADOS_BLOQUE,
+  TIPOS_BLOQUE,
+  type Archivo,
+  type Aviso,
+  type Bloque,
+  type Dia,
+  type EstadoBloque,
+  type Horario,
+  type Materia,
+  type Perfil,
+  type TipoBloque,
+} from '@/lib/types';
 
 /**
  * Directorio de datos. Se resuelve en cada llamada (no en el import) para que
@@ -36,6 +52,8 @@ const NOMBRES = {
   materiasExtra: 'materias-extra.json',
   archivosManuales: 'archivos-manuales.json',
   avisosManuales: 'avisos-manuales.json',
+  bloques: 'bloques.json',
+  perfil: 'perfil.json',
 } as const;
 
 type Overlay = keyof typeof NOMBRES;
@@ -153,6 +171,33 @@ export const avisosManualesArchivoSchema = z.array(avisoManualSchema);
 
 export type AvisoManual = z.infer<typeof avisoManualSchema>;
 
+/** { "curso:2756": [{ id: "manual:…", tipo: "tarea", texto, url, estado, hecho, orden, createdAt }] } */
+export const bloqueLocalSchema = z.object({
+  id: z.string(),
+  materiaId: z.string().optional(),
+  tipo: z.enum(TIPOS_BLOQUE),
+  texto: z.string().default(''),
+  url: z.string().default(''),
+  estado: z.enum(ESTADOS_BLOQUE).default('pendiente'),
+  hecho: z.boolean().default(false),
+  orden: z.number().default(0),
+  createdAt: z.string().default(() => new Date(0).toISOString()),
+});
+
+export const bloquesArchivoSchema = z.record(z.string(), z.array(bloqueLocalSchema));
+
+export type BloqueLocal = z.infer<typeof bloqueLocalSchema>;
+export type BloquesArchivo = z.infer<typeof bloquesArchivoSchema>;
+
+/** { nombre, instituto, avatarUrl } — el perfil del usuario en modo local. */
+export const perfilArchivoSchema = z.object({
+  nombre: z.string(),
+  instituto: z.string().nullable().default(null),
+  avatarUrl: z.string().nullable().default(null),
+});
+
+export type PerfilArchivo = z.infer<typeof perfilArchivoSchema>;
+
 // --- Lectura con caché por mtime ---
 
 export type DatosLocales = {
@@ -209,6 +254,7 @@ type Overlays = {
   extra: MateriasExtraArchivo;
   archivos: ArchivosManualesArchivo;
   avisos: AvisoManual[];
+  bloques: BloquesArchivo;
 };
 
 function armar(snapshot: z.infer<typeof snapshotSchema>, ov: Overlays): DatosLocales {
@@ -248,21 +294,28 @@ function armar(snapshot: z.infer<typeof snapshotSchema>, ov: Overlays): DatosLoc
         color: esColor(colorCrudo) ? colorCrudo : colorDeId(m.id),
         source: m.source === 'manual' ? 'manual' : 'moodle',
         horarios: hs,
-        bloques: (m.bloques ?? []).map((b, i) => ({
-          id: b.id,
-          materiaId: b.materiaId ?? m.id,
-          tipo:
-            b.tipo === 'titulo' || b.tipo === 'tarea' || b.tipo === 'link' || b.tipo === 'divisor'
-              ? b.tipo
+        // Bloques del snapshot + los que el usuario escribió en el editor
+        // (datos/bloques.json), todos ordenados por `orden`.
+        bloques: [
+          ...(m.bloques ?? []).map((b, i): Bloque => ({
+            id: b.id,
+            materiaId: b.materiaId ?? m.id,
+            tipo: (TIPOS_BLOQUE as readonly string[]).includes(b.tipo ?? '')
+              ? (b.tipo as TipoBloque)
               : 'texto',
-          texto: b.texto ?? '',
-          url: b.url ?? '',
-          estado:
-            b.estado === 'proceso' || b.estado === 'listo' ? b.estado : 'pendiente',
-          hecho: b.hecho ?? false,
-          orden: b.orden ?? (i + 1) * 1000,
-          createdAt: b.createdAt ?? snapshot.generado ?? new Date(0).toISOString(),
-        })),
+            texto: b.texto ?? '',
+            url: b.url ?? '',
+            estado: (ESTADOS_BLOQUE as readonly string[]).includes(b.estado ?? '')
+              ? (b.estado as EstadoBloque)
+              : 'pendiente',
+            hecho: b.hecho ?? false,
+            orden: b.orden ?? (i + 1) * 1000,
+            createdAt: b.createdAt ?? snapshot.generado ?? new Date(0).toISOString(),
+          })),
+          ...(ov.bloques[m.id] ?? []).map(
+            (b): Bloque => ({ ...b, materiaId: b.materiaId ?? m.id })
+          ),
+        ].sort((a, b) => a.orden - b.orden || a.createdAt.localeCompare(b.createdAt)),
         archivos: [...archivosSnapshot, ...archivosManuales],
       };
     })
@@ -295,6 +348,7 @@ export async function getDatosLocales(): Promise<DatosLocales> {
     'materiasExtra',
     'archivosManuales',
     'avisosManuales',
+    'bloques',
   ];
 
   const [mSnap, ...mOverlays] = await Promise.all([
@@ -315,14 +369,16 @@ export async function getDatosLocales(): Promise<DatosLocales> {
     return VACIO;
   }
 
-  const [crudoSnap, crudoHor, crudoEst, crudoExtra, crudoArch, crudoAvisos] = await Promise.all([
-    leerJson(rutaSnapshot),
-    leerJson(rutaDatos('horarios')),
-    leerJson(rutaDatos('avisosEstado')),
-    leerJson(rutaDatos('materiasExtra')),
-    leerJson(rutaDatos('archivosManuales')),
-    leerJson(rutaDatos('avisosManuales')),
-  ]);
+  const [crudoSnap, crudoHor, crudoEst, crudoExtra, crudoArch, crudoAvisos, crudoBloques] =
+    await Promise.all([
+      leerJson(rutaSnapshot),
+      leerJson(rutaDatos('horarios')),
+      leerJson(rutaDatos('avisosEstado')),
+      leerJson(rutaDatos('materiasExtra')),
+      leerJson(rutaDatos('archivosManuales')),
+      leerJson(rutaDatos('avisosManuales')),
+      leerJson(rutaDatos('bloques')),
+    ]);
 
   const snap = snapshotSchema.safeParse(crudoSnap);
   if (!snap.success) {
@@ -336,6 +392,7 @@ export async function getDatosLocales(): Promise<DatosLocales> {
   const extra = materiasExtraArchivoSchema.safeParse(crudoExtra ?? {});
   const arch = archivosManualesArchivoSchema.safeParse(crudoArch ?? {});
   const avm = avisosManualesArchivoSchema.safeParse(crudoAvisos ?? []);
+  const blq = bloquesArchivoSchema.safeParse(crudoBloques ?? {});
 
   const datos = armar(snap.data, {
     horarios: hor.success ? hor.data : {},
@@ -343,6 +400,7 @@ export async function getDatosLocales(): Promise<DatosLocales> {
     extra: extra.success ? extra.data : {},
     archivos: arch.success ? arch.data : {},
     avisos: avm.success ? avm.data : [],
+    bloques: blq.success ? blq.data : {},
   });
   cache = { clave, datos };
   return datos;
@@ -454,4 +512,176 @@ export async function eliminarAvisoLocal(id: string): Promise<boolean> {
     await escribirJson(rutaDatos('avisosEstado'), estados);
   }
   return true;
+}
+
+// --- Bloques (editor de notas) ---
+
+/** Huecos de 1000 para poder reordenar sin reescribir todo. */
+const PASO_ORDEN = 1000;
+
+/**
+ * Agrega un bloque al final de la materia en datos/bloques.json.
+ * Devuelve el id generado ("manual:<uuid>").
+ */
+export async function crearBloqueLocal(
+  materiaId: string,
+  bloque: { tipo: TipoBloque; texto?: string; url?: string }
+): Promise<string> {
+  const mapa = { ...(await leerOverlay('bloques', bloquesArchivoSchema, {})) };
+  const lista = mapa[materiaId] ?? [];
+  const ultimo = lista.reduce((max, b) => Math.max(max, b.orden), 0);
+  const id = nuevoId();
+  mapa[materiaId] = [
+    ...lista,
+    {
+      id,
+      materiaId,
+      tipo: bloque.tipo,
+      texto: bloque.texto ?? '',
+      url: bloque.url ?? '',
+      estado: 'pendiente',
+      hecho: false,
+      orden: ultimo + PASO_ORDEN,
+      createdAt: new Date().toISOString(),
+    },
+  ];
+  await escribirJson(rutaDatos('bloques'), mapa);
+  return id;
+}
+
+/** Aplica un patch a un bloque local. False si ese id no está en el overlay. */
+export async function actualizarBloqueLocal(
+  id: string,
+  patch: { texto?: string; url?: string; estado?: EstadoBloque; hecho?: boolean }
+): Promise<boolean> {
+  const mapa = { ...(await leerOverlay('bloques', bloquesArchivoSchema, {})) };
+  let encontrado = false;
+  for (const [materiaId, lista] of Object.entries(mapa)) {
+    if (!lista.some((b) => b.id === id)) continue;
+    encontrado = true;
+    mapa[materiaId] = lista.map((b) => (b.id === id ? { ...b, ...patch } : b));
+  }
+  if (!encontrado) return false;
+  await escribirJson(rutaDatos('bloques'), mapa);
+  return true;
+}
+
+/** Borra un bloque local. False si ese id no está en el overlay. */
+export async function eliminarBloqueLocal(id: string): Promise<boolean> {
+  const mapa = { ...(await leerOverlay('bloques', bloquesArchivoSchema, {})) };
+  let encontrado = false;
+  for (const [materiaId, lista] of Object.entries(mapa)) {
+    const filtrada = lista.filter((b) => b.id !== id);
+    if (filtrada.length === lista.length) continue;
+    encontrado = true;
+    if (filtrada.length === 0) delete mapa[materiaId];
+    else mapa[materiaId] = filtrada;
+  }
+  if (!encontrado) return false;
+  await escribirJson(rutaDatos('bloques'), mapa);
+  return true;
+}
+
+/** Reasigna el `orden` de varios bloques de una. Ignora los ids que no existan. */
+export async function reordenarBloquesLocales(
+  items: { id: string; orden: number }[]
+): Promise<void> {
+  const ordenes = new Map(items.map((i) => [i.id, i.orden]));
+  const mapa = { ...(await leerOverlay('bloques', bloquesArchivoSchema, {})) };
+  for (const [materiaId, lista] of Object.entries(mapa)) {
+    mapa[materiaId] = lista.map((b) =>
+      ordenes.has(b.id) ? { ...b, orden: ordenes.get(b.id)! } : b
+    );
+  }
+  await escribirJson(rutaDatos('bloques'), mapa);
+}
+
+// --- Perfil + foto ---
+
+/** Perfil guardado en datos/perfil.json, o null si todavía no existe. */
+export async function leerPerfilLocal(): Promise<Perfil | null> {
+  const crudo = await leerJson(rutaDatos('perfil'));
+  if (crudo === null) return null;
+  const parsed = perfilArchivoSchema.safeParse(crudo);
+  if (!parsed.success) return null;
+  return {
+    nombre: parsed.data.nombre,
+    instituto: parsed.data.instituto,
+    avatarUrl: parsed.data.avatarUrl,
+  };
+}
+
+/**
+ * Escribe datos/perfil.json. `avatarUrl: undefined` conserva la foto guardada
+ * (mismo contrato que el upsert de Supabase).
+ */
+export async function escribirPerfilLocal(perfil: {
+  nombre: string;
+  instituto: string;
+  avatarUrl?: string;
+}): Promise<void> {
+  const previo = await leerPerfilLocal();
+  await escribirJson(rutaDatos('perfil'), {
+    nombre: perfil.nombre,
+    instituto: perfil.instituto || null,
+    avatarUrl: perfil.avatarUrl ?? previo?.avatarUrl ?? null,
+  });
+}
+
+/** Extensiones de imagen que aceptamos para el avatar (mime → extensión). */
+const EXT_POR_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'image/avif': 'avif',
+  'image/heic': 'heic',
+};
+
+const MIME_POR_EXT: Record<string, string> = {
+  jpg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  gif: 'image/gif',
+  avif: 'image/avif',
+  heic: 'image/heic',
+};
+
+export const extensionAvatar = (mime: string): string | null =>
+  EXT_POR_MIME[mime.toLowerCase()] ?? null;
+
+/**
+ * Guarda la foto de perfil en datos/avatar.<ext> (borrando la anterior, que
+ * puede tener otra extensión). Sin Supabase Storage, el disco es el bucket.
+ */
+export async function escribirAvatarLocal(datos: Uint8Array, ext: string): Promise<void> {
+  const dir = dirDatos();
+  await fs.mkdir(dir, { recursive: true });
+  await borrarAvatarLocal();
+  await fs.writeFile(path.join(dir, `avatar.${ext}`), datos);
+}
+
+/** Borra cualquier datos/avatar.<ext> que haya. */
+export async function borrarAvatarLocal(): Promise<void> {
+  const dir = dirDatos();
+  for (const e of Object.keys(MIME_POR_EXT)) {
+    await fs.rm(path.join(dir, `avatar.${e}`), { force: true });
+  }
+}
+
+/** La foto de perfil guardada en disco, o null si no hay ninguna. */
+export async function leerAvatarLocal(): Promise<{
+  datos: Buffer;
+  contentType: string;
+} | null> {
+  const dir = dirDatos();
+  for (const [ext, contentType] of Object.entries(MIME_POR_EXT)) {
+    try {
+      return { datos: await fs.readFile(path.join(dir, `avatar.${ext}`)), contentType };
+    } catch {
+      // probamos la siguiente extensión
+    }
+  }
+  return null;
 }

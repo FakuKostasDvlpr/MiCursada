@@ -2,7 +2,7 @@
 // Mapean filas snake_case de Supabase a los tipos de dominio (camelCase) de lib/types.ts.
 // Sin cache: lecturas directas, las páginas son dynamic.
 
-import { getDatosLocales } from '@/lib/datos-locales';
+import { getDatosLocales, leerPerfilLocal } from '@/lib/datos-locales';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { createClient } from '@/lib/supabase/server';
 import type {
@@ -241,7 +241,8 @@ export async function getAvisos(): Promise<Aviso[]> {
 
 /** Perfil del usuario o null si todavía no lo creó. */
 export async function getPerfil(): Promise<Perfil | null> {
-  if (!conSupabase()) return null;
+  // Sin Supabase el perfil vive en datos/perfil.json (y la foto en datos/avatar.<ext>).
+  if (!conSupabase()) return leerPerfilLocal();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('perfil')

@@ -9,13 +9,20 @@ import type { User } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
+  actualizarBloqueLocal,
   crearArchivoLocal,
   crearAvisoLocal,
+  crearBloqueLocal,
   eliminarArchivoLocal,
   eliminarAvisoLocal,
+  eliminarBloqueLocal,
+  escribirAvatarLocal,
   escribirEstadoAviso,
   escribirHorariosLocales,
   escribirMateriaExtra,
+  escribirPerfilLocal,
+  extensionAvatar,
+  reordenarBloquesLocales,
 } from '@/lib/datos-locales';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { createClient } from '@/lib/supabase/server';
@@ -408,11 +415,61 @@ const perfilSchema = z.object({
   avatarUrl: z.string().trim().min(1).optional(),
 });
 
+/** Máximo de la foto de perfil en modo local (sin Storage, va al disco). */
+const MAX_AVATAR = 5 * 1024 * 1024;
+
+const ERROR_FOTO = 'No se pudo subir la foto. Probá de nuevo.';
+const ERROR_FOTO_TIPO = 'Elegí una imagen.';
+const ERROR_FOTO_PESO = 'La foto pesa demasiado (máx 5 MB).';
+
+export type ResultadoFoto = { ok: true; url: string } | { ok: false; error: string };
+
+/**
+ * Modo sin Supabase: guarda la foto de perfil en datos/avatar.<ext> y devuelve
+ * la URL que la sirve (app/api/avatar/route.ts), con ?v= para bustear la caché.
+ */
+export async function guardarAvatarLocal(formData: FormData): Promise<ResultadoFoto> {
+  const file = formData.get('foto');
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: ERROR_FOTO_TIPO };
+
+  const ext = extensionAvatar(file.type || '');
+  if (!file.type.startsWith('image/') || !ext) return { ok: false, error: ERROR_FOTO_TIPO };
+  if (file.size > MAX_AVATAR) return { ok: false, error: ERROR_FOTO_PESO };
+
+  try {
+    await escribirAvatarLocal(new Uint8Array(await file.arrayBuffer()), ext);
+  } catch (e) {
+    console.error('guardarAvatarLocal:', e);
+    return { ok: false, error: ERROR_FOTO };
+  }
+  revalidarTodo();
+  return { ok: true, url: `/api/avatar?v=${Date.now()}` };
+}
+
 export async function guardarPerfil(input: {
   nombre: string;
   instituto: string;
   avatarUrl?: string;
 }): Promise<ResultadoAction> {
+  if (!supabaseConfigurado()) {
+    const parsedLocal = perfilSchema.safeParse(input);
+    if (!parsedLocal.success) {
+      return { ok: false, error: 'Poné tu nombre así te saludamos.' };
+    }
+    try {
+      await escribirPerfilLocal({
+        nombre: parsedLocal.data.nombre,
+        instituto: parsedLocal.data.instituto,
+        avatarUrl: parsedLocal.data.avatarUrl,
+      });
+    } catch (e) {
+      console.error('guardarPerfil (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;
@@ -441,7 +498,7 @@ export async function guardarPerfil(input: {
 }
 
 // ---------------------------------------------------------------------------
-// Bloques (API lista para la Fase 6)
+// Bloques (editor de notas)
 // ---------------------------------------------------------------------------
 
 const bloqueNuevoSchema = z.object({
@@ -454,6 +511,23 @@ export async function crearBloque(
   materiaId: string,
   input: { tipo: (typeof TIPOS_BLOQUE)[number]; texto?: string; url?: string }
 ): Promise<ResultadoAction> {
+  if (!supabaseConfigurado()) {
+    const parsedLocal = bloqueNuevoSchema.safeParse(input);
+    if (!parsedLocal.success) return { ok: false, error: ERROR_DATOS };
+    try {
+      await crearBloqueLocal(materiaId, {
+        tipo: parsedLocal.data.tipo,
+        texto: parsedLocal.data.texto ?? '',
+        url: parsedLocal.data.url ? normalizarUrl(parsedLocal.data.url) : '',
+      });
+    } catch (e) {
+      console.error('crearBloque (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;
@@ -506,6 +580,34 @@ const bloquePatchSchema = z.object({
 export type BloquePatch = z.input<typeof bloquePatchSchema>;
 
 export async function actualizarBloque(id: string, patch: BloquePatch): Promise<ResultadoAction> {
+  if (!supabaseConfigurado()) {
+    const parsedLocal = bloquePatchSchema.safeParse(patch);
+    if (!parsedLocal.success) return { ok: false, error: ERROR_DATOS };
+
+    const cambiosLocal: {
+      texto?: string;
+      url?: string;
+      estado?: (typeof ESTADOS_BLOQUE)[number];
+      hecho?: boolean;
+    } = {};
+    if (parsedLocal.data.texto !== undefined) cambiosLocal.texto = parsedLocal.data.texto;
+    if (parsedLocal.data.url !== undefined)
+      cambiosLocal.url = parsedLocal.data.url ? normalizarUrl(parsedLocal.data.url) : '';
+    if (parsedLocal.data.estado !== undefined) cambiosLocal.estado = parsedLocal.data.estado;
+    if (parsedLocal.data.hecho !== undefined) cambiosLocal.hecho = parsedLocal.data.hecho;
+    if (Object.keys(cambiosLocal).length === 0) return { ok: true };
+
+    try {
+      const actualizado = await actualizarBloqueLocal(id, cambiosLocal);
+      if (!actualizado) return { ok: false, error: ERROR_NO_EXISTE };
+    } catch (e) {
+      console.error('actualizarBloque (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;
@@ -534,6 +636,18 @@ export async function actualizarBloque(id: string, patch: BloquePatch): Promise<
 }
 
 export async function eliminarBloque(id: string): Promise<ResultadoAction> {
+  if (!supabaseConfigurado()) {
+    try {
+      const borrado = await eliminarBloqueLocal(id);
+      if (!borrado) return { ok: false, error: ERROR_NO_EXISTE };
+    } catch (e) {
+      console.error('eliminarBloque (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;
@@ -556,9 +670,31 @@ const reordenarSchema = z.array(
   })
 );
 
+/** En local los ids son "manual:<uuid>", no uuids pelados. */
+const reordenarLocalSchema = z.array(
+  z.object({
+    id: z.string().min(1),
+    orden: z.number().int(),
+  })
+);
+
 export async function reordenarBloques(
   items: { id: string; orden: number }[]
 ): Promise<ResultadoAction> {
+  if (!supabaseConfigurado()) {
+    const parsedLocal = reordenarLocalSchema.safeParse(items);
+    if (!parsedLocal.success) return { ok: false, error: ERROR_DATOS };
+    if (parsedLocal.data.length === 0) return { ok: true };
+    try {
+      await reordenarBloquesLocales(parsedLocal.data);
+    } catch (e) {
+      console.error('reordenarBloques (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;

@@ -9,14 +9,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
 import {
+  actualizarBloque,
   actualizarMateria,
   crearArchivo,
   crearAviso,
+  crearBloque,
   eliminarArchivo,
   eliminarAviso,
+  eliminarBloque,
+  guardarAvatarLocal,
+  guardarPerfil,
+  reordenarBloques,
   toggleAviso,
 } from '@/app/actions';
-import { getDatosLocales, rutaDatos } from '@/lib/datos-locales';
+import { getDatosLocales, leerAvatarLocal, leerPerfilLocal, rutaDatos } from '@/lib/datos-locales';
 
 const SNAPSHOT = {
   generado: '2026-08-16T20:00:00.000Z',
@@ -157,5 +163,162 @@ describe('avisos (local)', () => {
 
     const { avisos } = await getDatosLocales();
     expect(avisos.map((a) => a.id)).toEqual(['assign:14782']);
+  });
+});
+
+describe('bloques (local)', () => {
+  /** Bloques de la materia del snapshot, ya ordenados. */
+  const bloques = async () => (await getDatosLocales()).materias[0]!.bloques;
+
+  it('crea bloques de cada tipo y normaliza la URL de los links', async () => {
+    expect(await crearBloque('curso:2756', { tipo: 'titulo', texto: 'Unidad 1' })).toEqual({
+      ok: true,
+    });
+    expect(await crearBloque('curso:2756', { tipo: 'link', texto: 'Apunte', url: 'drive.com/x' }))
+      .toEqual({ ok: true });
+
+    const lista = await bloques();
+    expect(lista.map((b) => b.tipo)).toEqual(['titulo', 'link']);
+    expect(lista[1]!.url).toBe('https://drive.com/x'); // normalizarUrl
+    expect(lista[0]!.id.startsWith('manual:')).toBe(true);
+  });
+
+  it('rechaza un tipo que no existe', async () => {
+    expect(
+      await crearBloque('curso:2756', {
+        tipo: 'kanban' as 'texto',
+      })
+    ).toEqual({ ok: false, error: 'Datos inválidos.' });
+  });
+
+  it('actualiza el texto y el estado de un bloque', async () => {
+    await crearBloque('curso:2756', { tipo: 'tarea', texto: 'Leer' });
+    const id = (await bloques())[0]!.id;
+
+    expect(await actualizarBloque(id, { texto: 'Leer capítulo 3' })).toEqual({ ok: true });
+    expect(await actualizarBloque(id, { estado: 'listo', hecho: true })).toEqual({ ok: true });
+
+    expect((await bloques())[0]).toMatchObject({
+      texto: 'Leer capítulo 3',
+      estado: 'listo',
+      hecho: true,
+    });
+  });
+
+  it('un patch vacío no falla y uno inválido devuelve el error de datos', async () => {
+    await crearBloque('curso:2756', { tipo: 'texto', texto: 'Nota' });
+    const id = (await bloques())[0]!.id;
+    expect(await actualizarBloque(id, {})).toEqual({ ok: true });
+    expect(await actualizarBloque(id, { estado: 'archivado' as 'listo' })).toEqual({
+      ok: false,
+      error: 'Datos inválidos.',
+    });
+  });
+
+  it('avisa cuando el bloque ya no existe', async () => {
+    expect(await actualizarBloque('manual:fantasma', { texto: 'x' })).toEqual({
+      ok: false,
+      error: 'Eso ya no existe.',
+    });
+    expect(await eliminarBloque('manual:fantasma')).toEqual({
+      ok: false,
+      error: 'Eso ya no existe.',
+    });
+  });
+
+  it('elimina un bloque', async () => {
+    await crearBloque('curso:2756', { tipo: 'texto', texto: 'Nota' });
+    const id = (await bloques())[0]!.id;
+    expect(await eliminarBloque(id)).toEqual({ ok: true });
+    expect(await bloques()).toHaveLength(0);
+  });
+
+  it('reordena con ids locales (no uuid) y acepta la lista vacía', async () => {
+    await crearBloque('curso:2756', { tipo: 'texto', texto: 'A' });
+    await crearBloque('curso:2756', { tipo: 'texto', texto: 'B' });
+    const [a, b] = await bloques();
+
+    expect(await reordenarBloques([])).toEqual({ ok: true });
+    expect(
+      await reordenarBloques([
+        { id: b!.id, orden: 1000 },
+        { id: a!.id, orden: 2000 },
+      ])
+    ).toEqual({ ok: true });
+
+    expect((await bloques()).map((x) => x.texto)).toEqual(['B', 'A']);
+  });
+});
+
+describe('perfil (local)', () => {
+  it('persiste nombre e instituto en datos/perfil.json', async () => {
+    expect(await guardarPerfil({ nombre: '  Facundo Costas ', instituto: 'ORT' })).toEqual({
+      ok: true,
+    });
+    expect(await leerPerfilLocal()).toEqual({
+      nombre: 'Facundo Costas',
+      instituto: 'ORT',
+      avatarUrl: null,
+    });
+  });
+
+  it('pide el nombre con el copy exacto', async () => {
+    expect(await guardarPerfil({ nombre: '   ', instituto: '' })).toEqual({
+      ok: false,
+      error: 'Poné tu nombre así te saludamos.',
+    });
+    expect(await leerPerfilLocal()).toBeNull();
+  });
+
+  it('guardar sin avatarUrl no borra la foto ya guardada', async () => {
+    await guardarPerfil({ nombre: 'Facu', instituto: '', avatarUrl: '/api/avatar?v=1' });
+    await guardarPerfil({ nombre: 'Facu Costas', instituto: 'ORT' });
+    expect(await leerPerfilLocal()).toEqual({
+      nombre: 'Facu Costas',
+      instituto: 'ORT',
+      avatarUrl: '/api/avatar?v=1',
+    });
+  });
+});
+
+describe('foto de perfil (local)', () => {
+  const conFoto = (file: File) => {
+    const fd = new FormData();
+    fd.append('foto', file);
+    return fd;
+  };
+
+  it('guarda la imagen en disco y devuelve una URL con bust de caché', async () => {
+    const file = new File([new Uint8Array([137, 80, 78, 71])], 'yo.png', { type: 'image/png' });
+    const r = await guardarAvatarLocal(conFoto(file));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.url).toMatch(/^\/api\/avatar\?v=\d+$/);
+
+    const avatar = await leerAvatarLocal();
+    expect(avatar!.contentType).toBe('image/png');
+    expect([...avatar!.datos]).toEqual([137, 80, 78, 71]);
+  });
+
+  it('rechaza lo que no es una imagen', async () => {
+    const pdf = new File([new Uint8Array([1])], 'x.pdf', { type: 'application/pdf' });
+    expect(await guardarAvatarLocal(conFoto(pdf))).toEqual({
+      ok: false,
+      error: 'Elegí una imagen.',
+    });
+    expect(await guardarAvatarLocal(new FormData())).toEqual({
+      ok: false,
+      error: 'Elegí una imagen.',
+    });
+    expect(await leerAvatarLocal()).toBeNull();
+  });
+
+  it('rechaza una foto de más de 5 MB', async () => {
+    const gorda = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'g.jpg', { type: 'image/jpeg' });
+    expect(await guardarAvatarLocal(conFoto(gorda))).toEqual({
+      ok: false,
+      error: 'La foto pesa demasiado (máx 5 MB).',
+    });
+    expect(await leerAvatarLocal()).toBeNull();
   });
 });

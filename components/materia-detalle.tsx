@@ -9,8 +9,9 @@ import {
   eliminarAviso,
   toggleAviso,
 } from '@/app/actions';
+import { NotasEditor } from '@/components/notas-editor';
 import { estadoAviso, hoyISO } from '@/lib/cursada';
-import { esManual, type Aviso, type Bloque, type Materia } from '@/lib/types';
+import { esManual, type Aviso, type Materia } from '@/lib/types';
 
 /** 'YYYY-MM-DD' → 'dd/mm'. */
 const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
@@ -29,7 +30,7 @@ const claseInput =
 const claseVacio =
   'mt-[14px] rounded-[14px] border border-dashed border-bor p-5 text-center text-[13.5px] text-tx3';
 
-/** Tabs del detalle de materia: Notas (lista simple, el editor llega en Fase 6),
+/** Tabs del detalle de materia: Notas (editor de bloques con menú de comandos),
  *  Archivos (alta inline + lista) y Avisos (alta inline + lista con toggle). */
 export function MateriaDetalle({ materia, avisos }: Props) {
   const [tab, setTab] = useState<Tab>('notas');
@@ -61,90 +62,10 @@ export function MateriaDetalle({ materia, avisos }: Props) {
         ))}
       </div>
 
-      {tab === 'notas' && <TabNotas bloques={materia.bloques} />}
+      {tab === 'notas' && <NotasEditor materiaId={materia.id} bloques={materia.bloques} />}
       {tab === 'archivos' && <TabArchivos materia={materia} />}
       {tab === 'avisos' && <TabAvisos materiaId={materia.id} avisos={avisos} />}
     </>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Notas — lista simple de bloques (el editor con / es Fase 6)
-// ---------------------------------------------------------------------------
-
-function TabNotas({ bloques }: { bloques: Bloque[] }) {
-  if (bloques.length === 0) {
-    return (
-      <div className={claseVacio}>
-        Sin notas todavía. Anotá lo que dice el profe acá — con / agregás títulos, tareas, links
-        y divisores.
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-[14px] flex flex-col">
-      {bloques.map((b) => {
-        if (b.tipo === 'divisor') {
-          return <hr key={b.id} className="my-[14px] border-0 border-t border-bor" />;
-        }
-        if (b.tipo === 'titulo') {
-          return (
-            <div key={b.id} className="py-[6px] text-[17.5px] leading-[1.35] font-extrabold">
-              {b.texto}
-            </div>
-          );
-        }
-        if (b.tipo === 'tarea') {
-          return (
-            <div key={b.id} className="flex items-start gap-2 py-[7px]">
-              <span
-                aria-hidden
-                className={`mt-[3px] grid h-5 w-5 shrink-0 place-items-center rounded-[7px] border-2 border-bor2 ${
-                  b.hecho ? 'bg-bor' : ''
-                }`}
-              >
-                {b.hecho && <Check size={10} strokeWidth={3.5} className="text-acc" />}
-              </span>
-              <span
-                className={`text-[14.5px] leading-normal ${
-                  b.hecho ? 'text-tx3 line-through' : ''
-                }`}
-              >
-                {b.texto}
-              </span>
-            </div>
-          );
-        }
-        if (b.tipo === 'link' && b.url) {
-          return (
-            <a
-              key={b.id}
-              href={b.url}
-              target="_blank"
-              rel="noopener"
-              className="my-[3px] flex min-h-[52px] items-center gap-[10px] rounded-xl border border-bor bg-sup px-3 py-[10px]"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-acc">
-                  {b.texto || b.url}
-                </span>
-                <span className="mt-[2px] block truncate font-mono text-[11px] text-tx3">
-                  {b.url}
-                </span>
-              </span>
-              <ArrowUpRight size={14} strokeWidth={2} aria-hidden className="shrink-0 text-tx3" />
-            </a>
-          );
-        }
-        // texto (y links sin URL todavía)
-        return (
-          <div key={b.id} className="py-[7px] text-[14.5px] leading-normal">
-            {b.texto}
-          </div>
-        );
-      })}
-    </div>
   );
 }
 
