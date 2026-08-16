@@ -3,15 +3,21 @@
 // Tab Notas — editor de bloques estilo Notion (HANDOFF.md §"Tab Notas").
 // Sin drag & drop ni vista Tablero todavía: eso queda para después.
 //
+// Bitácora: los bloques se muestran agrupados por día calendario de Buenos
+// Aires (derivado de `createdAt`, ver lib/bitacora.ts). No hay ningún proceso a
+// medianoche: lo que se escribe después de las 00:00 simplemente cae en el día
+// siguiente. El día de hoy va primero y abierto; los anteriores, colapsados.
+//
 // Persistencia: Server Actions de app/actions.ts. El texto se guarda con
 // debounce (~600ms) para no escribir el overlay en cada tecla; crear, borrar,
 // cambiar estado y togglear tareas guardan al instante. Todo con update
 // optimista sobre el estado local, que se re-siembra desde el server cuando no
 // hay ediciones en vuelo.
 
-import { ArrowUpRight, Plus, X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react';
+import { ArrowUpRight, ChevronRight, Plus, Search, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { actualizarBloque, crearBloque, eliminarBloque } from '@/app/actions';
+import { agruparPorDia, coincide, type GrupoDia } from '@/lib/bitacora';
 import { ESTADOS_BLOQUE, type Bloque, type EstadoBloque, type TipoBloque } from '@/lib/types';
 
 const COLOR_ESTADO: Record<EstadoBloque, string> = {
@@ -218,6 +224,37 @@ export function NotasEditor({ materiaId, bloques }: Props) {
     correr(() => actualizarBloque(id, { texto, url }));
   };
 
+  // --- Bitácora: agrupado por día + buscador ---
+
+  const [consulta, setConsulta] = useState('');
+  /** Solo los días que el usuario abrió/cerró a mano (el resto usa el default). */
+  const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
+
+  const grupos = useMemo(() => agruparPorDia(items, new Date()), [items]);
+
+  const buscando = consulta.trim() !== '';
+  const visibles: GrupoDia[] = buscando
+    ? grupos
+        .map((g) => ({ ...g, bloques: g.bloques.filter((b) => coincide(b, consulta)) }))
+        .filter((g) => g.bloques.length > 0)
+    : grupos;
+
+  /** Con un solo día (o ninguno) la vista es la de siempre: sin encabezados. */
+  const conEncabezados = grupos.length > 1;
+
+  const fila = (b: Bloque) => (
+    <FilaBloque
+      key={b.id}
+      bloque={b}
+      onTexto={(t) => editarTexto(b.id, t)}
+      onBlurTexto={(t) => flush(b.id, { texto: t })}
+      onBorrar={() => borrar(b.id)}
+      onEstado={() => ciclarEstado(b)}
+      onToggle={() => toggleTarea(b)}
+      onLink={(texto, url) => guardarLink(b.id, texto, url)}
+    />
+  );
+
   return (
     <div className="mt-4">
       {/* Composer */}
@@ -274,21 +311,87 @@ export function NotasEditor({ materiaId, bloques }: Props) {
           Sin notas todavía. Anotá lo que dice el profe acá — con / agregás títulos, tareas, links
           y divisores.
         </div>
-      ) : (
+      ) : !conEncabezados ? (
         <div className="mt-[14px] flex flex-col">
-          {items.map((b) => (
-            <FilaBloque
-              key={b.id}
-              bloque={b}
-              onTexto={(t) => editarTexto(b.id, t)}
-              onBlurTexto={(t) => flush(b.id, { texto: t })}
-              onBorrar={() => borrar(b.id)}
-              onEstado={() => ciclarEstado(b)}
-              onToggle={() => toggleTarea(b)}
-              onLink={(texto, url) => guardarLink(b.id, texto, url)}
-            />
-          ))}
+          {grupos.flatMap((g) => g.bloques).map(fila)}
         </div>
+      ) : (
+        <>
+          {/* Buscador — aparece recién cuando hay más de un día de notas */}
+          <div className="relative mt-[14px]">
+            <Search
+              size={15}
+              strokeWidth={2}
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-tx3"
+            />
+            <input
+              value={consulta}
+              onChange={(e) => setConsulta(e.target.value)}
+              placeholder="Buscar en tus notas…"
+              aria-label="Buscar en tus notas"
+              type="text"
+              className="min-h-11 w-full rounded-xl border border-bor bg-sup pr-11 pl-9 text-[14px] text-tx"
+            />
+            {buscando && (
+              <button
+                type="button"
+                onClick={() => setConsulta('')}
+                aria-label="Limpiar búsqueda"
+                className="tactil absolute top-1/2 right-0 grid h-11 w-11 -translate-y-1/2 cursor-pointer place-items-center rounded-xl text-tx3"
+              >
+                <X size={15} strokeWidth={2.5} aria-hidden />
+              </button>
+            )}
+          </div>
+
+          {visibles.length === 0 ? (
+            <div className="mt-[14px] rounded-[14px] border border-dashed border-bor p-5 text-center text-[13.5px] text-tx3">
+              No encontramos nada con eso.
+            </div>
+          ) : (
+            <div className="mt-1 flex flex-col">
+              {visibles.map((g, i) => {
+                const clave = g.dia || 'sin-fecha';
+                const panelId = `dia-${clave}`;
+                // Mientras se busca, los días con coincidencias se abren solos.
+                const abierto = buscando || (abiertos[clave] ?? i === 0);
+                const n = g.bloques.filter((b) => b.tipo !== 'divisor').length;
+                return (
+                  <section key={clave}>
+                    <h3>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAbiertos((prev) => ({ ...prev, [clave]: !abierto }))
+                        }
+                        aria-expanded={abierto}
+                        aria-controls={panelId}
+                        className="tactil flex min-h-11 w-full cursor-pointer items-center gap-2 border-b border-bor py-2 text-left"
+                      >
+                        <ChevronRight
+                          size={14}
+                          strokeWidth={2.5}
+                          aria-hidden
+                          className={`shrink-0 text-tx3 transition-transform ${
+                            abierto ? 'rotate-90' : ''
+                          }`}
+                        />
+                        <span className="kicker flex-1">{g.etiqueta}</span>
+                        <span className="font-mono text-[11px] text-tx3">
+                          {n === 1 ? '1 nota' : `${n} notas`}
+                        </span>
+                      </button>
+                    </h3>
+                    <div id={panelId} className={abierto ? 'flex flex-col pb-2' : 'hidden'}>
+                      {abierto && g.bloques.map(fila)}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
