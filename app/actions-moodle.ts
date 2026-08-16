@@ -20,6 +20,7 @@ import {
 } from '@/lib/moodle/credenciales';
 import { pedirToken } from '@/lib/moodle/login';
 import { obtenerSiteInfo, sincronizarSnapshot } from '@/lib/moodle/plan';
+import { hayAcceso } from '@/lib/sesion-actual';
 
 /** Motivo por el que falló la verificación del token. */
 export type MotivoError = 'vencido' | 'red' | 'desconocido';
@@ -50,6 +51,7 @@ export type ResultadoToken = { ok: true; nombre: string } | { ok: false; error: 
 
 const ERROR_GENERICO = 'Algo falló. Probá de nuevo.';
 const ERROR_VENCIDO = 'Tu token venció. Generá uno nuevo.';
+const ERROR_SESION = 'No pudimos verificar tu sesión. Entrá de nuevo.';
 
 /** Clasifica un error del cliente de Moodle sin filtrar nada sensible. */
 function motivo(e: unknown): MotivoError {
@@ -71,6 +73,9 @@ function loguear(contexto: string, e: unknown): void {
  * `ultimaVerificacion` de datos/moodle.json.
  */
 export async function estadoToken(): Promise<EstadoToken> {
+  // Sin sesión no se cuenta nada del aula virtual, ni siquiera si hay token.
+  if (!(await hayAcceso())) return { configurado: false };
+
   const cred = await leerCredenciales();
   if (cred === null) return { configurado: false };
 
@@ -113,6 +118,8 @@ const loginSchema = z.object({
  * lib/moodle/login.ts): no se persiste, no se loguea y no vuelve al cliente.
  */
 export async function generarToken(usuario: string, password: string): Promise<ResultadoToken> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   const parsed = loginSchema.safeParse({ usuario, password });
   if (!parsed.success) return { ok: false, error: 'Poné tu usuario y tu contraseña.' };
 
@@ -158,6 +165,8 @@ export async function generarToken(usuario: string, password: string): Promise<R
  * filas manuales quedan intactas: son overlays aparte).
  */
 export async function sincronizarAhora(): Promise<ResultadoSync> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   const cred = await leerCredenciales();
   if (cred === null) {
     return { ok: false, error: 'Todavía no configuraste el aula virtual.' };
@@ -197,6 +206,8 @@ export async function sincronizarAhora(): Promise<ResultadoSync> {
 
 /** Borra datos/moodle.json (y solo eso: el snapshot y los overlays quedan). */
 export async function olvidarToken(): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   try {
     await olvidarCredenciales();
   } catch (e) {

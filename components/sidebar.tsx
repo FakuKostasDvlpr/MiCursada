@@ -3,6 +3,7 @@
 import { Bell, BookOpen, Calendar, Moon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { CerrarSesion } from '@/components/cerrar-sesion';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 const ITEMS = [
@@ -87,6 +88,7 @@ export function Sidebar({ nombre, iniciales, avatarUrl = null }: Props) {
             <span className="block truncate text-[11px] text-tx3">Tu perfil</span>
           </span>
         </Link>
+        <CerrarSesion variante="sidebar" />
       </div>
     </aside>
   );

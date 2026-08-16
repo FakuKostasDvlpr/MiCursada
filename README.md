@@ -22,6 +22,41 @@ npm test            # vitest
 npm run build       # build de producción
 ```
 
+## Login: el del aula virtual
+
+Para entrar a la app se usan **el mismo usuario y la misma contraseña del aula
+virtual**. No hay cuentas propias ni registro.
+
+Qué pasa cuando entrás (`iniciarSesion` en `app/actions-sesion.ts`):
+
+1. usuario + contraseña van a `{url}/login/token.php`;
+2. si Moodle los acepta, el token de lectura que devuelve queda en
+   `datos/moodle.json` — el mismo que usa la sincronización, así que **entrar
+   también renueva el token vencido**;
+3. se abre una sesión de la app: cookie `cursada_sesion` (httpOnly, 30 días).
+
+Las sesiones abiertas viven en `datos/sesiones.json`, y ahí se guarda **el
+SHA-256 del token de sesión, nunca el token**: quien lea ese archivo no puede
+fabricarse una sesión. La contraseña no se guarda en ningún lado (solo se usa
+para el fetch a `/login/token.php`).
+
+**Un solo dueño**: la primera cuenta que entra se queda con la app. Después, si
+otra cuenta del aula virtual intenta entrar, la app la rechaza (compara el
+`userid` guardado) para que nadie más vea tus datos ni pise tu token. Para
+reasignarla, borrá `datos/moodle.json`.
+
+**Cerrar sesión** está en la sidebar (desktop) y abajo del perfil (móvil).
+Cierra la sesión de ese dispositivo —las demás siguen abiertas— y **no** borra
+el token del aula virtual: para eso está "Desconectar", en el panel del aula
+virtual.
+
+### Correr sin login
+
+`CURSADA_SIN_LOGIN=1` desactiva la autenticación por completo. Sirve para
+desarrollo y para no quedarte afuera de tus propios datos si el aula virtual
+está caída (el login necesita hablar con Moodle). **Con eso prendido cualquiera
+que llegue a la app entra**: usalo solo en tu máquina o en tu red privada.
+
 ## Correr con Docker
 
 ```bash
@@ -64,6 +99,8 @@ La app habla directamente con la API de Moodle del aula virtual: el cliente vive
 `lib/moodle/` (allowlist de **solo lectura**, cola de 500 ms entre llamadas) y las
 mutaciones son server actions de `app/actions-moodle.ts`:
 
+- `iniciarSesion(usuario, password)` — el login de la app (ver arriba): pide el token y
+  abre la sesión.
 - `estadoToken()` — verifica el token contra `core_webservice_get_site_info`. Moodle **no
   expone la expiración** del token, así que lo que se muestra es "activo sí/no", cuándo se
   verificó y hace cuánto se generó — nunca un countdown.
@@ -76,11 +113,13 @@ El token queda en `datos/moodle.json` (carpeta ignorada por git). Alternativa: e
 
 ### ⚠️ Dónde puede correr esto
 
-La pantalla de login guarda **un token con acceso de LECTURA a tu cuenta del aula
-virtual** en un archivo local, en texto plano. Cualquiera que llegue a la app (o al
-volumen de datos) puede sincronizar con tu cuenta. Por eso la app está pensada para correr
-**en tu máquina o en tu red privada** (Docker + Tailscale), **nunca expuesta a internet
-sin una capa de autenticación propia** delante.
+La app guarda **un token con acceso de LECTURA a tu cuenta del aula virtual** en un
+archivo local, en texto plano. La puerta de entrada es el login del aula virtual (ver
+arriba), así que ya no está abierta de par en par; aun así, cualquiera que llegue al
+**volumen de datos** se lleva el token igual. Sigue siendo una app pensada para correr
+**en tu máquina o en tu red privada** (Docker + Tailscale); si la exponés, que sea por
+https (la cookie de sesión se marca `secure` sola cuando el request llega por
+`x-forwarded-proto: https`) y **nunca con `CURSADA_SIN_LOGIN=1`**.
 
 El cliente es incapaz de escribir en Moodle: `lib/moodle/cliente.ts` solo acepta funciones
 de una allowlist de lectura, validada en tipos **y** en runtime antes del fetch. La

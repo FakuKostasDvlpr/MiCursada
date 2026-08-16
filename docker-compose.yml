@@ -15,8 +15,12 @@ services:
     environment:
       NODE_ENV: production
       CURSADA_DATOS_DIR: /app/datos
+      # Para entrar se usa el usuario y la contraseña del aula virtual. Con
+      # CURSADA_SIN_LOGIN=1 no se pide nada (solo para tu máquina o tu red
+      # privada, o si el aula virtual está caída y necesitás ver tus datos).
+      # CURSADA_SIN_LOGIN: "1"
       # Supabase es opcional: sin estas variables la app corre sólo con los
-      # archivos de ./datos (el middleware deja pasar todo).
+      # archivos de ./datos.
       # NEXT_PUBLIC_SUPABASE_URL: ""
       # NEXT_PUBLIC_SUPABASE_ANON_KEY: ""
     restart: unless-stopped

@@ -121,6 +121,20 @@ export async function hayCredenciales(): Promise<boolean> {
   return (await leerCredenciales()) !== null;
 }
 
+/**
+ * ¿Existe datos/moodle.json? (distinto de `hayCredenciales`, que también cuenta
+ * el token del entorno). El login lo usa para saber si la app ya tiene dueño:
+ * el `userid` del archivo siempre lo escribió un login verificado.
+ */
+export async function hayArchivoCredenciales(): Promise<boolean> {
+  try {
+    await fs.access(rutaCredenciales());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Escribe datos/moodle.json (el archivo entero, es de un solo usuario). */
 export async function guardarCredenciales(cred: Credencial): Promise<void> {
   const ruta = rutaCredenciales();

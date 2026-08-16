@@ -2,6 +2,9 @@
 
 // Fase 3 — Server Actions de Mi Cursada.
 // Todas devuelven { ok: true } | { ok: false, error } con errores cortos en castellano.
+// Todas arrancan con `hayAcceso()`: una Server Action es un POST que se puede
+// llamar sin pasar por la página, así que el layout de (app) no alcanza como
+// única puerta — cada action revisa la sesión por su cuenta.
 // Estrategia de revalidación consistente: revalidatePath('/', 'layout') — cubre
 // '/', '/semana', '/materias', '/materias/[id]' y '/avisos' de una.
 
@@ -24,6 +27,7 @@ import {
   extensionAvatar,
   reordenarBloquesLocales,
 } from '@/lib/datos-locales';
+import { hayAcceso } from '@/lib/sesion-actual';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { createClient } from '@/lib/supabase/server';
 import { normalizarUrl } from '@/lib/urls';
@@ -105,6 +109,8 @@ export async function guardarHorariosLocales(
   materiaId: string,
   horarios: MateriaInput['horarios']
 ): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   const validado = validarHorarios(horarios);
   if (!validado.ok) return { ok: false, error: validado.error };
 
@@ -151,6 +157,8 @@ export async function actualizarMateria(
   id: string,
   input: MateriaInput
 ): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   if (!supabaseConfigurado()) return actualizarMateriaLocal(id, input);
 
   const sesion = await conUsuario();
@@ -199,6 +207,8 @@ export async function crearArchivo(
   materiaId: string,
   input: { nombre: string; url: string }
 ): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   if (!supabaseConfigurado()) {
     const parsedLocal = archivoSchema.safeParse(input);
     if (!parsedLocal.success) return { ok: false, error: 'Poné un nombre y un link.' };
@@ -239,6 +249,8 @@ export async function crearArchivo(
 }
 
 export async function eliminarArchivo(id: string): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   if (!supabaseConfigurado()) {
     if (!esManual(id)) return { ok: false, error: ERROR_ARCHIVO_MOODLE };
     try {
@@ -297,6 +309,8 @@ export async function crearAviso(input: {
   materiaId: string | null;
   fecha: string;
 }): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   if (!supabaseConfigurado()) {
     const parsedLocal = avisoSchema.safeParse(input);
     if (!parsedLocal.success) return { ok: false, error: 'Poné un título y una fecha.' };
@@ -344,6 +358,8 @@ export async function crearAviso(input: {
 }
 
 export async function toggleAviso(id: string, hecho: boolean): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   // Sin Supabase: el "hecho" vive en datos/avisos-estado.json y sobrevive al reload.
   if (!supabaseConfigurado()) {
     try {
@@ -376,6 +392,8 @@ export async function toggleAviso(id: string, hecho: boolean): Promise<Resultado
 }
 
 export async function eliminarAviso(id: string): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   if (!supabaseConfigurado()) {
     if (!esManual(id)) return { ok: false, error: ERROR_AVISO_MOODLE };
     try {
@@ -429,6 +447,8 @@ export type ResultadoFoto = { ok: true; url: string } | { ok: false; error: stri
  * la URL que la sirve (app/api/avatar/route.ts), con ?v= para bustear la caché.
  */
 export async function guardarAvatarLocal(formData: FormData): Promise<ResultadoFoto> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   const file = formData.get('foto');
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: ERROR_FOTO_TIPO };
 
@@ -451,6 +471,8 @@ export async function guardarPerfil(input: {
   instituto: string;
   avatarUrl?: string;
 }): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   if (!supabaseConfigurado()) {
     const parsedLocal = perfilSchema.safeParse(input);
     if (!parsedLocal.success) {
@@ -511,6 +533,8 @@ export async function crearBloque(
   materiaId: string,
   input: { tipo: (typeof TIPOS_BLOQUE)[number]; texto?: string; url?: string }
 ): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   if (!supabaseConfigurado()) {
     const parsedLocal = bloqueNuevoSchema.safeParse(input);
     if (!parsedLocal.success) return { ok: false, error: ERROR_DATOS };
@@ -580,6 +604,8 @@ const bloquePatchSchema = z.object({
 export type BloquePatch = z.input<typeof bloquePatchSchema>;
 
 export async function actualizarBloque(id: string, patch: BloquePatch): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   if (!supabaseConfigurado()) {
     const parsedLocal = bloquePatchSchema.safeParse(patch);
     if (!parsedLocal.success) return { ok: false, error: ERROR_DATOS };
@@ -636,6 +662,8 @@ export async function actualizarBloque(id: string, patch: BloquePatch): Promise<
 }
 
 export async function eliminarBloque(id: string): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   if (!supabaseConfigurado()) {
     try {
       const borrado = await eliminarBloqueLocal(id);
@@ -681,6 +709,8 @@ const reordenarLocalSchema = z.array(
 export async function reordenarBloques(
   items: { id: string; orden: number }[]
 ): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
   if (!supabaseConfigurado()) {
     const parsedLocal = reordenarLocalSchema.safeParse(items);
     if (!parsedLocal.success) return { ok: false, error: ERROR_DATOS };

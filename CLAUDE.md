@@ -8,6 +8,13 @@ App personal (un solo usuario) para organizar una cursada nocturna. **Desktop-fi
 - Supabase (`@supabase/supabase-js` + `@supabase/ssr`) para datos. `zod` para validación, `lucide-react` para íconos, `vitest` para tests.
 - **Nada de librería de estado global** (ni Redux, ni Zustand). Estado de servidor + estado local de componentes.
 
+## Autenticación
+- Se entra con **el usuario y la contraseña del aula virtual** (Moodle): `app/actions-sesion.ts` pide el token a `/login/token.php`, lo guarda en `datos/moodle.json` y abre la sesión (cookie `cursada_sesion`, 30 días, hash en `datos/sesiones.json`).
+- Todo lo que requiere estar adentro vive en el grupo `app/(app)/`, cuyo layout llama a `exigirSesion()`. `/login` queda afuera del grupo.
+- **Toda Server Action y todo route handler chequean `hayAcceso()` por su cuenta** (son POST/GET que no pasan por el layout). Si agregás una action nueva, la guarda va sí o sí.
+- `CURSADA_SIN_LOGIN=1` desactiva el login (dev / red privada).
+- Ni la contraseña ni el token del aula virtual vuelven nunca al cliente ni van a un log.
+
 ## Convenciones
 - **Server Components por defecto.** `"use client"` solo cuando hay estado o interacción.
 - **Server Actions** para todas las mutaciones.

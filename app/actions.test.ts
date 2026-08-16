@@ -8,6 +8,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
+// Las actions ahora exigen sesión (lib/sesion-actual). Fuera de un request no
+// hay cookies(), así que se mockea el store: `cookie.token` decide si el test
+// corre "adentro" o "sin sesión".
+const cookie = vi.hoisted(() => ({ token: undefined as string | undefined }));
+vi.mock('next/headers', () => ({
+  cookies: async () => ({
+    get: (nombre: string) => (cookie.token ? { name: nombre, value: cookie.token } : undefined),
+    set: vi.fn(),
+    delete: vi.fn(),
+  }),
+  headers: async () => new Headers(),
+}));
+
 import {
   actualizarBloque,
   actualizarMateria,
@@ -23,6 +36,7 @@ import {
   toggleAviso,
 } from '@/app/actions';
 import { getDatosLocales, leerAvatarLocal, leerPerfilLocal, rutaDatos } from '@/lib/datos-locales';
+import { crearSesion } from '@/lib/sesion';
 
 const SNAPSHOT = {
   generado: '2026-08-16T20:00:00.000Z',
@@ -49,11 +63,36 @@ beforeEach(async () => {
   delete process.env.NEXT_PUBLIC_SUPABASE_URL;
   delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   await fs.writeFile(rutaDatos('snapshot'), JSON.stringify(SNAPSHOT), 'utf8');
+  cookie.token = await crearSesion('Test');
 });
 
 afterEach(async () => {
   delete process.env.CURSADA_DATOS_DIR;
+  cookie.token = undefined;
   await fs.rm(dir, { recursive: true, force: true });
+});
+
+describe('sin sesión', () => {
+  it('las actions no tocan nada y piden entrar de nuevo', async () => {
+    cookie.token = undefined;
+
+    const r = await actualizarMateria('curso:2756', {
+      profe: 'Intruso',
+      aula: 'Aula 1',
+      color: '#a78bfa',
+      horarios: [{ dia: 4, inicio: '19:50', fin: '21:30' }],
+    });
+
+    expect(r).toEqual({ ok: false, error: 'No pudimos verificar tu sesión. Entrá de nuevo.' });
+    const { materias } = await getDatosLocales();
+    expect(materias[0]?.profe).not.toBe('Intruso');
+  });
+
+  it('un token que no existe tampoco entra', async () => {
+    cookie.token = 'inventado';
+    const r = await toggleAviso('assign:14782', true);
+    expect(r).toEqual({ ok: false, error: 'No pudimos verificar tu sesión. Entrá de nuevo.' });
+  });
 });
 
 describe('actualizarMateria (local)', () => {

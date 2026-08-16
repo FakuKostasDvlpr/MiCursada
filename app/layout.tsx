@@ -1,10 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
-import { BottomNav } from "@/components/bottom-nav";
-import { Contenedor } from "@/components/contenedor";
-import { Sidebar } from "@/components/sidebar";
-import { iniciales } from "@/lib/cursada";
-import { getPerfil } from "@/lib/queries";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -43,27 +38,22 @@ try {
 } catch (e) {}
 `;
 
-export default async function RootLayout({
+/**
+ * Shell mínimo: fuentes, tema y nada más. La nav y el contenedor viven en
+ * app/(app)/layout.tsx, que además exige sesión — /login queda afuera de ese
+ * grupo y por eso se ve sin nav y sin pedir nada.
+ */
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const perfil = await getPerfil();
-
   return (
     <html lang="es-AR" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: temaInicial }} />
       </head>
-      <body className={`${jakarta.variable} ${jetbrains.variable} antialiased`}>
-        <Sidebar
-          nombre={perfil?.nombre ?? ''}
-          iniciales={iniciales(perfil?.nombre ?? '')}
-          avatarUrl={perfil?.avatarUrl ?? null}
-        />
-        <Contenedor>{children}</Contenedor>
-        <BottomNav />
-      </body>
+      <body className={`${jakarta.variable} ${jetbrains.variable} antialiased`}>{children}</body>
     </html>
   );
 }
