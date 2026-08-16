@@ -1,6 +1,7 @@
-import { Moon } from 'lucide-react';
+import Image from 'next/image';
 import { redirect } from 'next/navigation';
 import { LoginForm } from '@/components/login-form';
+import { INSTITUTO } from '@/lib/instituto';
 import { URL_MOODLE_DEFAULT, leerCredenciales } from '@/lib/moodle/credenciales';
 import { hayAcceso } from '@/lib/sesion-actual';
 
@@ -15,11 +16,18 @@ export default async function PaginaLogin() {
 
   return (
     <main className="mx-auto flex min-h-[100dvh] max-w-[360px] flex-col justify-center px-[18px] py-[30px]">
-      <div
-        aria-hidden
-        className="mx-auto grid h-[54px] w-[54px] place-items-center rounded-2xl bg-acc-bg text-acc-fg"
-      >
-        <Moon size={26} strokeWidth={2} />
+      {/* El logo del instituto, que es de quién son las credenciales que se
+          piden acá. Va sobre chip blanco: el JPG tiene fondo blanco y en tema
+          oscuro se vería el recuadro. */}
+      <div className="mx-auto inline-flex items-center rounded-2xl bg-white px-[18px] py-[13px]">
+        <Image
+          src={INSTITUTO.logo}
+          alt={INSTITUTO.logoAlt}
+          width={INSTITUTO.logoAncho}
+          height={INSTITUTO.logoAlto}
+          priority
+          className="h-[52px] w-auto"
+        />
       </div>
       <div className="mt-[18px] text-center">
         <div className="kicker tracking-[0.16em]">Mi cursada · Turno noche</div>

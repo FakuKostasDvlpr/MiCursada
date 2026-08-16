@@ -36,14 +36,14 @@ export function Sidebar({ nombre, iniciales, avatarUrl = null }: Props) {
             sobre un chip blanco (idéntico en ambos temas). width/height son las
             medidas reales del archivo — el tamaño en pantalla lo pone el CSS,
             y así next/image sirve una versión nítida en pantallas retina. */}
-        <span className="inline-flex items-center rounded-md bg-white px-[6px] py-[3px]">
+        <span className="inline-flex items-center rounded-lg bg-white px-[9px] py-[5px]">
           <Image
             src={INSTITUTO.logo}
             alt={INSTITUTO.logoAlt}
             width={INSTITUTO.logoAncho}
             height={INSTITUTO.logoAlto}
             priority
-            className="h-[17px] w-auto"
+            className="h-[30px] w-auto"
           />
         </span>
         <div className="mt-[10px] truncate text-sm font-extrabold tracking-[-0.01em]">
