@@ -1,6 +1,7 @@
 import { Clock, MapPin, User } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { AsistenciaMateria } from '@/components/asistencia';
 import { EditarMateria } from '@/components/editar-materia';
 import { MateriaDetalle } from '@/components/materia-detalle';
 import { nombreDia } from '@/lib/cursada';
@@ -75,6 +76,8 @@ export default async function PaginaDetalleMateria({
         </div>
         <EditarMateria materia={materia} />
       </div>
+
+      <AsistenciaMateria materia={materia} />
 
       <MateriaDetalle materia={materia} avisos={avisos} />
     </main>

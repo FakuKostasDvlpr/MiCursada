@@ -97,6 +97,8 @@ const materiaSchema = z.object({
   aula: z.string().optional(),
   color: z.string().optional(),
   source: z.string().optional(),
+  /** Los snapshots viejos no lo tienen: opcional a propósito. */
+  asistenciaUrl: z.string().optional(),
   archivos: z.array(archivoSchema).optional(),
   bloques: z.array(bloqueSchema).optional(),
 });
@@ -293,6 +295,7 @@ function armar(snapshot: z.infer<typeof snapshotSchema>, ov: Overlays): DatosLoc
         aula: extra.aula ?? m.aula ?? '',
         color: esColor(colorCrudo) ? colorCrudo : colorDeId(m.id),
         source: m.source === 'manual' ? 'manual' : 'moodle',
+        ...(m.asistenciaUrl ? { asistenciaUrl: m.asistenciaUrl } : {}),
         horarios: hs,
         // Bloques del snapshot + los que el usuario escribió en el editor
         // (datos/bloques.json), todos ordenados por `orden`.

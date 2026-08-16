@@ -11,6 +11,8 @@ import {
   iniciales,
   fechaLargaHoy,
   hace,
+  estadoAsistencia,
+  MIN_ANTES_ASISTENCIA,
 } from '@/lib/cursada';
 
 const TZ = 'America/Argentina/Buenos_Aires';
@@ -348,5 +350,56 @@ describe('hace', () => {
 
   it('una fecha inválida da vacío', () => {
     expect(hace('no es una fecha', AHORA)).toBe('');
+  });
+});
+
+describe('estadoAsistencia', () => {
+  // Horario real del usuario: los módulos arrancan 19:10 y terminan 23:00.
+  const h = horario(4, '19:10', '23:00');
+
+  it('antes de la ventana: "Empieza HH:MM"', () => {
+    expect(estadoAsistencia(h, ba(`${JUEVES} 18:00`))).toEqual({
+      fase: 'antes',
+      activa: false,
+      texto: 'Empieza 19:10',
+    });
+    // 19:00 es el borde: 11 min antes todavía es "antes".
+    expect(estadoAsistencia(h, ba(`${JUEVES} 18:59`)).fase).toBe('antes');
+  });
+
+  it('la ventana abre 10 min antes del inicio (19:00 para una clase de 19:10)', () => {
+    expect(estadoAsistencia(h, ba(`${JUEVES} 19:00`))).toEqual({
+      fase: 'activa',
+      activa: true,
+      texto: 'En 10 min',
+    });
+    expect(estadoAsistencia(h, ba(`${JUEVES} 19:02`)).texto).toBe('En 8 min');
+  });
+
+  it('ya empezada pero sin terminar: "Ahora"', () => {
+    expect(estadoAsistencia(h, ba(`${JUEVES} 19:10`))).toEqual({
+      fase: 'activa',
+      activa: true,
+      texto: 'Ahora',
+    });
+    expect(estadoAsistencia(h, ba(`${JUEVES} 22:59`)).texto).toBe('Ahora');
+  });
+
+  it('terminada en el instante del fin: "Terminó HH:MM"', () => {
+    expect(estadoAsistencia(h, ba(`${JUEVES} 23:00`))).toEqual({
+      fase: 'terminada',
+      activa: false,
+      texto: 'Terminó 23:00',
+    });
+    expect(estadoAsistencia(h, ba(`${JUEVES} 23:30`)).fase).toBe('terminada');
+  });
+
+  it('usa la hora de pared de Buenos Aires, no la del proceso', () => {
+    // 22:05 UTC = 19:05 en BA → ventana activa.
+    expect(estadoAsistencia(h, new Date('2026-08-13T22:05:00.000Z')).activa).toBe(true);
+  });
+
+  it('MIN_ANTES_ASISTENCIA es 10', () => {
+    expect(MIN_ANTES_ASISTENCIA).toBe(10);
   });
 });

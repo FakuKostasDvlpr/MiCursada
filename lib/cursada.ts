@@ -142,6 +142,48 @@ export function clasesDeHoy(materias: Materia[], ahora: Date): ClaseHoy[] {
   }));
 }
 
+/** Minutos antes del inicio en que se abre la ventana para dar el presente. */
+export const MIN_ANTES_ASISTENCIA = 10;
+
+export type FaseAsistencia = 'antes' | 'activa' | 'terminada';
+
+export type EstadoAsistencia = {
+  fase: FaseAsistencia;
+  /** True entre 10 min antes del inicio y el fin de la clase. */
+  activa: boolean;
+  /** Línea mono chica: "Ahora" / "En 8 min" / "Empieza 19:00" / "Terminó 23:00". */
+  texto: string;
+};
+
+/**
+ * Estado del recordatorio de asistencia de UNA clase de hoy, en hora de pared
+ * de Buenos Aires. PURA: `ahora` llega por parámetro.
+ *
+ * - activa: desde MIN_ANTES_ASISTENCIA minutos antes del inicio hasta el fin.
+ *   Texto "Ahora" si ya empezó, "En N min" si todavía falta.
+ * - antes: "Empieza HH:MM".
+ * - terminada (fin <= ahora): "Terminó HH:MM".
+ */
+export function estadoAsistencia(horario: Horario, ahora: Date): EstadoAsistencia {
+  const local = enBA(ahora);
+  const nowMin = local.getHours() * 60 + local.getMinutes();
+  const inicio = aMin(horario.inicio);
+  const fin = aMin(horario.fin);
+
+  if (nowMin >= fin) {
+    return { fase: 'terminada', activa: false, texto: `Terminó ${horario.fin}` };
+  }
+  if (nowMin >= inicio - MIN_ANTES_ASISTENCIA) {
+    const faltan = inicio - nowMin;
+    return {
+      fase: 'activa',
+      activa: true,
+      texto: faltan <= 0 ? 'Ahora' : `En ${faltan} min`,
+    };
+  }
+  return { fase: 'antes', activa: false, texto: `Empieza ${horario.inicio}` };
+}
+
 export type StatsBento = {
   clasesHoy: number;
   subClases: string;

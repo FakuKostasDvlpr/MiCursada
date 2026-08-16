@@ -175,6 +175,31 @@ export function archivosDesdeContenidos(
   return { archivos, salteados };
 }
 
+// ─── asistencia ──────────────────────────────────────────────────────────────
+
+/**
+ * URL del módulo de asistencia del curso ("mod/attendance/view.php?id={cmid}"),
+ * o null si el curso no tiene uno visible para el alumno.
+ *
+ * El web service de esta instancia NO expone ninguna función de attendance, así
+ * que no se puede leer ni marcar nada por API: lo único que guardamos es el link
+ * para abrir el módulo en el aula virtual. Como archivo se sigue salteando
+ * (`archivosDesdeContenidos` no lo toca).
+ */
+export function urlAsistenciaDesdeContenidos(
+  secciones: readonly SeccionContenido[],
+  baseUrl: string
+): string | null {
+  for (const seccion of secciones) {
+    for (const mod of seccion.modules) {
+      if (mod.modname !== 'attendance') continue;
+      if (mod.uservisible === false) continue;
+      return urlModuloAbsoluta(baseUrl, mod.modname, mod.id);
+    }
+  }
+  return null;
+}
+
 // ─── avisos ──────────────────────────────────────────────────────────────────
 
 export interface AssignmentBasico {
@@ -348,6 +373,8 @@ export interface MateriaPlaneada {
   externalId: string; // "curso:{id}"
   nombre: string;
   cursoId: number;
+  /** URL del módulo de asistencia del curso, si tiene uno visible. */
+  asistenciaUrl?: string;
 }
 
 export interface PlanMoodle {
@@ -384,11 +411,20 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
   // espacia 500 ms entre sí)
   const archivos: ArchivoPlaneado[] = [];
   const modulosSalteados: ModuloSalteado[] = [];
+  const asistenciaPorCurso = new Map<number, string>();
   for (const curso of cursos) {
     const secciones = await obtenerContenidos(curso.id, cred);
     const r = archivosDesdeContenidos(curso.id, secciones, cred.url);
     archivos.push(...r.archivos);
     modulosSalteados.push(...r.salteados);
+    // El módulo de attendance se saltea como archivo, pero su link se guarda
+    // para el recordatorio de "Dar el presente".
+    const asistencia = urlAsistenciaDesdeContenidos(secciones, cred.url);
+    if (asistencia !== null) asistenciaPorCurso.set(curso.id, asistencia);
+  }
+  for (const m of materias) {
+    const url = asistenciaPorCurso.get(m.cursoId);
+    if (url !== undefined) m.asistenciaUrl = url;
   }
 
   // assignments (una sola llamada) + calendario (+60 días) → avisos
@@ -433,6 +469,8 @@ export type SnapshotMateria = {
   aula: string;
   color: string;
   source: 'moodle';
+  /** Solo si el curso tiene módulo de asistencia visible. */
+  asistenciaUrl?: string;
   horarios: [];
   archivos: SnapshotArchivo[];
   bloques: [];
@@ -466,6 +504,7 @@ export function armarSnapshot(plan: PlanMoodle, generado = new Date().toISOStrin
     aula: '',
     color: colorRoundRobin(i),
     source: 'moodle',
+    ...(m.asistenciaUrl ? { asistenciaUrl: m.asistenciaUrl } : {}),
     horarios: [],
     archivos: plan.archivos
       .filter((a) => a.cursoId === m.cursoId)

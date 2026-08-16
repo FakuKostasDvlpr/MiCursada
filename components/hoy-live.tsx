@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
@@ -9,6 +10,7 @@ import {
   nombreAula,
   useAulaVirtual,
 } from '@/components/aula-virtual';
+import { TileAsistencia } from '@/components/asistencia';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
   clasesDeHoy,
@@ -69,7 +71,21 @@ export function HoyLive({
     <>
       <header className="flex items-start gap-[10px]">
         <div className="min-w-0 flex-1">
-          <div className="kicker tracking-[0.16em]">Mi cursada · Turno noche</div>
+          <div className="flex items-center gap-2">
+            {/* El logo es azul sobre transparente: en tema oscuro se perdería,
+                así que va sobre un chip blanco (idéntico en ambos temas). */}
+            <span className="flex shrink-0 items-center rounded-md bg-white px-[6px] py-[3px]">
+              <Image
+                src="/logo-ort.png"
+                alt="Aula Virtual ORT"
+                width={30}
+                height={16}
+                priority
+                className="h-[16px] w-auto"
+              />
+            </span>
+            <div className="kicker min-w-0 truncate tracking-[0.1em]">Analista de Sistemas</div>
+          </div>
           <h1 className="mt-2 text-2xl font-extrabold tracking-[-0.015em]">
             {fechaLargaHoy(ahora)}
           </h1>
@@ -161,6 +177,9 @@ export function HoyLive({
           </span>
           <span className="text-xs text-tx3">{stats.subPendientes}</span>
         </Link>
+
+        {/* Recordatorio de asistencia: solo los días que cursás. */}
+        <TileAsistencia materias={materias} ahora={ahora} />
 
         <div className="col-span-full rounded-2xl border border-bor bg-sup p-[14px] min-[641px]:col-[1/3]">
           <div className="kicker mb-[10px] tracking-[0.16em]">Clases de hoy</div>

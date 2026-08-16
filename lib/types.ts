@@ -66,6 +66,12 @@ export type Materia = {
   color: ColorMateria;
   /** 'moodle' = vino del sync del aula virtual (nombre readonly, no se elimina). */
   source: SourceMateria;
+  /**
+   * URL del módulo de asistencia en el aula virtual
+   * ("…/mod/attendance/view.php?id={cmid}"), si la materia tiene uno visible.
+   * La app NO marca el presente: solo abre el módulo en el aula virtual.
+   */
+  asistenciaUrl?: string;
   horarios: Horario[];
   bloques: Bloque[];
   archivos: Archivo[];

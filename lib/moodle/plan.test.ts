@@ -10,6 +10,7 @@ import {
   colorRoundRobin,
   filtrarCursosVigentes,
   nombreCortoCurso,
+  urlAsistenciaDesdeContenidos,
   type PlanMoodle,
 } from './plan';
 
@@ -306,5 +307,74 @@ describe('armarSnapshot', () => {
 
   it('deja el `generado` que se le pasa', () => {
     expect(snap.generado).toBe('2026-03-01T00:00:00.000Z');
+  });
+});
+
+describe('urlAsistenciaDesdeContenidos', () => {
+  const BASE = 'https://aula.example';
+
+  it('devuelve la URL del módulo attendance visible', () => {
+    expect(
+      urlAsistenciaDesdeContenidos(
+        [
+          {
+            modules: [
+              { id: 10, name: 'Apunte', modname: 'resource', uservisible: true },
+              { id: 143071, name: 'Asistencia', modname: 'attendance', uservisible: true },
+            ],
+          },
+        ],
+        BASE
+      )
+    ).toBe(`${BASE}/mod/attendance/view.php?id=143071`);
+  });
+
+  it('ignora el attendance no visible para el alumno', () => {
+    expect(
+      urlAsistenciaDesdeContenidos(
+        [{ modules: [{ id: 1, name: 'Asistencia', modname: 'attendance', uservisible: false }] }],
+        BASE
+      )
+    ).toBeNull();
+  });
+
+  it('null si el curso no tiene módulo de asistencia', () => {
+    expect(
+      urlAsistenciaDesdeContenidos(
+        [{ modules: [{ id: 1, name: 'Apunte', modname: 'resource', uservisible: true }] }],
+        BASE
+      )
+    ).toBeNull();
+  });
+
+  it('el attendance se sigue salteando como archivo', () => {
+    const { archivos, salteados } = archivosDesdeContenidos(
+      7,
+      [{ modules: [{ id: 143071, name: 'Asistencia', modname: 'attendance', uservisible: true }] }],
+      BASE
+    );
+    expect(archivos).toEqual([]);
+    expect(salteados[0]?.modname).toBe('attendance');
+  });
+});
+
+describe('armarSnapshot con asistencia', () => {
+  const planBase: PlanMoodle = {
+    site: { fullname: 'Alumno', sitename: 'Aula', userid: 1 } as PlanMoodle['site'],
+    cursos: [],
+    materias: [
+      { externalId: 'curso:1', nombre: 'Con asistencia', cursoId: 1, asistenciaUrl: 'https://a/x' },
+      { externalId: 'curso:2', nombre: 'Sin asistencia', cursoId: 2 },
+    ],
+    archivos: [],
+    modulosSalteados: [],
+    avisos: [],
+    avisosDescartados: [],
+  };
+
+  it('copia asistenciaUrl solo en las materias que la tienen', () => {
+    const snap = armarSnapshot(planBase, '2026-08-16T00:00:00.000Z');
+    expect(snap.materias[0]?.asistenciaUrl).toBe('https://a/x');
+    expect(snap.materias[1]).not.toHaveProperty('asistenciaUrl');
   });
 });
