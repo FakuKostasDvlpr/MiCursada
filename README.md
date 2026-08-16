@@ -45,10 +45,16 @@ otra cuenta del aula virtual intenta entrar, la app la rechaza (compara el
 `userid` guardado) para que nadie más vea tus datos ni pise tu token. Para
 reasignarla, borrá `datos/moodle.json`.
 
-**Cerrar sesión** está en la sidebar (desktop) y abajo del perfil (móvil).
-Cierra la sesión de ese dispositivo —las demás siguen abiertas— y **no** borra
-el token del aula virtual: para eso está "Desconectar", en el panel del aula
-virtual.
+**Cerrar sesión** está en la sidebar (desktop) y abajo del perfil (móvil), con
+un modal de confirmación. Cierra la sesión de ese dispositivo —las demás siguen
+abiertas— y **no** borra el token del aula virtual: para eso está "Desconectar",
+en el panel del aula virtual.
+
+**El instituto no se escribe a mano**: sale del `sitename` que devuelve
+`core_webservice_get_site_info`. Se guarda en el perfil al entrar y se refresca
+cada vez que se verifica el token, así que si el aula virtual cambia de nombre,
+la app lo sigue. La carrera, la sede y el turno siguen siendo constantes de
+`lib/instituto.ts` porque la API de Moodle no los expone.
 
 ### Correr sin login
 

@@ -26,7 +26,11 @@ export function PerfilForm({ perfil, configurado }: Props) {
   const inputFoto = useRef<HTMLInputElement>(null);
 
   const [nombre, setNombre] = useState(perfil?.nombre ?? '');
-  const [instituto, setInstituto] = useState(perfil?.instituto ?? '');
+  /**
+   * El instituto no se edita: lo trae el aula virtual (`sitename` del site
+   * info) al entrar y al verificar el token. Se manda tal cual para no pisarlo.
+   */
+  const instituto = perfil?.instituto ?? '';
   const [fotoUrl, setFotoUrl] = useState(perfil?.avatarUrl ?? null);
   /** URL nueva subida en esta sesión (undefined = no tocar la guardada). */
   const [fotoNueva, setFotoNueva] = useState<string | undefined>(undefined);
@@ -157,20 +161,21 @@ export function PerfilForm({ perfil, configurado }: Props) {
           autoComplete="name"
           className="min-h-12 w-full rounded-xl border border-bor bg-sup px-[14px] text-[15px] text-tx"
         />
-        <input
-          value={instituto}
-          onChange={(e) => setInstituto(e.target.value)}
-          placeholder={`${INSTITUTO.nombre} (opcional)`}
-          className="min-h-12 w-full rounded-xl border border-bor bg-sup px-[14px] text-[15px] text-tx"
-        />
       </div>
 
-      {/* Carrera y sede son fijas: se muestran como dato, no se editan. */}
+      {/* El instituto lo trae el aula virtual; carrera y sede son fijas. Nada
+          de esto se edita a mano: se muestra como dato. */}
       <div className="mt-3 rounded-xl border border-bor px-[14px] py-3">
         <div className="kicker">Tu cursada</div>
-        <div className="mt-[6px] text-[13.5px] font-semibold text-tx">{INSTITUTO.carrera}</div>
+        <div className="mt-[6px] text-[13.5px] font-semibold text-tx">
+          {instituto || INSTITUTO.nombre}
+        </div>
+        <div className="mt-px text-[12.5px] text-tx3">{INSTITUTO.carrera}</div>
         <div className="mt-px text-[12.5px] text-tx3">
           Sede {INSTITUTO.sede} · {INSTITUTO.turno}
+        </div>
+        <div className="mt-2 font-mono text-[11px] text-tx4">
+          {instituto ? 'el instituto lo trae el aula virtual' : 'se completa al entrar'}
         </div>
       </div>
 

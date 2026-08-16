@@ -634,6 +634,20 @@ export async function escribirPerfilLocal(perfil: {
   });
 }
 
+/**
+ * Deja en el perfil el nombre del instituto que devuelve el aula virtual
+ * (`sitename` de core_webservice_get_site_info). El instituto no se escribe a
+ * mano: es un dato del sitio, así que lo manda el que acaba de hablar con la
+ * API. Escribe solo si cambió.
+ */
+export async function sincronizarInstitutoLocal(sitio: string): Promise<void> {
+  const limpio = sitio.trim();
+  if (!limpio) return;
+  const previo = await leerPerfilLocal();
+  if (previo?.instituto === limpio) return;
+  await escribirPerfilLocal({ nombre: previo?.nombre ?? '', instituto: limpio });
+}
+
 /** Extensiones de imagen que aceptamos para el avatar (mime → extensión). */
 const EXT_POR_MIME: Record<string, string> = {
   'image/jpeg': 'jpg',

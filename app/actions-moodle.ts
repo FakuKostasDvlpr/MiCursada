@@ -9,6 +9,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { sincronizarInstitutoLocal } from '@/lib/datos-locales';
 import { MoodleError, SinToken, TokenInvalido, sanitizar } from '@/lib/moodle/cliente';
 import {
   URL_MOODLE_DEFAULT,
@@ -21,6 +22,7 @@ import {
 import { pedirToken } from '@/lib/moodle/login';
 import { obtenerSiteInfo, sincronizarSnapshot } from '@/lib/moodle/plan';
 import { hayAcceso } from '@/lib/sesion-actual';
+import { supabaseConfigurado } from '@/lib/supabase/configurado';
 
 /** Motivo por el que falló la verificación del token. */
 export type MotivoError = 'vencido' | 'red' | 'desconocido';
@@ -83,6 +85,12 @@ export async function estadoToken(): Promise<EstadoToken> {
   try {
     const site = await obtenerSiteInfo(cred);
     await guardarVerificacion({ ok: true, cuando: verificadoEn, nombre: site.fullname });
+    // Ya tenemos el site info en la mano: es el momento barato para dejar el
+    // instituto del perfil igual al `sitename` del aula virtual (escribe solo
+    // si cambió), sin esperar a que vuelvas a entrar.
+    if (!supabaseConfigurado()) {
+      await sincronizarInstitutoLocal(site.sitename);
+    }
     return {
       configurado: true,
       activo: true,

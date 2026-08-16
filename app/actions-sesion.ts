@@ -14,6 +14,7 @@
 // { ok, nombre } o un mensaje de error propio.
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { escribirPerfilLocal, leerPerfilLocal } from '@/lib/datos-locales';
 import { sanitizar } from '@/lib/moodle/cliente';
@@ -102,13 +103,16 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
     return { ok: false, error: ERROR_GENERICO };
   }
 
-  // Primera vez: el perfil arranca con el nombre real del aula virtual, así la
-  // app te saluda bien sin pasar por el onboarding.
+  // El perfil se completa con lo que dice el aula virtual: el nombre solo la
+  // primera vez (después es tuyo, podés cambiarlo) y el instituto siempre, que
+  // es un dato del sitio (`sitename`) y no algo para escribir a mano.
   if (!supabaseConfigurado()) {
     try {
       const perfil = await leerPerfilLocal();
-      if (!perfil?.nombre?.trim()) {
-        await escribirPerfilLocal({ nombre: site.fullname, instituto: perfil?.instituto ?? '' });
+      const nombre = perfil?.nombre?.trim() || site.fullname;
+      const instituto = site.sitename.trim() || perfil?.instituto || '';
+      if (nombre !== perfil?.nombre || instituto !== (perfil?.instituto ?? '')) {
+        await escribirPerfilLocal({ nombre, instituto });
       }
     } catch (e) {
       loguear('iniciarSesion (perfil)', e); // no es motivo para no dejarte entrar
@@ -124,8 +128,15 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
  * Cierra la sesión de este dispositivo. NO borra el token del aula virtual (eso
  * es "Desconectar", en el panel del aula virtual): los datos ya bajados siguen
  * ahí para cuando vuelvas a entrar.
+ *
+ * El `redirect` va acá adentro a propósito: sin él, la action revalida el árbol
+ * de (app), ese re-render se encuentra sin sesión y el redirect del layout sale
+ * como error de la action — o sea, el botón parecía no hacer nada. Redirigiendo
+ * desde la action, Next resuelve la navegación en la misma respuesta.
  */
 export async function cerrarSesion(): Promise<void> {
   await cerrarSesionActual();
+  // Invalida el árbol cacheado de (app) para que "atrás" no muestre la app.
   revalidatePath('/', 'layout');
+  redirect('/login');
 }

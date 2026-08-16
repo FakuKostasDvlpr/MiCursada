@@ -12,7 +12,9 @@ App personal (un solo usuario) para organizar una cursada nocturna. **Desktop-fi
 - Se entra con **el usuario y la contraseña del aula virtual** (Moodle): `app/actions-sesion.ts` pide el token a `/login/token.php`, lo guarda en `datos/moodle.json` y abre la sesión (cookie `cursada_sesion`, 30 días, hash en `datos/sesiones.json`).
 - Todo lo que requiere estar adentro vive en el grupo `app/(app)/`, cuyo layout llama a `exigirSesion()`. `/login` queda afuera del grupo.
 - **Toda Server Action y todo route handler chequean `hayAcceso()` por su cuenta** (son POST/GET que no pasan por el layout). Si agregás una action nueva, la guarda va sí o sí.
-- `CURSADA_SIN_LOGIN=1` desactiva el login (dev / red privada).
+- El **logout redirige desde la propia action** (`redirect('/login')`): si solo revalida, el re-render de `(app)` se queda sin sesión y el redirect del layout sale como error de la action — el botón parece no hacer nada.
+- El **instituto del perfil lo trae el aula virtual** (`sitename` del site info), al entrar y al verificar el token: no es un campo editable. Carrera, sede y turno sí son constantes de `lib/instituto.ts` (la API no los expone).
+- `CURSADA_SIN_LOGIN=1` desactiva el login (dev / red privada). `NEXT_DIST_DIR=.next-build` sirve para buildear sin pisar el `.next` de un `next dev` abierto.
 - Ni la contraseña ni el token del aula virtual vuelven nunca al cliente ni van a un log.
 
 ## Convenciones
