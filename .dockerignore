@@ -1,0 +1,38 @@
+# Dependencias y artefactos de build (se regeneran adentro de la imagen)
+node_modules
+.next
+out
+build
+coverage
+*.tsbuildinfo
+
+# Git y metadatos
+.git
+.gitignore
+.github
+.claude
+.vscode
+
+# Datos personales del aula virtual: NO van en la imagen.
+# Se montan como volumen en runtime (ver docker-compose.yml).
+datos/
+
+# Entorno local
+.env
+.env.*
+!.env.example
+.vercel
+
+# Docs y fuentes de diseño (no hacen falta en runtime)
+*.md
+Mi Cursada.dc.html
+Mi Cursada - App de estudio (1)/
+muestras/
+supabase/
+
+# Varios
+.DS_Store
+npm-debug.log*
+Dockerfile
+.dockerignore
+docker-compose.yml

@@ -1,0 +1,22 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: micursada:local
+    container_name: micursada
+    ports:
+      - "3000:3000"
+    volumes:
+      # Bind mount: el snapshot del aula virtual y los overlays de edición
+      # viven en ./datos y se ven/editan desde Windows. Regenerá el snapshot
+      # con `npm run exportar` en el repo cursada-sync (escribe acá mismo).
+      - ./datos:/app/datos
+    environment:
+      NODE_ENV: production
+      CURSADA_DATOS_DIR: /app/datos
+      # Supabase es opcional: sin estas variables la app corre sólo con los
+      # archivos de ./datos (el middleware deja pasar todo).
+      # NEXT_PUBLIC_SUPABASE_URL: ""
+      # NEXT_PUBLIC_SUPABASE_ANON_KEY: ""
+    restart: unless-stopped
