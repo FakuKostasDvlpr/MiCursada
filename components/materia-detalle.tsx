@@ -31,6 +31,7 @@ import {
   dominio,
   esLista,
   esPdf,
+  idLista,
   tamanoLegible,
   tipoArchivo,
   urlArchivo,
@@ -276,7 +277,7 @@ function ModuloAcordeon({
           <div className="prosa" dangerouslySetInnerHTML={{ __html: modulo.html }} />
         )}
 
-        {modulo.video && <Video video={modulo.video} yaEnHtml={Boolean(modulo.html)} />}
+        {modulo.video && <Video video={modulo.video} html={modulo.html ?? ''} />}
 
         {archivos.map((a) => (
           <ArchivoEmbebido key={a.ref} archivo={a} />
@@ -310,11 +311,11 @@ function ModuloAcordeon({
 }
 
 /** Reproductor 16:9 de youtube-nocookie (o el link, si es una playlist). */
-function Video({ video, yaEnHtml }: { video: string; yaEnHtml: boolean }) {
+function Video({ video, html }: { video: string; html: string }) {
   const lista = esLista(video);
-  // Si el iframe ya venía dentro del html no lo repetimos: solo dejamos el
-  // link por si el embebido no alcanza.
-  if (yaEnHtml && !lista) return null;
+  // Si el html ya trae ESE player (venía como iframe o como link de video que
+  // el sanitizador convirtió) no lo repetimos.
+  if (html.includes(lista ? `list=${idLista(video)}` : `/embed/${video}`)) return null;
 
   return (
     <div className="flex flex-col gap-2">

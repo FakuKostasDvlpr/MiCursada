@@ -13,14 +13,26 @@ export const idLista = (video: string): string => video.slice(PREFIJO_LISTA.leng
 /**
  * URL de embed de un video o de una playlist. SIEMPRE youtube-nocookie: es el
  * mismo reproductor pero sin las cookies de tracking de youtube.com.
+ *
+ * `inicioSeg` (el `t`/`start` que traía el link original) se agrega como
+ * `start=` para que el player arranque donde apuntaba el profe.
  */
-export function urlEmbed(video: string): string {
+export function urlEmbed(video: string, inicioSeg?: number): string {
+  const inicio =
+    typeof inicioSeg === 'number' && Number.isFinite(inicioSeg) && inicioSeg > 0
+      ? `&start=${Math.floor(inicioSeg)}`
+      : '';
   if (esLista(video)) {
     return `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(
       idLista(video)
-    )}&rel=0`;
+    )}&rel=0${inicio}`;
   }
-  return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(video)}?rel=0`;
+  return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(video)}?rel=0${inicio}`;
+}
+
+/** URL de embed de un video de Vimeo, a partir de su id numérico. */
+export function urlEmbedVimeo(id: string): string {
+  return `https://player.vimeo.com/video/${encodeURIComponent(id)}`;
 }
 
 /** Link "de verdad" a YouTube, para abrirlo afuera si el embed no alcanza. */

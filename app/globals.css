@@ -341,6 +341,25 @@ html[data-tema="claro"] {
   font-weight: 700;
 }
 
+/* Player de un link de video convertido por el sanitizador
+   (lib/moodle/contenido.ts → embeberLinksDeVideo) */
+.prosa figure.video {
+  margin: 10px 0;
+  max-width: 100%;
+}
+
+.prosa figure.video iframe {
+  margin: 0;
+}
+
+.prosa figure.video figcaption {
+  margin-top: 5px;
+  color: var(--tx3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 /* Los iframes que sobreviven al sanitizador (YouTube / Vimeo) van 16:9 */
 .prosa iframe {
   display: block;

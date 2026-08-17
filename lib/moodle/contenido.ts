@@ -20,7 +20,8 @@
  * SOLO SERVIDOR (parte de lib/moodle/).
  */
 import sanitizeHtml from 'sanitize-html';
-import { urlEmbed } from '@/lib/embebido';
+import { urlEmbed, urlEmbedVimeo } from '@/lib/embebido';
+import { decodificarHtml } from './normalizar';
 
 // ─── refs opacas ─────────────────────────────────────────────────────────────
 
@@ -186,6 +187,66 @@ export function videoDesdeHtml(html: string): string | null {
   return null;
 }
 
+// ─── Vimeo ───────────────────────────────────────────────────────────────────
+
+const HOSTS_VIMEO = new Set(['vimeo.com', 'www.vimeo.com', 'player.vimeo.com']);
+
+/** Un id de Vimeo es numérico: "vimeo.com/76979871", "player.vimeo.com/video/76979871". */
+export function videoVimeo(crudo: string | null | undefined): string | null {
+  if (!crudo) return null;
+  let u: URL;
+  try {
+    u = new URL(crudo.trim());
+  } catch {
+    return null;
+  }
+  if (!HOSTS_VIMEO.has(u.hostname.toLowerCase())) return null;
+  const partes = u.pathname.split('/').filter(Boolean);
+  const id = partes[0] === 'video' ? (partes[1] ?? '') : (partes[0] ?? '');
+  return /^\d{6,12}$/.test(id) ? id : null;
+}
+
+// ─── links de video → URL de embed ───────────────────────────────────────────
+
+/** "90", "90s", "1m30s", "1h2m3s" → segundos. null si no se entiende. */
+export function segundosDesdeT(crudo: string | null | undefined): number | null {
+  if (!crudo) return null;
+  const t = crudo.trim().toLowerCase();
+  if (/^\d+$/.test(t)) return Number(t);
+  const m = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/.exec(t);
+  if (m === null || (m[1] === undefined && m[2] === undefined && m[3] === undefined)) return null;
+  return Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0);
+}
+
+/** El segundo de arranque que traía el link (`?t=` o `?start=`), si trae alguno. */
+function inicioDeLink(href: string): number | undefined {
+  let u: URL;
+  try {
+    u = new URL(href.trim());
+  } catch {
+    return undefined;
+  }
+  const seg = segundosDesdeT(u.searchParams.get('start') ?? u.searchParams.get('t'));
+  return seg !== null && seg > 0 ? seg : undefined;
+}
+
+/**
+ * URL de embed de un link a un video, o null si el link no es de video.
+ *
+ * Reutiliza `videoYoutube` (watch?v=, youtu.be, embed/, shorts/, playlist?list=)
+ * y `videoVimeo`, y reconstruye la URL con los helpers de lib/embebido.ts —
+ * siempre youtube-nocookie / player.vimeo, que son los dos únicos orígenes que
+ * la whitelist de iframes acepta.
+ */
+export function embedDeLink(href: string | null | undefined): string | null {
+  if (!href) return null;
+  const yt = videoYoutube(href);
+  if (yt !== null) return urlEmbed(yt, inicioDeLink(href));
+  const vimeo = videoVimeo(href);
+  if (vimeo !== null) return urlEmbedVimeo(vimeo);
+  return null;
+}
+
 // ─── sanitización ────────────────────────────────────────────────────────────
 
 const ETIQUETAS = [
@@ -321,6 +382,143 @@ function opciones(o: OpcionesSanitizar): sanitizeHtml.IOptions {
   };
 }
 
+// ─── links de video → players embebidos ──────────────────────────────────────
+//
+// Los profes pegan los videos como `<a href="https://youtu.be/…">Uno</a>`, no
+// como iframe: sin esto habría que salir de la app para verlos. Esta pasada
+// corre SOBRE EL HTML YA SANITIZADO (así el sanitizador no puede volver a
+// tocar —ni tirar— los iframes que insertamos) y arma cada player a partir de
+// un id validado + un prefijo fijo, nunca copiando la URL del profe.
+
+/** Un `<a …>…</a>` completo del HTML sanitizado (sanitize-html no deja anidados). */
+const RE_ANCHOR = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
+/** Un `<p>` cuyo único contenido es un link (lo más común: "…<p><a>Uno</a></p>"). */
+const RE_P_SOLO_LINK = /<p>(?:\s|&nbsp;)*<a\b([^>]*)>([\s\S]*?)<\/a>(?:\s|&nbsp;)*<\/p>/gi;
+const RE_HREF = /\bhref\s*=\s*"([^"]*)"/i;
+const RE_TAG = /<(\/?)([a-z0-9]+)\b[^>]*>/gi;
+
+/** Tags sin cierre: no abren nivel. */
+const TAGS_VACIOS = new Set(['br', 'img', 'hr', 'input', 'meta', 'link', 'source']);
+/** Ancestros que se atraviesan buscando dónde cortar (inline + interiores de listas/tablas). */
+const SALIR_Y_SEGUIR = new Set([
+  'span',
+  'em',
+  'strong',
+  'b',
+  'i',
+  'u',
+  'code',
+  'li',
+  'td',
+  'th',
+  'tr',
+  'thead',
+  'tbody',
+]);
+/** Ancestros de bloque: el player va justo después de su cierre. */
+const SALIR_Y_PARAR = new Set(['p', 'ul', 'ol', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'pre', 'table']);
+
+/**
+ * El href de la lista de atributos de un `<a>`, o ''. Se decodifican las
+ * entidades: en el HTML el separador de query viene como `&amp;`, y sin
+ * decodificar `?v=x&amp;t=90` daría un parámetro llamado "amp;t".
+ */
+function hrefDe(attrs: string): string {
+  const crudo = RE_HREF.exec(attrs)?.[1];
+  return crudo === undefined ? '' : decodificarHtml(crudo);
+}
+
+/** Texto plano del contenido de un link ("<strong>Uno</strong>" → "Uno"). */
+function textoDeLink(interior: string): string {
+  return interior
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** `<figure class="video">` con el player y la leyenda (el texto del link, tal cual). */
+function figuraVideo(src: string, interior: string): string | null {
+  if (!PREFIJOS_IFRAME_OK.some((p) => src.startsWith(p))) return null;
+  const texto = textoDeLink(interior);
+  const attr = src.replace(/&/g, '&amp;');
+  const titulo = (texto === '' ? 'Video' : texto).replace(/"/g, '&quot;');
+  const leyenda = texto === '' ? '' : `<figcaption>${texto}</figcaption>`;
+  return `<figure class="video"><iframe src="${attr}" title="${titulo}" allowfullscreen loading="lazy"></iframe>${leyenda}</figure>`;
+}
+
+/**
+ * Dónde meter el player de un link que quedó INLINE: después del cierre del
+ * bloque que lo contiene, para no romper la tipografía del párrafo (un
+ * `<figure>` adentro de un `<p>` es HTML inválido). Si el link está dentro de
+ * un `<li>` sale de la lista entera. Devuelve -1 si no hay bloque del que salir.
+ */
+function puntoDeInsercion(html: string, desde: number): number {
+  RE_TAG.lastIndex = desde;
+  let abiertos = 0;
+  let mejor = -1;
+  let m: RegExpExecArray | null;
+  while ((m = RE_TAG.exec(html)) !== null) {
+    const nombre = (m[2] ?? '').toLowerCase();
+    if (TAGS_VACIOS.has(nombre)) continue;
+    if (m[1] !== '/') {
+      abiertos += 1;
+      continue;
+    }
+    if (abiertos > 0) {
+      abiertos -= 1;
+      continue;
+    }
+    // Cierre de un ancestro del link.
+    const fin = m.index + m[0].length;
+    if (SALIR_Y_PARAR.has(nombre)) return fin;
+    if (SALIR_Y_SEGUIR.has(nombre)) {
+      mejor = fin;
+      continue;
+    }
+    break; // div u otro contenedor: mejor no salir de ahí.
+  }
+  return mejor;
+}
+
+/**
+ * Cada `<a>` a YouTube/Vimeo del HTML sanitizado pasa a ser un player embebido.
+ *
+ * - Si el `<a>` es TODO el párrafo, el `<p>` entero se reemplaza por el player.
+ * - Si está inline (con más texto alrededor, o dentro de un `<li>`), el link se
+ *   deja donde está y el player se agrega como bloque después del párrafo /
+ *   de la lista.
+ * - Si hay N links de video quedan N players.
+ */
+export function embeberLinksDeVideo(html: string): string {
+  if (html === '' || !html.includes('<a')) return html;
+
+  // 1) el párrafo que es solo un link se convierte entero.
+  let salida = html.replace(RE_P_SOLO_LINK, (todo, attrs: string, interior: string) => {
+    const src = embedDeLink(hrefDe(attrs));
+    return (src === null ? null : figuraVideo(src, interior)) ?? todo;
+  });
+
+  // 2) los links que quedaron (inline, en listas, en celdas) suman su player.
+  const inserciones: Array<{ pos: number; orden: number; texto: string }> = [];
+  let i = 0;
+  for (const m of salida.matchAll(RE_ANCHOR)) {
+    const src = embedDeLink(hrefDe(m[1] ?? ''));
+    const figura = src === null ? null : figuraVideo(src, m[2] ?? '');
+    if (figura === null) continue;
+    const fin = (m.index ?? 0) + m[0].length;
+    const pos = puntoDeInsercion(salida, fin);
+    inserciones.push({ pos: pos === -1 ? fin : pos, orden: i++, texto: figura });
+  }
+  // De atrás para adelante (los índices de los de más arriba no se mueven);
+  // entre dos que caen en el mismo punto, el último primero, para que al
+  // insertar queden en el orden en que aparecen en el texto.
+  inserciones.sort((a, b) => b.pos - a.pos || b.orden - a.orden);
+  for (const ins of inserciones) {
+    salida = salida.slice(0, ins.pos) + ins.texto + salida.slice(ins.pos);
+  }
+  return salida;
+}
+
 /**
  * HTML de Moodle → HTML seguro para `dangerouslySetInnerHTML`.
  *
@@ -328,6 +526,9 @@ function opciones(o: OpcionesSanitizar): sanitizeHtml.IOptions {
  * links siempre `target=_blank rel="noopener noreferrer"`, iframes SOLO de
  * YouTube (reescritos a youtube-nocookie) o Vimeo, e imágenes de Moodle
  * reescritas al proxy.
+ *
+ * Al final, los `<a>` a YouTube/Vimeo se convierten en players embebidos
+ * (`embeberLinksDeVideo`): el video se ve en la app, sin salir a otra pestaña.
  *
  * Si la salida pasa `maxLargo`, se recorta el crudo y se vuelve a sanitizar:
  * sanitize-html cierra los tags que quedaron abiertos, así que el resultado
@@ -340,7 +541,7 @@ export function sanitizar(html: string | null | undefined, o: OpcionesSanitizar 
   if (salida.length > max) {
     salida = `${sanitizeHtml(html.slice(0, max), opciones(o)).trim()}<p>…</p>`;
   }
-  return salida;
+  return embeberLinksDeVideo(salida);
 }
 
 /** ¿El HTML sanitizado tiene algo además de espacios/tags vacíos? */
