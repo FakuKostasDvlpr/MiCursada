@@ -59,22 +59,49 @@ Navegación — dos variantes según viewport (ninguna se muestra en Login/Perfi
 - **Desktop: sidebar fija izquierda de 232px** (`--sup`, borde derecho `--bor`, padding 22px 14px): arriba logo (tile ámbar 36px con luna + "Mi Cursada" 14px/800 + kicker "TURNO NOCHE"); debajo los 4 ítems (44px, radio 11px, ícono 18px + label 13.5px/700; activo: texto ámbar sobre fondo `--bor`; inactivo `--tx3`); abajo (mt auto) botón de tema ("Modo claro"/"Modo oscuro" con ícono sol/luna) y botón de perfil (avatar 30px ámbar con iniciales + nombre + "Tu perfil").
 - **Móvil: bottom nav fija de 4 pestañas**, ícono 21px + label 11px; activa en ámbar, inactivas `--tx3`. Grid de 4 columnas, `min-height: 56px` por ítem, `padding-bottom: env(safe-area-inset-bottom)`. En móvil el toggle de tema y el avatar-botón de perfil (40px) viven en el header de Hoy.
 
-Flujo de arranque: **Login → Perfil → app (Hoy)**. Con perfil ya guardado, la app entra directo a Hoy.
+Flujo de arranque: **Login → (secuencia de sincronización) → app (Hoy)**. Con sesión ya guardada, la app entra directo a Hoy. El Perfil se abre desde el avatar y es solo lectura.
 
-### 0. Login (solo UI)
-Columna centrada, `max-width: 360px`, centrada verticalmente. Tile ámbar 54px radio 16px con ícono luna; kicker "MI CURSADA · TURNO NOCHE"; H1 "Entrá a tu cursada". Inputs `email` y `password` (48px, `--sup`, borde `--bor`, radio 12px), botón primario "Entrar" (48px), link ghost "¿Te olvidaste la contraseña?" y nota mono "demo — entrá con cualquier correo". Sin validación real: "Entrar" avanza a Perfil (en producción, auth del codebase).
+### 0. Login + secuencia de entrada
+Sección centrada verticalmente (`min-height: calc(100dvh - 160px)`), contenedor flex centrado de `max-width: 840px` en desktop / `440px` en móvil, gap 14px.
 
-### 0b. Perfil inicial / editar perfil
-`max-width: 400px`. Kicker "TU PERFIL" + H1 "Contanos quién sos". **Avatar 104px** circular: muestra iniciales (hasta 2, 34px/800, fondo `#FBBF24` sobre texto `#221a00`) o un ícono de persona si no hay nombre; si la foto está "tomada", anillo verde (`0 0 0 3px var(--bg), 0 0 0 5px #34d399`) + badge de check verde 30px abajo a la derecha. Botón secundario con ícono de cámara: "Sacate una foto" / "Sacate otra foto" — **solo UI, no abre cámara**; nota mono "cámara de muestra — solo UI". Debajo: inputs "Tu nombre" y "Instituto (opcional)", error en `#fb7185` ("Poné tu nombre así te saludamos."), botón primario "Empezar" y ghost "Volver".
+**Card A — identidad (izquierda en desktop, `flex-grow: 1.05`, `flex-basis: 0`)**: `--sup`, borde `--bor`, radio 20px, padding 34px 30px. Arriba, el logo institucional sobre **tile blanco `#ffffff`** radio 14px, padding 16px 20px (el JPG tiene fondo blanco: nunca sobre superficie oscura), imagen `height: 44px`. Al fondo (`margin-top: auto; padding-top: 34px`): kicker "INSTITUTO ORT ARGENTINA", título "Tu cursada, ordenada." 19px/800, sublínea "Entrá y traemos tu carrera, horarios y materias." 13.5px `--tx2`, y estado "Sincroniza con el aula virtual" (dot `#34d399` 6px + mono 11px).
 
-En producción: reemplazar el botón de foto por captura real (`getUserMedia` o file input con `capture`) + recorte circular, y persistir el avatar; el resto de la UI no cambia.
+**Card B — formulario (derecha, `flex-grow: 1`, `flex-basis: 0`)**: mismo shell, padding 30px 26px, contenido centrado. En móvil incluye el tile del logo (34px) arriba. Kicker "MI CURSADA" + H1 "Entrá a tu cursada" 24px/800. Dos campos con label mono uppercase (Correo / Contraseña): input 48px sobre `--bg`, borde `--bor`, radio 12px, `padding: 0 40px 0 14px`, `transition: border-color .25s`. Botón primario 48px (grid place-items center, `transition: background .25s`). Debajo, fila demo: texto mono "DEMO" + pastilla clickeable "demo / demo" (radio 999px, borde `--bor`, texto `--acc`, 32px) que **rellena las credenciales**.
+
+**Credenciales**: `demo` / `demo`, o cualquier correo válido con contraseña de ≥4 caracteres. El nombre se deriva del prefijo del correo (`juan.perez@…` → "Juan Perez"); con demo, "Estudiante ORT".
+
+**Secuencia al entrar (fases del estado `loginFase`)** — esta es la animación central del producto:
+| t (ms) | Fase | Qué pasa |
+|---|---|---|
+| 0 | `cargando` | el botón reemplaza su label por un **spinner** 20px (borde 3px, `border-top-color: #221a00`, `animation: spin .7s linear infinite`) |
+| 1300 | `check` | botón a verde `#34d399` con **check** SVG 22px (`popCheck .45s cubic-bezier(.34,1.56,.64,1)`) |
+| 2000 | `saliendo` | la **card B colapsa**: `flex-grow` → ~0, padding → `30px 0`, `border-width` → 0, opacidad 0, `scale(.96)`; el `gap` del contenedor va a 0. La card A **no cambia de tamaño** (se topa en `max-width: 620px`, `margin: 0 auto`) y queda centrada. En paralelo, el texto de identidad de la card A **se desvanece con blur**: `opacity 0`, `translateY(-10px)`, `filter: blur(4px)` (`.45–.55s`), pasando a `position: absolute` para que la capa siguiente ocupe su lugar sin salto |
+| 2650 | `datos` | **cross-fade** al bloque de sincronización (entra desde `translateY(10px)` + `blur(4px)` → normal, `.5s`): kicker pulsante "TRAYENDO TUS DATOS DEL AULA VIRTUAL" (dot `--acc`, `pulseDot 1s infinite`), **nombre** 26px/800, **horario** "Turno noche · Lun a Sáb 18:10–21:30" mono 13px, y tres filas en stagger (`rowIn .5s` con delays .2/.4/.6s): Carrera "Analista de Sistemas", Materias "N activas", Estado "Sincronizado" en verde |
+| 4300 | `abriendo` | el bloque de datos sale con blur hacia arriba y **cross-fadea** con el loader centrado (spinner 26px `--acc`) + "ABRIENDO TU CURSADA" |
+| 5500 | — | entra a la app en Hoy; el `<main>` aparece con `cardIn .6s cubic-bezier(.22,.8,.3,1)` |
+
+**Escena de loading — cómo se construye**: el cuerpo de la card A es un contenedor `position: relative` con `min-height` animada (`transition: min-height .6s cubic-bezier(.22,.8,.3,1)`) que pasa por **118px** (identidad) → **274px** (datos) → **128px** (loader); las tres capas (identidad / datos / loader) se superponen en ese espacio y se relevan por opacidad + `translateY` + `blur`, nunca por montaje y desmontaje seco. Ninguna capa cambia el ancho de la card.
+
+Todas las transiciones de tamaño animan **solo `flex-grow`** (nunca `flex-basis`) con `.6s cubic-bezier(.22,.8,.3,1)`, y el panel se mantiene montado en todas las fases (también en móvil) — así el relevo es continuo, sin microcortes ni pops.
+
+**Estado de error**: si el correo es inválido o la contraseña tiene menos de 4 caracteres, tras 1100ms de spinner la fase pasa a `error`: el campo culpable toma borde `#fb7185` y una **X roja** (círculo 20px `#fb7185`, glifo `#20060b`, `popCheck .4s`) dentro del input; aparece un banner (`rgba(251,113,133,.1)`, borde `rgba(251,113,133,.35)`, radio 12px, `rowIn .35s`) con ícono de alerta y el mensaje — "Ese correo no es válido. Probá con demo / demo." o "No pudimos entrar con esos datos. Probá con demo / demo."; el botón pasa a `#fb7185` con label **"Reintentar"**, que limpia la contraseña y vuelve a `form`.
+
+No hay "¿Te olvidaste la contraseña?" (removido a pedido).
+
+### 0b. Perfil (solo lectura)
+`max-width: 400px`. Kicker "TU PERFIL" + H1 con **el nombre del usuario**. **Avatar 104px** circular: iniciales (hasta 2, 34px/800, fondo `#FBBF24`, texto `#221a00`) o ícono de persona si no hay nombre; si la foto está "tomada", anillo verde (`0 0 0 3px var(--bg), 0 0 0 5px #34d399`) + badge de check verde 30px abajo a la derecha. Botón secundario con ícono de cámara: "Sacate una foto" / "Sacar otra foto" — **solo UI, no abre cámara**; nota mono "cámara de muestra — solo UI".
+
+**Los datos NO se editan** (vienen de la API del aula virtual): cuatro filas de solo lectura (`--sup`, borde `--bor`, radio 12px, min-height 50px) con label mono uppercase de 76px + valor — Nombre, Correo (mono 12.5px), Carrera "Analista de Sistemas", Instituto "ORT Argentina · Turno noche"; abajo la nota mono "datos sincronizados del aula virtual — no se editan acá". Acciones: botón primario "Listo" (vuelve a la app) y "Cerrar sesión" (ghost con borde `rgba(251,113,133,.45)`, texto `#fb7185`).
+
+En producción: reemplazar el botón de foto por captura real (`getUserMedia` o file input con `capture`) + recorte circular, y persistir el avatar; los demás campos llegan del backend.
 
 ### 1. Hoy — dashboard bento
-- Header en fila: bloque de título (kicker "MI CURSADA · TURNO NOCHE" + **fecha larga** como H1, "Jueves 13 de agosto", calculada en vivo). En móvil el header suma **botón de tema** (40px, ícono sol en oscuro / luna en claro) + **avatar-botón de perfil** (40px circular ámbar con iniciales, abre Perfil).
+- Header en fila: bloque de título con **saludo "Bienvenido, {nombre}"** como kicker en `--acc` — animado letra por letra estilo **number-flow** (cada carácter en `display:inline-block` con `charRoll .5s cubic-bezier(.22,.8,.3,1)` y delay `0.1 + i*0.035s`, dentro de un contenedor con `overflow: hidden`) — y debajo la **fecha larga** como H1 ("Jueves 13 de agosto", calculada en vivo). En móvil el header suma **botón de tema** (40px, ícono sol en oscuro / luna en claro) + **avatar-botón de perfil** (40px circular ámbar con iniciales) con **menú al hover**: card `--sup` borde `--bor2` radio 14px anclada a `top: 40px` (con `padding-top: 6px` para que el cursor no pierda el hover), con nombre + correo, "Ver mi perfil" y "Cerrar sesión" en `#fb7185`; se cierra al salir el puntero.
 - **Bento grid**: gap 10px, radios 16px, todas las celdas sobre `--sup` con borde `--bor`. Desktop: `repeat(4, minmax(0,1fr))` — hero en `1 / 3`, los dos tiles de stats en las columnas 3 y 4 (misma fila), "Clases de hoy" en `1 / 3` y "Próximos avisos" en `3 / 5` (lado a lado). Móvil: `repeat(2, 1fr)` — hero y tiles anchos a `1 / -1`, stats lado a lado.
   - **Hero "Próxima clase"** (`grid-column: 1 / -1`): riel vertical 4px del color de la materia, kicker dentro de la card, nombre 21px/800, horario mono 17px ("19:50–21:30"), aula 13px, y línea de estado 13.5px/600 **en el color de la materia**: "Empieza en 1 h 20 min" / "En curso — termina 21:30" / "Mañana a las 18:10" / "El lunes a las 18:10". Escanea hasta 7 días. Tap → detalle.
-  - **Tile "CLASES HOY"** (1 col, min-height 106px): número mono 32px + sublínea contextual ("día libre" / "todas por delante" / "quedan 2" / "ya terminaste"). Tap → Semana.
-  - **Tile "PENDIENTES"** (1 col): número mono 32px **en ámbar si hay pendientes** + sublínea ("al día" / "2 vencidos" / "nada vencido"). Tap → Avisos.
+  - **Tile "CLASES HOY"** (1 col, min-height 106px): número mono 32px con **number-flow** (ver abajo) + sublínea contextual ("día libre" / "todas por delante" / "quedan 2" / "ya terminaste"). Tap → Semana.
+  - **Tile "PENDIENTES"** (1 col): número mono 32px con number-flow, **en ámbar si hay pendientes** + sublínea ("al día" / "2 vencidos" / "nada vencido"). Tap → Avisos.
+  - **Number-flow de los contadores**: cada dígito es un contenedor `height: 1em; overflow: hidden` con una tira vertical de los glifos 0–9 (cada uno `height: 1em`) desplazada por `transform: translateY(-d * 100%)` y `transition: transform .9s cubic-bezier(.22,.8,.3,1)` con delay escalonado por posición (base .12s / .22s + i*.08s). Arranca en 0 y rueda al valor tras el primer frame — al cambiar el dato, rueda de nuevo. En producción se puede usar `@number-flow/react` (`<NumberFlow value={n} />`), que implementa la misma mecánica.
   - **Tile ancho "CLASES DE HOY"** (`1 / -1`): filas anidadas sobre `--bg` (dot color 8px + nombre + aula + horario mono). Las terminadas a `opacity: .4`; la clase en curso con horario en ámbar. Vacío: "Hoy no cursás. Aprovechá para ponerte al día."
   - **Tile ancho "PRÓXIMOS AVISOS"** (`1 / -1`): máximo 3 pendientes + link "Ver todos". Vacío: "Nada pendiente. Tranquilo."
 - Footer de sincronización (hook para un scraper futuro): dot verde 6px + mono 11px "Sincronizado con el aula virtual · hace 2 h", centrado.
@@ -140,7 +167,10 @@ Botón full-width al fondo, borde `rgba(251,113,133,.45)`, texto `#fb7185`. **Co
 - Drag & drop con HTML5 nativo (`draggable` en el handle, `dragover`/`drop` en el destino). En touch no hay drag nativo: en producción usar una lib de DnD con soporte táctil (dnd-kit o similar).
 - Empty states siempre como invitación (borde punteado, texto `--tx3` 13.5px, centrado), nunca como error.
 - **Tema**: el toggle escribe `data-tema="claro"|"oscuro"` en `<html>` y persiste; no hay transición de color (cambio instantáneo). En producción conviene además respetar `prefers-color-scheme` como valor inicial.
-- **Login/Perfil son solo UI**: no hay auth ni cámara real; "Entrar" avanza y "Empezar" valida únicamente que haya nombre.
+- **Login/Perfil son solo UI**: no hay auth real ni cámara. "Entrar" acepta `demo`/`demo` o cualquier correo válido con contraseña de ≥4 caracteres, y el error es simulado tras 1100ms; el Perfil es solo lectura. En producción, reemplazar la validación local por la respuesta del backend, manteniendo exactamente las mismas fases visuales.
+
+### Keyframes usados (definidos una vez en el `<style>` del helmet)
+`spin` (rotate 360, loader) · `popCheck` (scale .3→1.18→1, check y X) · `cardIn` (translateY 22px + scale .96 → normal; cards y entrada al dashboard) · `rowIn` (translateX -14px + fade; filas en stagger) · `welcomeIn` (translateY 12px + scale .94 + `blur(6px)` → normal) · `pulseDot` (opacidad .35↔1, dot de sincronización) · `charRoll` (translateY 120% → 0, letras del saludo) · `fadeIn` y `sheetUp` (scrim y sheet de los modales). Curva estándar del producto: `cubic-bezier(.22,.8,.3,1)`.
 
 ## State Management
 Persistencia en `localStorage` (en producción: la capa de datos que corresponda). Tres espacios: datos de ejemplo (`miCursada.demo.v2`), datos propios (`miCursada.propia.v1`), y **preferencias de UI** (`miCursada.ui.v1`: `{tema, nombre, insti, foto, dentro}`) — de ahí sale si la app arranca en Login o directo en Hoy. Hay migración de notas planas → bloques (`migrar()`).
@@ -164,12 +194,13 @@ type Bloque = {
 type Aviso = { id: string; titulo: string; materiaId: string|null; fecha: 'YYYY-MM-DD'; hecho: boolean };
 ```
 
-Estado de UI: **pantalla de arranque** (`login` | `perfil` | `app`), **tema** (`oscuro` | `claro`), campos de login (email/pass, no se persisten), perfil (nombre, instituto, flag `fotoTomada`), pestaña activa, materia en detalle + tab del detalle, vista de notas (doc/kanban), modal abierto, formularios controlados, estado del menú `/`, índices de drag, flag "armado" del doble toque de eliminar, `isMobile` (matchMedia 640px), reloj.
+Estado de UI: **pantalla** (`login` | `perfil` | `app`), **fase del login** (`form` | `cargando` | `check` | `saliendo` | `datos` | `abriendo` | `error`), flag `entrando` (anima la entrada al dashboard), **tema** (`oscuro` | `claro`), campos de login (la contraseña no se persiste; el correo sí), perfil (nombre derivado, flag `fotoTomada`), menú del avatar (`menuPerfil`), pestaña activa, materia en detalle + tab del detalle, vista de notas (doc/kanban), modal abierto, formularios controlados, estado del menú `/`, índices de drag, flag "armado" del doble toque de eliminar, `isMobile` (matchMedia 640px), reloj.
 
 Derivados clave (ver `renderVals()`): próxima clase (scan 7 días con estados empieza-en/en-curso), clases de hoy con atenuado, **stats del bento** (clases de hoy + cuántas quedan; pendientes + vencidos), semana Lun–Sáb con fechas, avisos ordenados con vencido/hoy, iniciales del avatar, contadores por materia.
 
 ## Assets
-- Íconos nuevos: luna/sol (toggle de tema), cámara (perfil), check (badge de foto).
+- Logo institucional: `https://www.ort.edu.ar/img/LogoOrtArgWeb2017.jpg` (JPG con fondo blanco — siempre sobre un tile `#ffffff` radio 12–14px, nunca directo sobre la superficie oscura). En producción, servirlo desde los assets del proyecto (idealmente SVG/PNG transparente) en lugar de hotlinkear.
+- Íconos nuevos: luna/sol (toggle de tema), cámara (perfil), check (badge de foto), alerta (banner de error), salida (cerrar sesión).
 - Sin imágenes propias. Íconos: SVG inline de trazo (stroke 1.9–2.2, linecap round) — luna, calendario, libro, campana, +, ✕, chevron, reloj, pin, persona, archivo, ↗, tacho, puntos de drag. Reemplazables por Lucide/Feather.
 - Favicons de links: se pintan como `background-image` de un `<span>` 20px (no `<img>`), servicio `https://www.google.com/s2/favicons?domain=<dominio>&sz=64`; fallback: tile `--bor`.
 - Fuentes: Google Fonts (Plus Jakarta Sans, JetBrains Mono).

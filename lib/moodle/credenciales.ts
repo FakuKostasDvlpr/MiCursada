@@ -52,6 +52,12 @@ const credencialSchema = z.object({
   token: z.string().min(1),
   url: z.string().min(1).default(URL_MOODLE_DEFAULT),
   userid: z.number().int().default(USERID_DEFAULT),
+  /**
+   * `username` del site info. Es dato de la cuenta del aula virtual, no del
+   * perfil editable: por eso vive acá y no en datos/perfil.json. Opcional
+   * porque los archivos escritos antes de la v3 no lo tienen.
+   */
+  usuario: z.string().optional(),
   guardadoEn: z.string().default(() => new Date().toISOString()),
   ultimaVerificacion: verificacionSchema.optional(),
 });

@@ -11,6 +11,8 @@ import {
   useAulaVirtual,
 } from '@/components/aula-virtual';
 import { TileAsistencia } from '@/components/asistencia';
+import { CifraRodante } from '@/components/cifra-rodante';
+import { Saludo } from '@/components/saludo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
   clasesDeHoy,
@@ -30,6 +32,8 @@ const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
 type Props = {
   materias: Materia[];
   avisos: Aviso[];
+  /** Nombre del perfil, para el saludo del header. */
+  nombre: string;
   iniciales: string;
   avatarUrl?: string | null;
   /** Instante del render en el server, para hidratar sin desajuste. */
@@ -46,6 +50,7 @@ type Props = {
 export function HoyLive({
   materias,
   avisos,
+  nombre,
   iniciales,
   avatarUrl = null,
   inicialIso,
@@ -87,7 +92,8 @@ export function HoyLive({
             </span>
             <div className="kicker min-w-0 truncate tracking-[0.1em]">{INSTITUTO.carrera}</div>
           </div>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-[-0.015em]">
+          <Saludo nombre={nombre} />
+          <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.015em]">
             {fechaLargaHoy(ahora)}
           </h1>
         </div>
@@ -159,7 +165,7 @@ export function HoyLive({
         >
           <span className="kicker tracking-[0.16em]">Clases hoy</span>
           <span className="mt-auto font-mono text-[32px] leading-none font-semibold">
-            {stats.clasesHoy}
+            <CifraRodante valor={stats.clasesHoy} demora={0.12} />
           </span>
           <span className="text-xs text-tx3">{stats.subClases}</span>
         </Link>
@@ -174,7 +180,7 @@ export function HoyLive({
               stats.pendientes > 0 ? 'text-acc' : ''
             }`}
           >
-            {stats.pendientes}
+            <CifraRodante valor={stats.pendientes} demora={0.22} />
           </span>
           <span className="text-xs text-tx3">{stats.subPendientes}</span>
         </Link>

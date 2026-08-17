@@ -19,6 +19,7 @@ export default async function PaginaHoy() {
       <HoyLive
         materias={materias}
         avisos={avisos}
+        nombre={perfil?.nombre ?? ''}
         iniciales={iniciales(perfil?.nombre ?? '')}
         avatarUrl={perfil?.avatarUrl ?? null}
         inicialIso={new Date().toISOString()}

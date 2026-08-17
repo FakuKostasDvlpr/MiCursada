@@ -97,6 +97,7 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
     await guardarCredenciales({
       ...cred,
       userid: site.userid,
+      usuario: site.username,
       ultimaVerificacion: { ok: true, cuando: new Date().toISOString(), nombre: site.fullname },
     });
   } catch (e) {
@@ -121,7 +122,9 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
   }
 
   await abrirSesion(site.fullname);
-  revalidatePath('/', 'layout');
+  // Sin revalidatePath: quien sigue es montarCursada (que sí revalida) y después
+  // el router.refresh() del cliente. Revalidar acá solo agregaría un re-render
+  // de /login en medio de la secuencia de entrada.
   return { ok: true, nombre: site.fullname };
 }
 

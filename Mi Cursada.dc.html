@@ -24,6 +24,13 @@ html{background:var(--bg);}
     ::placeholder{color:var(--tx4);opacity:1;}
     @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
     @keyframes sheetUp{from{transform:translateY(26px);opacity:.4;}to{transform:none;opacity:1;}}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    @keyframes popCheck{0%{transform:scale(.3);opacity:0;}60%{transform:scale(1.18);opacity:1;}100%{transform:scale(1);}}
+    @keyframes cardIn{from{transform:translateY(22px) scale(.96);opacity:0;}to{transform:none;opacity:1;}}
+    @keyframes rowIn{from{transform:translateX(-14px);opacity:0;}to{transform:none;opacity:1;}}
+    @keyframes welcomeIn{0%{transform:translateY(12px) scale(.94);opacity:0;filter:blur(6px);}100%{transform:none;opacity:1;filter:none;}}
+    @keyframes pulseDot{0%,100%{opacity:.35;}50%{opacity:1;}}
+    @keyframes charRoll{0%{transform:translateY(120%);opacity:0;}100%{transform:none;opacity:1;}}
   </style>
 </helmet>
 <div style="min-height:100dvh;background:var(--bg);color:var(--tx);">
@@ -79,29 +86,122 @@ html{background:var(--bg);}
   <main style="{{ mainStyle }}">
 
     <sc-if value="{{ verLogin }}" hint-placeholder-val="{{ false }}">
-      <section data-screen-label="Login" style="min-height:calc(100dvh - 200px);display:flex;flex-direction:column;justify-content:center;max-width:360px;margin:0 auto;padding:30px 0;">
-        <div style="width:54px;height:54px;border-radius:16px;background:#fbbf24;color:#221a00;display:grid;place-items:center;margin:0 auto;">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"></path></svg>
+      <section data-screen-label="Login" style="min-height:calc(100dvh - 160px);display:flex;align-items:center;justify-content:center;padding:30px 0;">
+        <div style="{{ wrapEstilo }}">
+          <sc-if value="{{ panelVis }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ panelEstilo }}">
+              <div style="background:#ffffff;border-radius:14px;padding:16px 20px;display:grid;place-items:center;align-self:flex-start;">
+                <img src="https://www.ort.edu.ar/img/LogoOrtArgWeb2017.jpg" alt="ORT Argentina" style="height:44px;width:auto;display:block;">
+              </div>
+              <div style="{{ panelBodyEstilo }}">
+                <div style="{{ capaIntro }}">
+                  <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Instituto ORT Argentina</div>
+                  <div style="margin-top:8px;font-size:19px;font-weight:800;letter-spacing:-.015em;line-height:1.3;">Tu cursada, ordenada.</div>
+                  <div style="margin-top:6px;font-size:13.5px;color:var(--tx2);">Entrá y traemos tu carrera, horarios y materias.</div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:22px;">
+                    <span style="width:6px;height:6px;border-radius:99px;background:#34d399;"></span>
+                    <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">Sincroniza con el aula virtual</span>
+                  </div>
+                </div>
+                <sc-if value="{{ faseDatosVis }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ capaDatos }}">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <span style="width:6px;height:6px;border-radius:99px;background:var(--acc);animation:pulseDot 1s ease infinite;"></span>
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);">Trayendo tus datos del aula virtual</span>
+                    </div>
+                    <div style="margin-top:8px;font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.2;">{{ nombreBienvenida }}</div>
+                    <div style="margin-top:7px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;color:var(--tx2);">Turno noche · Lun a Sáb 18:10–21:30</div>
+                  <div style="display:flex;flex-direction:column;gap:8px;margin-top:20px;">
+                    <div style="display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:11px 14px;animation:rowIn .5s cubic-bezier(.22,.8,.3,1) .2s both;">
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:74px;flex-shrink:0;">Carrera</span>
+                      <span style="font-size:14px;font-weight:700;">Analista de Sistemas</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:11px 14px;animation:rowIn .5s cubic-bezier(.22,.8,.3,1) .4s both;">
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:74px;flex-shrink:0;">Materias</span>
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;color:var(--tx2);">{{ nMateriasTxt }} activas</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:11px 14px;animation:rowIn .5s cubic-bezier(.22,.8,.3,1) .6s both;">
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:74px;flex-shrink:0;">Estado</span>
+                      <span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;color:#34d399;"><span style="width:6px;height:6px;border-radius:99px;background:#34d399;"></span>Sincronizado</span>
+                    </div>
+                  </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ faseAbriendoMontado }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ capaAbriendo }}">
+                    <span style="width:26px;height:26px;border-radius:99px;border:3px solid var(--bor2);border-top-color:var(--acc);animation:spin .75s linear infinite;display:block;"></span>
+                    <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);">Abriendo tu cursada</span>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ faseFormMontado }}" hint-placeholder-val="{{ true }}">
+            <div style="{{ formCardEstilo }}">
+              <sc-if value="{{ esMovil }}" hint-placeholder-val="{{ true }}">
+                <div style="background:#ffffff;border-radius:12px;padding:12px 16px;display:grid;place-items:center;align-self:center;">
+                  <img src="https://www.ort.edu.ar/img/LogoOrtArgWeb2017.jpg" alt="ORT Argentina" style="height:34px;width:auto;display:block;">
+                </div>
+              </sc-if>
+              <div style="margin-top:{{ loginGapTop }};">
+                <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Mi cursada</div>
+                <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Entrá a tu cursada</h1>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px;margin-top:22px;">
+                <div>
+                  <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Correo</label>
+                  <div style="position:relative;">
+                    <input type="text" value="{{ emailTxt }}" onChange="{{ setEmail }}" placeholder="demo" style="width:100%;min-height:48px;background:var(--bg);border:1px solid {{ bordeMail }};border-radius:12px;padding:0 40px 0 14px;font-size:15px;color:var(--tx);transition:border-color .25s ease;">
+                    <sc-if value="{{ mailMal }}" hint-placeholder-val="{{ false }}">
+                      <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;border-radius:99px;background:#fb7185;display:grid;place-items:center;animation:popCheck .4s cubic-bezier(.34,1.56,.64,1) both;">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#20060b" stroke-width="3.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                      </span>
+                    </sc-if>
+                  </div>
+                </div>
+                <div>
+                  <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Contraseña</label>
+                  <div style="position:relative;">
+                    <input type="password" value="{{ passTxt }}" onChange="{{ setPass }}" placeholder="Tu contraseña" style="width:100%;min-height:48px;background:var(--bg);border:1px solid {{ bordePass }};border-radius:12px;padding:0 40px 0 14px;font-size:15px;color:var(--tx);transition:border-color .25s ease;">
+                    <sc-if value="{{ passMal }}" hint-placeholder-val="{{ false }}">
+                      <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;border-radius:99px;background:#fb7185;display:grid;place-items:center;animation:popCheck .4s cubic-bezier(.34,1.56,.64,1) both;">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#20060b" stroke-width="3.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                      </span>
+                    </sc-if>
+                  </div>
+                </div>
+                <sc-if value="{{ esError }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:8px;background:rgba(251,113,133,.1);border:1px solid rgba(251,113,133,.35);border-radius:12px;padding:10px 12px;animation:rowIn .35s cubic-bezier(.22,.8,.3,1) both;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4.5"></path><path d="M12 16h.01"></path></svg>
+                    <span style="font-size:13px;font-weight:600;color:#fb7185;">{{ msgError }}</span>
+                  </div>
+                </sc-if>
+                <button onClick="{{ entrar }}" style="margin-top:4px;background:{{ btnBg }};color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:15px;min-height:48px;cursor:pointer;display:grid;place-items:center;transition:background .25s ease;">
+                  <sc-if value="{{ btnNormal }}" hint-placeholder-val="{{ true }}">Entrar</sc-if>
+                  <sc-if value="{{ btnReintentar }}" hint-placeholder-val="{{ false }}">Reintentar</sc-if>
+                  <sc-if value="{{ btnCargando }}" hint-placeholder-val="{{ false }}">
+                    <span style="width:20px;height:20px;border-radius:99px;border:3px solid rgba(34,26,0,.25);border-top-color:#221a00;animation:spin .7s linear infinite;display:block;"></span>
+                  </sc-if>
+                  <sc-if value="{{ btnCheck }}" hint-placeholder-val="{{ false }}">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#03170c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="animation:popCheck .45s cubic-bezier(.34,1.56,.64,1) both;"><path d="M20 6L9 17l-5-5"></path></svg>
+                  </sc-if>
+                </button>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;">
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx4);">demo</span>
+                <button onClick="{{ usarDemo }}" style="background:var(--bg);border:1px solid var(--bor);border-radius:99px;padding:6px 12px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;color:var(--acc);cursor:pointer;min-height:32px;">demo / demo</button>
+              </div>
+            </div>
+          </sc-if>
         </div>
-        <div style="text-align:center;margin-top:18px;">
-          <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Mi cursada · Turno noche</div>
-          <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Entrá a tu cursada</h1>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-top:26px;">
-          <input type="email" value="{{ emailTxt }}" onChange="{{ setEmail }}" placeholder="Tu correo" style="width:100%;min-height:48px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
-          <input type="password" value="{{ passTxt }}" onChange="{{ setPass }}" placeholder="Tu contraseña" style="width:100%;min-height:48px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
-          <button onClick="{{ entrar }}" style="margin-top:4px;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:15px;min-height:48px;cursor:pointer;">Entrar</button>
-        </div>
-        <button style="margin-top:14px;background:none;border:none;color:var(--tx2);font-size:13px;font-weight:600;cursor:pointer;min-height:44px;">¿Te olvidaste la contraseña?</button>
-        <div style="text-align:center;margin-top:20px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx4);">demo — entrá con cualquier correo</div>
       </section>
     </sc-if>
 
     <sc-if value="{{ verPerfil }}" hint-placeholder-val="{{ false }}">
-      <section data-screen-label="Perfil inicial" style="max-width:400px;margin:0 auto;padding:26px 0;">
+      <section data-screen-label="Perfil" style="max-width:400px;margin:0 auto;padding:26px 0;">
         <div style="text-align:center;">
           <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Tu perfil</div>
-          <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Contanos quién sos</h1>
+          <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-.015em;">{{ perfilNombreVista }}</h1>
         </div>
         <div style="position:relative;width:104px;margin:26px auto 0;">
           <div style="width:104px;height:104px;border-radius:99px;display:grid;place-items:center;font-size:34px;font-weight:800;background:{{ avatarBg }};color:{{ avatarCol }};box-shadow:{{ avatarRing }};">
@@ -123,15 +223,27 @@ html{background:var(--bg);}
           </button>
         </div>
         <div style="text-align:center;margin-top:8px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx4);">cámara de muestra — solo UI</div>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-top:22px;">
-          <input value="{{ perfilNombre }}" onChange="{{ setPerfilNombre }}" placeholder="Tu nombre" style="width:100%;min-height:48px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
-          <input value="{{ perfilInsti }}" onChange="{{ setPerfilInsti }}" placeholder="Instituto (opcional)" style="width:100%;min-height:48px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:22px;">
+          <div style="display:flex;align-items:center;gap:12px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:12px 14px;min-height:50px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:76px;flex-shrink:0;">Nombre</span>
+            <span style="font-size:14px;font-weight:700;">{{ perfilNombreVista }}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:12px 14px;min-height:50px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:76px;flex-shrink:0;">Correo</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ correoVista }}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:12px 14px;min-height:50px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:76px;flex-shrink:0;">Carrera</span>
+            <span style="font-size:14px;font-weight:700;">Analista de Sistemas</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:12px 14px;min-height:50px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:76px;flex-shrink:0;">Instituto</span>
+            <span style="font-size:14px;font-weight:600;color:var(--tx2);">ORT Argentina · Turno noche</span>
+          </div>
         </div>
-        <sc-if value="{{ perfilErrorHay }}" hint-placeholder-val="{{ false }}">
-          <div style="margin-top:10px;font-size:13px;color:#fb7185;text-align:center;">{{ perfilError }}</div>
-        </sc-if>
-        <button onClick="{{ empezar }}" style="width:100%;margin-top:16px;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:15px;min-height:48px;cursor:pointer;">Empezar</button>
-        <button onClick="{{ volverLogin }}" style="width:100%;margin-top:8px;background:none;border:none;color:var(--tx3);font-size:13px;font-weight:600;cursor:pointer;min-height:44px;">Volver</button>
+        <div style="text-align:center;margin-top:14px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx4);">datos sincronizados del aula virtual — no se editan acá</div>
+        <button onClick="{{ listoPerfil }}" style="width:100%;margin-top:16px;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:15px;min-height:48px;cursor:pointer;">Listo</button>
+        <button onClick="{{ cerrarSesion }}" style="width:100%;margin-top:8px;background:none;border:1px solid rgba(251,113,133,.45);color:#fb7185;border-radius:12px;font-size:13.5px;font-weight:700;cursor:pointer;min-height:46px;">Cerrar sesión</button>
       </section>
     </sc-if>
 
@@ -139,7 +251,13 @@ html{background:var(--bg);}
       <section data-screen-label="Hoy">
         <header style="display:flex;align-items:flex-start;gap:10px;">
           <div style="flex:1;min-width:0;">
-            <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Mi cursada · Turno noche</div>
+            <div style="overflow:hidden;">
+              <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--acc);display:flex;flex-wrap:wrap;">
+                <sc-for list="{{ saludoChars }}" as="ch" hint-placeholder-count="10">
+                  <span style="display:inline-block;white-space:pre;animation:charRoll .5s cubic-bezier(.22,.8,.3,1) {{ ch.d }} both;">{{ ch.c }}</span>
+                </sc-for>
+              </div>
+            </div>
             <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-.015em;">{{ fechaLarga }}</h1>
           </div>
           <button onClick="{{ toggleTema }}" aria-label="Cambiar tema" style="width:40px;height:40px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;color:var(--tx2);cursor:pointer;display:grid;place-items:center;flex-shrink:0;">
@@ -150,7 +268,25 @@ html{background:var(--bg);}
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"></path></svg>
             </sc-if>
           </button>
-          <button onClick="{{ editarPerfil }}" aria-label="Tu perfil" style="width:40px;height:40px;border-radius:99px;background:#fbbf24;color:#221a00;border:none;font-weight:800;font-size:13px;cursor:pointer;flex-shrink:0;">{{ iniciales }}</button>
+          <div onMouseEnter="{{ abrirMenuPerfil }}" onMouseLeave="{{ cerrarMenuPerfil }}" style="position:relative;flex-shrink:0;">
+            <button onClick="{{ editarPerfil }}" aria-label="Tu perfil" style="width:40px;height:40px;border-radius:99px;background:#fbbf24;color:#221a00;border:none;font-weight:800;font-size:13px;cursor:pointer;">{{ iniciales }}</button>
+            <sc-if value="{{ menuPerfil }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;right:0;top:40px;padding-top:6px;z-index:45;min-width:186px;background:var(--sup);border:1px solid var(--bor2);border-radius:14px;padding:6px;animation:cardIn .22s cubic-bezier(.22,.8,.3,1) both;">
+                <div style="padding:8px 10px 6px;">
+                  <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ perfilNombreVista }}</div>
+                  <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--tx3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ correoVista }}</div>
+                </div>
+                <button onClick="{{ editarPerfil }}" style="display:flex;align-items:center;gap:9px;width:100%;min-height:42px;padding:0 10px;background:none;border:none;border-radius:10px;cursor:pointer;text-align:left;font-size:13.5px;font-weight:600;color:var(--tx);" style-hover="background:var(--bor);">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg>
+                  Ver mi perfil
+                </button>
+                <button onClick="{{ cerrarSesion }}" style="display:flex;align-items:center;gap:9px;width:100%;min-height:42px;padding:0 10px;background:none;border:none;border-radius:10px;cursor:pointer;text-align:left;font-size:13.5px;font-weight:700;color:#fb7185;" style-hover="background:rgba(251,113,133,.12);">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5"></path><path d="M20 12H9"></path><path d="M12 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6"></path></svg>
+                  Cerrar sesión
+                </button>
+              </div>
+            </sc-if>
+          </div>
         </header>
 
         <sc-if value="{{ sinMaterias }}" hint-placeholder-val="{{ false }}">
@@ -172,18 +308,34 @@ html{background:var(--bg);}
                   <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:17px;font-weight:600;">{{ heroHorario }}</span>
                   <span style="font-size:13px;color:var(--tx2);">{{ heroAula }}</span>
                 </span>
-                <span style="display:block;margin-top:10px;font-size:13.5px;font-weight:600;color:{{ heroColor }};">{{ heroEstado }}</span>
+                <span style="display:block;margin-top:10px;font-size:13.5px;font-weight:600;color:{{ heroEstadoColor }};">{{ heroEstado }}</span>
               </span>
             </button>
           </sc-if>
           <button onClick="{{ irSemana }}" style="background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:14px;text-align:left;cursor:pointer;color:var(--tx);display:flex;flex-direction:column;gap:6px;min-height:106px;">
             <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Clases hoy</span>
-            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:32px;font-weight:600;line-height:1;margin-top:auto;">{{ statClasesN }}</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:32px;font-weight:600;line-height:1;margin-top:auto;display:flex;">
+              <sc-for list="{{ statClasesDigits }}" as="d" hint-placeholder-count="1">
+                <span style="display:inline-block;height:1em;overflow:hidden;">
+                  <span style="display:block;transform:translateY({{ d.y }});transition:transform .9s cubic-bezier(.22,.8,.3,1) {{ d.delay }};">
+                    <span style="display:block;height:1em;">0</span><span style="display:block;height:1em;">1</span><span style="display:block;height:1em;">2</span><span style="display:block;height:1em;">3</span><span style="display:block;height:1em;">4</span><span style="display:block;height:1em;">5</span><span style="display:block;height:1em;">6</span><span style="display:block;height:1em;">7</span><span style="display:block;height:1em;">8</span><span style="display:block;height:1em;">9</span>
+                  </span>
+                </span>
+              </sc-for>
+            </span>
             <span style="font-size:12px;color:var(--tx3);">{{ statClasesSub }}</span>
           </button>
           <button onClick="{{ verTodos }}" style="background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:14px;text-align:left;cursor:pointer;color:var(--tx);display:flex;flex-direction:column;gap:6px;min-height:106px;">
             <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Pendientes</span>
-            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:32px;font-weight:600;line-height:1;margin-top:auto;color:{{ colStatPend }};">{{ statPendN }}</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:32px;font-weight:600;line-height:1;margin-top:auto;color:{{ colStatPend }};display:flex;">
+              <sc-for list="{{ statPendDigits }}" as="d" hint-placeholder-count="1">
+                <span style="display:inline-block;height:1em;overflow:hidden;">
+                  <span style="display:block;transform:translateY({{ d.y }});transition:transform .9s cubic-bezier(.22,.8,.3,1) {{ d.delay }};">
+                    <span style="display:block;height:1em;">0</span><span style="display:block;height:1em;">1</span><span style="display:block;height:1em;">2</span><span style="display:block;height:1em;">3</span><span style="display:block;height:1em;">4</span><span style="display:block;height:1em;">5</span><span style="display:block;height:1em;">6</span><span style="display:block;height:1em;">7</span><span style="display:block;height:1em;">8</span><span style="display:block;height:1em;">9</span>
+                  </span>
+                </span>
+              </sc-for>
+            </span>
             <span style="font-size:12px;color:var(--tx3);">{{ statPendSub }}</span>
           </button>
           <div style="grid-column:{{ gcClases }};background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:14px;">
@@ -692,7 +844,7 @@ html{background:var(--bg);}
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:820},&quot;horaSimulada&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;datosDeEjemplo&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;mostrarSincronizacion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;}}">
 class Component extends DCLogic {
   state = { tab:'hoy', detalleId:null, detalleTab:'notas', modal:null, now:Date.now(), rev:0, isMobile:true, armado:false,
-    pantalla:'login', emailTxt:'', passTxt:'', perfilNombre:'', perfilInsti:'', fotoTomada:false, perfilError:'', tema:'oscuro',
+    pantalla:'login', loginFase:'form', emailTxt:'', passTxt:'', perfilNombre:'', perfilInsti:'', fotoTomada:false, perfilError:'', tema:'oscuro',
     notaVista:'doc', nuevoTxt:'', focusId:null, dragIdx:null, overIdx:null, dragBloqueId:null, kanOver:null,
     archNombre:'', archUrl:'', daTitulo:'', daFecha:'',
     avTitulo:'', avMateria:'', avFecha:'', avError:'',
@@ -704,14 +856,14 @@ class Component extends DCLogic {
     try { this._mq.addEventListener('change', this._onMq); } catch(e) { this._mq.addListener(this._onMq); }
     this._onMq();
     try { const ui = JSON.parse(localStorage.getItem('miCursada.ui.v1')||'null');
-      if (ui) this.setState({tema:ui.tema||'oscuro', perfilNombre:ui.nombre||'', perfilInsti:ui.insti||'', fotoTomada:!!ui.foto, pantalla:ui.dentro?'app':'login'});
+      if (ui) this.setState({tema:ui.tema||'oscuro', perfilNombre:ui.nombre||'', perfilInsti:ui.insti||'', emailTxt:ui.correo||'', fotoTomada:!!ui.foto, pantalla:ui.dentro?'app':'login'});
     } catch(e) {}
   }
   guardarUI(extra){ const S = Object.assign({}, this.state, extra);
-    try { localStorage.setItem('miCursada.ui.v1', JSON.stringify({tema:S.tema, nombre:S.perfilNombre, insti:S.perfilInsti, foto:S.fotoTomada, dentro:S.pantalla==='app'})); } catch(e) {}
+    try { localStorage.setItem('miCursada.ui.v1', JSON.stringify({tema:S.tema, nombre:S.perfilNombre, insti:S.perfilInsti, correo:S.emailTxt, foto:S.fotoTomada, dentro:S.pantalla==='app'})); } catch(e) {}
     this.setState(extra); }
   componentWillUnmount(){
-    clearInterval(this._t); clearTimeout(this._arm);
+    clearInterval(this._t); clearTimeout(this._arm); (this._tl||[]).forEach(clearTimeout);
     try { this._mq.removeEventListener('change', this._onMq); } catch(e) { this._mq.removeListener(this._onMq); }
   }
   clave(){ return (this.props.datosDeEjemplo ?? true) ? 'miCursada.demo.v2' : 'miCursada.propia.v1'; }
@@ -820,9 +972,10 @@ class Component extends DCLogic {
         hero = {m,h,off,enCurso:false}; break;
       }
     }
-    let heroKicker='Próxima clase', heroEstado='', heroNombre='', heroHorario='', heroAula='', heroColor='var(--acc)', heroAbrir=()=>{};
+    let heroKicker='Próxima clase', heroEstado='', heroNombre='', heroHorario='', heroAula='', heroColor='var(--acc)', heroEstadoColor='var(--acc)', heroAbrir=()=>{};
     if (hero) {
       heroNombre = hero.m.nombre; heroHorario = hero.h.ini+'–'+hero.h.fin; heroAula = hero.m.aula; heroColor = hero.m.color; heroAbrir = abrir(hero.m.id);
+      heroEstadoColor = S.tema==='claro' ? 'var(--tx2)' : hero.m.color;
       if (hero.off === 0) heroEstado = hero.enCurso ? 'En curso — termina '+hero.h.fin : 'Empieza en '+this.durTxt(this.min(hero.h.ini)-nowMin);
       else if (hero.off === 1) heroEstado = 'Mañana a las '+hero.h.ini;
       else heroEstado = 'El '+DIAS[(hoyDia+hero.off)%7].toLowerCase()+' a las '+hero.h.ini;
@@ -848,6 +1001,9 @@ class Component extends DCLogic {
     const statPendN = String(pendRaw.length);
     const statPendSub = pendRaw.length===0 ? 'al día' : (vencidosN>0 ? (vencidosN===1?'1 vencido':vencidosN+' vencidos') : 'nada vencido');
     const colStatPend = pendRaw.length>0 ? 'var(--acc)' : 'var(--tx)';
+    const digitos = (txt, base) => String(txt).split('').map((c,i)=>({
+      y: this._flow ? (-(+c)*100)+'%' : '0%', delay: (base + i*0.08).toFixed(2)+'s' }));
+    if (!this._flow) { this._flow = true; requestAnimationFrame(()=>requestAnimationFrame(()=>this.forceUpdate())); }
     const offLunes = hoyDia === 0 ? -1 : hoyDia - 1;
     const lunes = new Date(now); lunes.setDate(now.getDate()-offLunes);
     const dias = [];
@@ -967,18 +1123,23 @@ class Component extends DCLogic {
     const nav = t => () => this.setState({tab:t, detalleId:null, armado:false});
     const colNav = t => (S.tab===t ? 'var(--acc)' : 'var(--tx3)');
     const desk = !S.isMobile;
+    const mailValido = S.emailTxt.trim().toLowerCase()==='demo' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(S.emailTxt.trim());
+    const colapsado = ['saliendo','datos','bienvenida','abriendo'].indexOf(S.loginFase)>=0;
     const bgNav = t => (desk && S.tab===t && !det ? 'var(--bor)' : 'transparent');
     return {
       mostrarSync: (this.props.mostrarSincronizacion ?? true) && D.materias.length > 0,
       fechaLarga,
       verLogin: S.pantalla==='login', verPerfil: S.pantalla==='perfil', verApp: app,
       verNavMov: app && S.isMobile, verNavDesk: app && desk,
+      esDesk: desk, esMovil: S.isMobile,
+      loginCols: desk ? '1.05fr 1fr' : '1fr',
+      loginGapTop: S.isMobile ? '24px' : '0',
       bgNavHoy:bgNav('hoy'), bgNavSemana:bgNav('semana'), bgNavMaterias:bgNav('materias'), bgNavAvisos:bgNav('avisos'),
       temaLabel: S.tema==='oscuro' ? 'Modo claro' : 'Modo oscuro',
       perfilNombreVista: S.perfilNombre.trim() || 'Sin nombre',
       mainStyle: desk && app
-        ? {maxWidth:'1150px', margin:'0 auto', padding:'34px 40px 80px 274px'}
-        : {maxWidth:'720px', margin:'0 auto', padding:'26px 18px 130px'},
+        ? {maxWidth:'1150px', margin:'0 auto', padding:'34px 40px 80px 274px', animation:(S.entrando?'cardIn .6s cubic-bezier(.22,.8,.3,1) both':'none')}
+        : (app ? {maxWidth:'720px', margin:'0 auto', padding:'26px 18px 130px', animation:(S.entrando?'cardIn .6s cubic-bezier(.22,.8,.3,1) both':'none')} : {maxWidth:'900px', margin:'0 auto', padding:'26px 18px 40px'}),
       bentoCols: desk ? 'repeat(4,minmax(0,1fr))' : 'repeat(2,1fr)',
       gcHero: desk ? '1 / 3' : '1 / -1',
       gcClases: desk ? '1 / 3' : '1 / -1',
@@ -987,24 +1148,98 @@ class Component extends DCLogic {
       verHoy: app && S.tab==='hoy' && !det, verSemana: app && S.tab==='semana' && !det,
       verMaterias: app && S.tab==='materias' && !det, verAvisos: app && S.tab==='avisos' && !det, verDetalle: app && !!det,
       emailTxt:S.emailTxt, setEmail:set('emailTxt'), passTxt:S.passTxt, setPass:set('passTxt'),
-      entrar: ()=>this.setState({pantalla:'perfil', perfilError:''}),
-      volverLogin: ()=>this.setState({pantalla:'login'}),
-      editarPerfil: ()=>this.setState({pantalla:'perfil', perfilError:''}),
-      perfilNombre:S.perfilNombre, setPerfilNombre:set('perfilNombre'), perfilInsti:S.perfilInsti, setPerfilInsti:set('perfilInsti'),
-      perfilError:S.perfilError, perfilErrorHay: !!S.perfilError,
+      entrar: ()=>{ if (S.loginFase==='error') { this.setState({loginFase:'form', passTxt:''}); return; }
+        if (S.loginFase!=='form') return;
+        const demo = S.emailTxt.trim().toLowerCase()==='demo' && S.passTxt==='demo';
+        const mailOk = demo || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(S.emailTxt.trim());
+        if (!mailOk || S.passTxt.length < 4) {
+          this._tl = this._tl || [];
+          this.setState({loginFase:'cargando'});
+          this._tl.push(setTimeout(()=>this.setState({loginFase:'error'}), 1100));
+          return; }
+        const pref = S.emailTxt.split('@')[0].replace(/[._\-+0-9]+/g,' ').trim();
+        const nombre = demo ? 'Estudiante ORT'
+          : (pref ? pref.split(/\s+/).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ') : 'Estudiante');
+        this.setState({loginFase:'cargando', perfilNombre:nombre});
+        this._tl = this._tl || [];
+        const paso = (f,ms)=>this._tl.push(setTimeout(()=>this.setState({loginFase:f}), ms));
+        paso('check',1300); paso('saliendo',2000); paso('datos',2650); paso('abriendo',4300);
+        this._tl.push(setTimeout(()=>this.guardarUI({pantalla:'app', tab:'hoy', loginFase:'form', entrando:true}), 5500));
+        this._tl.push(setTimeout(()=>this.setState({entrando:false}), 7000)); },
+      faseFormVis: ['form','cargando','check','saliendo','error'].indexOf(S.loginFase)>=0,
+      esError: S.loginFase==='error',
+      mailMal: S.loginFase==='error' && !mailValido,
+      passMal: S.loginFase==='error' && S.passTxt.length < 4,
+      bordeMail: (S.loginFase==='error' && !mailValido) ? '#fb7185' : 'var(--bor)',
+      bordePass: (S.loginFase==='error' && S.passTxt.length < 4) ? '#fb7185' : 'var(--bor)',
+      msgError: !mailValido
+        ? 'Ese correo no es válido. Probá con demo / demo.'
+        : 'No pudimos entrar con esos datos. Probá con demo / demo.',
+      faseFormMontado: S.loginFase!=='bienvenida' && S.loginFase!=='abriendo',
+      panelVis: desk || colapsado,
+      wrapEstilo: {width:'100%', display:'flex', alignItems:'stretch', justifyContent:'center',
+        gap: colapsado ? '0px' : '14px',
+        maxWidth: desk ? '840px' : '440px',
+        transition:'gap .6s cubic-bezier(.22,.8,.3,1)'},
+      panelEstilo: Object.assign({background:'var(--sup)', border:'1px solid var(--bor)', borderRadius:'20px',
+        padding:'34px 30px', display:'flex', flexDirection:'column', minWidth:0,
+        flexBasis:'0', flexShrink:1, flexGrow: desk ? 1.05 : 2.6,
+        transition:'flex-grow .6s cubic-bezier(.22,.8,.3,1), opacity .45s ease, transform .55s cubic-bezier(.22,.8,.3,1)'},
+        (!desk && S.loginFase==='saliendo') ? {opacity:0, transform:'scale(.97)'} : {opacity:1, transform:'none'},
+        colapsado ? {justifyContent:'center', padding:'22px 30px', maxWidth: desk?'620px':'100%', margin:'0 auto'} : null),
+      panelBodyEstilo: Object.assign({position:'relative', transition:'min-height .6s cubic-bezier(.22,.8,.3,1), padding-top .5s ease'},
+        colapsado ? {paddingTop:'16px', minHeight: S.loginFase==='abriendo' ? '128px' : '274px'}
+                  : {marginTop:'auto', paddingTop:'24px', minHeight:'118px'}),
+      capaIntro: Object.assign({transition:'opacity .45s ease, transform .55s cubic-bezier(.22,.8,.3,1), filter .45s ease'},
+        colapsado ? {opacity:0, transform:'translateY(-10px)', filter:'blur(4px)', position:'absolute', inset:'18px 0 auto 0', pointerEvents:'none'}
+                  : {opacity:1, transform:'none', filter:'none'}),
+      capaDatos: Object.assign({transition:'opacity .5s ease, transform .55s cubic-bezier(.22,.8,.3,1), filter .5s ease'},
+        S.loginFase==='datos' ? {opacity:1, transform:'none', filter:'none'}
+          : {opacity:0, transform: S.loginFase==='abriendo' ? 'translateY(-8px)' : 'translateY(10px)', filter:'blur(4px)'}),
+      capaAbriendo: Object.assign({display:'flex', flexDirection:'column', alignItems:'center', gap:'14px',
+        position:'absolute', left:0, right:0, top:'50%', marginTop:'-30px',
+        transition:'opacity .5s ease, transform .55s cubic-bezier(.22,.8,.3,1)'},
+        S.loginFase==='abriendo' ? {opacity:1, transform:'none'} : {opacity:0, transform:'translateY(10px)', pointerEvents:'none'}),
+      faseAbriendoMontado: S.loginFase==='datos' || S.loginFase==='abriendo',
+      formCardEstilo: Object.assign({background:'var(--sup)', border:'1px solid var(--bor)', borderRadius:'20px',
+        display:'flex', flexDirection:'column', justifyContent:'center', overflow:'hidden', minWidth:0,
+        flexBasis:'0', flexShrink:1,
+        transition:'opacity .45s ease, transform .55s cubic-bezier(.22,.8,.3,1), flex-grow .6s cubic-bezier(.22,.8,.3,1), padding .6s cubic-bezier(.22,.8,.3,1), border-width .4s ease'},
+        colapsado
+          ? {flexGrow:0.0001, padding:'30px 0', borderWidth:'0px', opacity:0, transform:'scale(.96)'}
+          : {flexGrow: desk ? 1 : 2.6, padding:'30px 26px', opacity:1, transform:'none'}),
+      btnBg: S.loginFase==='check'||S.loginFase==='saliendo' ? '#34d399' : (S.loginFase==='error' ? '#fb7185' : '#fbbf24'),
+      btnNormal: S.loginFase==='form', btnCargando: S.loginFase==='cargando',
+      btnReintentar: S.loginFase==='error',
+      usarDemo: ()=>this.setState({emailTxt:'demo', passTxt:'demo', loginFase:'form'}),
+      menuPerfil: !!S.menuPerfil,
+      abrirMenuPerfil: ()=>{ clearTimeout(this._menuT); this.setState({menuPerfil:true}); },
+      cerrarMenuPerfil: ()=>{ clearTimeout(this._menuT); this.setState({menuPerfil:false}); },
+      btnCheck: S.loginFase==='check'||S.loginFase==='saliendo',
+      faseDatosVis: ['saliendo','datos','bienvenida','abriendo'].indexOf(S.loginFase)>=0,
+      faseAbriendo: S.loginFase==='abriendo',
+      esSincro: S.loginFase==='datos', esBienvenida: S.loginFase==='bienvenida',
+      mainAnim: (app && S.entrando) ? 'cardIn .6s cubic-bezier(.22,.8,.3,1) both' : 'none',
+      nombreBienvenida: S.perfilNombre||'Estudiante', nMateriasTxt: String(D.materias.length),
+      saludoChars: ('Bienvenido, '+(S.perfilNombre||'Estudiante')).split('').map((c,i)=>({c: c===' '?'\u00A0':c, d:(0.1+i*0.035).toFixed(3)+'s'})),
+      volverLogin: ()=>this.setState({pantalla:'login', loginFase:'form'}),
+      editarPerfil: ()=>this.setState({pantalla:'perfil'}),
+      listoPerfil: ()=>this.setState({pantalla:'app'}),
+      cerrarSesion: ()=>this.guardarUI({pantalla:'login', loginFase:'form', passTxt:'', menuPerfil:false}),
+      correoVista: S.emailTxt.trim()||'—',
       tomarFoto: ()=>this.setState({fotoTomada:true}),
       fotoLista: S.fotoTomada, fotoLabel: S.fotoTomada ? 'Sacar otra foto' : 'Sacate una foto',
-      empezar: ()=>{ if (!S.perfilNombre.trim()) { this.setState({perfilError:'Poné tu nombre así te saludamos.'}); return; } this.guardarUI({pantalla:'app', perfilError:''}); },
       iniciales, tieneIniciales: !!iniciales, sinIniciales: !iniciales,
       avatarBg: iniciales ? '#FBBF24' : 'var(--sup)', avatarCol: iniciales ? '#221a00' : 'var(--tx3)',
       avatarRing: S.fotoTomada ? '0 0 0 3px var(--bg), 0 0 0 5px #34d399' : '0 0 0 1px var(--bor2)',
       toggleTema: ()=>this.guardarUI({tema: S.tema==='oscuro' ? 'claro' : 'oscuro'}),
       esOscuro: S.tema==='oscuro', esClaro: S.tema==='claro',
       statClasesN, statClasesSub, statPendN, statPendSub, colStatPend,
+      statClasesDigits: digitos(statClasesN, 0.12), statPendDigits: digitos(statPendN, 0.22),
       irHoy:nav('hoy'), irSemana:nav('semana'), irMaterias:nav('materias'), irAvisos:nav('avisos'),
       colHoy:colNav('hoy'), colSemana:colNav('semana'), colMaterias:colNav('materias'), colAvisos:colNav('avisos'),
       sinMaterias: D.materias.length===0, hayHero: !!hero,
-      heroKicker, heroNombre, heroHorario, heroAula, heroEstado, heroColor, heroAbrir,
+      heroKicker, heroNombre, heroHorario, heroAula, heroEstado, heroColor, heroEstadoColor, heroAbrir,
       hoyClases, sinClasesHoy: D.materias.length>0 && hoyClases.length===0,
       avisosHoy: pend.slice(0,3), sinAvisosHoy: pend.length===0,
       verTodos: ()=>this.setState({tab:'avisos', detalleId:null}),

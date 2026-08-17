@@ -35,10 +35,12 @@ export function CerrarSesion({ variante = 'boton' }: Props) {
           Cerrar sesión
         </button>
       ) : (
+        // Ghost rojo del handoff v3 §0b: es una salida, no una acción más.
         <button
           type="button"
           onClick={() => setAbierto(true)}
-          className="flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-bor2 text-[14px] font-bold text-tx2"
+          className="mt-2 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border text-[14px] font-bold"
+          style={{ borderColor: 'rgba(251,113,133,.45)', color: '#fb7185' }}
         >
           <LogOut size={16} strokeWidth={2} aria-hidden />
           Cerrar sesión
