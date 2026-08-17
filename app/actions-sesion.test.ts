@@ -64,6 +64,7 @@ beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cursada-sesion-actions-'));
   process.env.CURSADA_DATOS_DIR = dir;
   delete process.env.MOODLE_TOKEN;
+  delete process.env.CURSADA_USUARIOS_PERMITIDOS;
   jar.valor = undefined;
   nav.destino = '';
   sync.llamadas = 0;
@@ -147,6 +148,28 @@ describe('iniciarSesion', () => {
     expect(r).toEqual({ ok: false, error: 'Usuario o contraseña incorrectos.' });
     expect(jar.valor).toBeUndefined();
     expect(await leerCredenciales()).toBeNull();
+  });
+
+  it('con la lista puesta, un usuario habilitado entra normal', async () => {
+    process.env.CURSADA_USUARIOS_PERMITIDOS = ' FCostas , otrapersona ';
+    mockearAula();
+
+    const r = await iniciarSesion('fcostas', 'x');
+
+    expect(r).toEqual({ ok: true, nombre: NOMBRE });
+    expect(jar.valor).toBeTruthy();
+  });
+
+  it('con la lista puesta, un usuario que no está queda afuera y no se guarda nada', async () => {
+    process.env.CURSADA_USUARIOS_PERMITIDOS = 'otrapersona';
+    mockearAula(); // el aula verifica el login, pero el username no está en la lista
+
+    const r = await iniciarSesion('fcostas', 'x');
+
+    expect(r).toEqual({ ok: false, error: 'Tu cuenta no está habilitada en esta app.' });
+    expect(jar.valor).toBeUndefined();
+    expect(await leerCredenciales()).toBeNull();
+    expect(await leerPerfilLocal()).toBeNull();
   });
 
   it('otra cuenta del aula virtual no entra ni pisa el token del dueño', async () => {
