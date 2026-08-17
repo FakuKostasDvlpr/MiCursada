@@ -1,0 +1,37 @@
+# Despliegue a la VM: entra por SSH y corre despliegue/actualizar.sh, el mismo
+# script que se corre a mano. Por ahora SOLO manual (workflow_dispatch): cuando
+# la VM exista y los secrets estén cargados, se puede agregar `push` al `on:`
+# para que cada push a main despliegue solo.
+#
+# Secrets a cargar en GitHub (Settings → Secrets and variables → Actions):
+#   VM_HOST     la IP o el dominio de la VM
+#   VM_USUARIO  ubuntu
+#   VM_SSH_KEY  la clave PRIVADA (generá un par solo para esto:
+#               ssh-keygen -t ed25519 -f deploy_key, y la .pub va en
+#               ~/.ssh/authorized_keys de la VM)
+name: Desplegar
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: desplegar
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH y actualizar
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_USUARIO: ${{ secrets.VM_USUARIO }}
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+        run: |
+          test -n "$VM_HOST" || { echo "Falta el secret VM_HOST"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VM_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/deploy_key "$VM_USUARIO@$VM_HOST" \
+            'cd micursada/despliegue && ./actualizar.sh'
