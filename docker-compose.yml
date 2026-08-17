@@ -17,8 +17,6 @@ services:
       CURSADA_DATOS_DIR: /app/datos
       # Para entrar se usa el usuario y la contraseña del aula virtual. No hay
       # variable para saltear el login.
-      # Supabase es opcional: sin estas variables la app corre sólo con los
-      # archivos de ./datos.
-      # NEXT_PUBLIC_SUPABASE_URL: ""
-      # NEXT_PUBLIC_SUPABASE_ANON_KEY: ""
+      # Este compose es para correr LOCAL en tu PC. El de producción (VM, con
+      # Caddy, HTTPS y lista de habilitados) está en despliegue/compose.yml.
     restart: unless-stopped

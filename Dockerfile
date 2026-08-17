@@ -22,8 +22,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # public/ puede no existir en un clon limpio; el COPY del runner la necesita.
 RUN mkdir -p public
-# El build no necesita datos/ ni las variables de Supabase: el código tolera
-# su ausencia (lib/supabase/configurado.ts y lib/datos-locales.ts).
+# El build no necesita datos/: el código tolera su ausencia (lib/datos-locales.ts
+# devuelve vacío si los archivos no están).
 RUN npm run build
 
 # ── runner ───────────────────────────────────────────────────

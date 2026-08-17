@@ -15,8 +15,9 @@
 
 # next.js
 /.next/
-# build aparte (NEXT_DIST_DIR), para no pisar el .next del dev server abierto
-/.next-build/
+# builds aparte (NEXT_DIST_DIR), para no pisar el .next del dev server abierto:
+# .next-build, .next-verif, cualquiera que se arme para verificar
+/.next-*/
 /out/
 
 # production
@@ -36,6 +37,9 @@ yarn-error.log*
 .env*
 !.env.example
 .env.local
+# los .env reales de producción viven solo en la VM; los ejemplos sí van al repo
+!despliegue/.env.ejemplo
+!despliegue/.env.backup.ejemplo
 
 # vercel
 .vercel
@@ -49,4 +53,10 @@ next-env.d.ts
 
 # fuentes del handoff de diseño (no se portan)
 Mi Cursada - App de estudio (1)/
+design_handoff_mi_cursada/
 support.js
+
+# herramientas locales del agente (no son del proyecto)
+/graphify-out/
+/.agents/
+/skills-lock.json

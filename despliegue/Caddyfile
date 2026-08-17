@@ -1,0 +1,6 @@
+# Caddy saca y renueva el certificado HTTPS solo (Let's Encrypt) para el
+# dominio que diga DOMINIO en .env. No hay nada más que configurar.
+{$DOMINIO} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}

@@ -1,0 +1,51 @@
+# Producción: la app detrás de Caddy, en una VM con Docker.
+#
+#   cd despliegue
+#   cp .env.ejemplo .env   (y completarlo)
+#   docker compose up -d
+#
+# El docker-compose.yml de la raíz es OTRA cosa: es para correr la app local
+# en tu PC con ./datos bind-mounteado. Este usa un volumen con nombre
+# (micursada_datos) que sobrevive a los deploys y se respalda con backup.sh.
+name: micursada
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: micursada:prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      CURSADA_DATOS_DIR: /app/datos
+      # Sin esta lista, la primera cuenta del aula virtual que entre se queda
+      # con la app. En un servidor recién levantado eso es una carrera: la
+      # variable va sí o sí (ver docs/DESPLIEGUE.md).
+      CURSADA_USUARIOS_PERMITIDOS: ${CURSADA_USUARIOS_PERMITIDOS:?falta en .env}
+    volumes:
+      - datos:/app/datos
+    # Sin `ports`: a la app solo se llega a través de Caddy.
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      DOMINIO: ${DOMINIO:?falta en .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_datos:/data # acá viven los certificados: NO borrar
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  datos:
+  caddy_datos:
+  caddy_config:
