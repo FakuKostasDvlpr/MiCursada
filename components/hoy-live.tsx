@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
@@ -23,6 +24,7 @@ import {
   statsBento,
   textoEstado,
 } from '@/lib/cursada';
+import { INSTITUTO } from '@/lib/instituto';
 import type { Aviso, Materia } from '@/lib/types';
 
 /** 'YYYY-MM-DD' → 'dd/mm'. */
@@ -37,6 +39,8 @@ type Props = {
   avatarUrl?: string | null;
   /** Instituto que informa el aula virtual: segunda línea del menú del avatar. */
   instituto?: string | null;
+  /** Carrera de la persona; INSTITUTO.carrera es solo el respaldo (ver lib/instituto.ts). */
+  carrera?: string | null;
   /** Instante del render en el server, para hidratar sin desajuste. */
   inicialIso: string;
   /** ISO de la última sincronización con el aula virtual, o null si nunca corrió. */
@@ -55,6 +59,7 @@ export function HoyLive({
   iniciales,
   avatarUrl = null,
   instituto = null,
+  carrera = null,
   inicialIso,
   syncIso = null,
 }: Props) {
@@ -79,6 +84,23 @@ export function HoyLive({
     <>
       <header className="flex items-start gap-[10px]">
         <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            {/* El logo es azul sobre blanco: en tema oscuro se perdería, así
+                que va sobre un chip blanco (idéntico en ambos temas). */}
+            <span className="flex shrink-0 items-center rounded-md bg-white px-[6px] py-[3px]">
+              <Image
+                src={INSTITUTO.logo}
+                alt={INSTITUTO.logoAlt}
+                width={INSTITUTO.logoAncho}
+                height={INSTITUTO.logoAlto}
+                priority
+                className="h-[16px] w-auto"
+              />
+            </span>
+            <div className="kicker min-w-0 truncate tracking-[0.1em]">
+              {carrera ?? INSTITUTO.carrera}
+            </div>
+          </div>
           <Saludo nombre={nombre} />
           <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.015em]">
             {fechaLargaHoy(ahora)}

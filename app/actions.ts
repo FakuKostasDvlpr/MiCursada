@@ -1,19 +1,14 @@
 'use server';
 
-// Server Actions de Mi Cursada.
+// Fase 3 — Server Actions de Mi Cursada.
 // Todas devuelven { ok: true } | { ok: false, error } con errores cortos en castellano.
 // Todas arrancan con `hayAcceso()`: una Server Action es un POST que se puede
 // llamar sin pasar por la página, así que el layout de (app) no alcanza como
 // única puerta — cada action revisa la sesión por su cuenta.
 // Estrategia de revalidación consistente: revalidatePath('/', 'layout') — cubre
 // '/', '/semana', '/materias', '/materias/[id]' y '/avisos' de una.
-//
-// PERSISTENCIA: los datos del aula virtual salen de la API de Moodle y viven en
-// el snapshot (datos/aula-virtual.json, que el sync regenera). Lo que edita el
-// usuario —y que la API NO expone: horarios, profe/aula/color, notas, avisos
-// propios, perfil— va a overlays JSON aparte que el sync nunca pisa.
-// Ver lib/datos-locales.ts.
 
+import type { User } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import {
@@ -36,6 +31,8 @@ import {
 import { tituloDesdeNota } from '@/lib/aviso-nota';
 import { textoPlano } from '@/lib/referencias';
 import { hayAcceso } from '@/lib/sesion-actual';
+import { supabaseConfigurado } from '@/lib/supabase/configurado';
+import { createClient } from '@/lib/supabase/server';
 import { normalizarUrl } from '@/lib/urls';
 import {
   COLORES_MATERIA,
@@ -50,6 +47,8 @@ import {
 export type ResultadoAction = { ok: true } | { ok: false; error: string };
 
 const ERROR_SESION = 'No pudimos verificar tu sesión. Entrá de nuevo.';
+const ERROR_SIN_CONFIG = 'Falta configurar Supabase (.env.local).';
+const ERROR_CONSENTIMIENTO = 'Primero tenés que aceptar cómo se guardan tus datos.';
 const ERROR_GUARDAR = 'No se pudo guardar. Probá de nuevo.';
 const ERROR_NO_EXISTE = 'Eso ya no existe.';
 const ERROR_DATOS = 'Datos inválidos.';
@@ -58,6 +57,35 @@ const ERROR_AVISO_MOODLE = 'Ese aviso viene del aula virtual.';
 
 function revalidarTodo() {
   revalidatePath('/', 'layout');
+}
+
+type ConUsuario =
+  | { supabase: Awaited<ReturnType<typeof createClient>>; user: User; error?: undefined }
+  | { supabase: null; user: null; error: string };
+
+/**
+ * Crea el server client y verifica que haya usuario autenticado con el
+ * consentimiento del primer ingreso ya aceptado (una Server Action es un
+ * POST que no pasa por el layout de (app), así que su redirect no alcanza
+ * para cerrar esta puerta — hay que chequearla acá).
+ * Si Supabase no está configurado (sin .env.local), corta antes del auth check.
+ */
+async function conUsuario(): Promise<ConUsuario> {
+  if (!supabaseConfigurado()) return { supabase: null, user: null, error: ERROR_SIN_CONFIG };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { supabase: null, user: null, error: ERROR_SESION };
+  const { data: perfil } = await supabase
+    .from('perfiles')
+    .select('consentimiento_en')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (!perfil?.consentimiento_en) {
+    return { supabase: null, user: null, error: ERROR_CONSENTIMIENTO };
+  }
+  return { supabase, user };
 }
 
 // ---------------------------------------------------------------------------
@@ -97,7 +125,9 @@ function validarHorarios(
   return { ok: true, horarios: parsed.data };
 }
 
-/** Guarda los horarios de una materia en datos/horarios.json. */
+/**
+ * Modo sin Supabase: guarda los horarios de una materia en datos/horarios.json.
+ */
 export async function guardarHorariosLocales(
   materiaId: string,
   horarios: MateriaInput['horarios']
@@ -118,18 +148,15 @@ export async function guardarHorariosLocales(
 }
 
 /**
- * Profe/aula/color van a datos/materias-extra.json y los horarios a
- * datos/horarios.json. El nombre sigue siendo del snapshot del aula virtual.
+ * Modo sin Supabase: profe/aula/color van a datos/materias-extra.json y los
+ * horarios a datos/horarios.json. El nombre sigue siendo del snapshot.
  */
-export async function actualizarMateria(
+async function actualizarMateriaLocal(
   id: string,
   input: MateriaInput
 ): Promise<ResultadoAction> {
-  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
-
   const parsed = materiaSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: ERROR_DATOS };
-  // 'HH:MM' compara bien lexicográficamente.
   if (parsed.data.horarios.some((h) => h.fin <= h.inicio)) {
     return { ok: false, error: 'El fin tiene que ser después del inicio.' };
   }
@@ -142,7 +169,48 @@ export async function actualizarMateria(
     });
     await escribirHorariosLocales(id, parsed.data.horarios);
   } catch (e) {
-    console.error('actualizarMateria:', e);
+    console.error('actualizarMateria (local):', e);
+    return { ok: false, error: ERROR_GUARDAR };
+  }
+  revalidarTodo();
+  return { ok: true };
+}
+
+export async function actualizarMateria(
+  id: string,
+  input: MateriaInput
+): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+
+  if (!supabaseConfigurado()) return actualizarMateriaLocal(id, input);
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
+
+  const parsed = materiaSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: ERROR_DATOS };
+  }
+  // 'HH:MM' compara bien lexicográficamente.
+  if (parsed.data.horarios.some((h) => h.fin <= h.inicio)) {
+    return { ok: false, error: 'El fin tiene que ser después del inicio.' };
+  }
+  const { data: datos } = parsed;
+
+  const { error } = await supabase.rpc('editar_materia', {
+    p_curso_id: id,
+    p_profe: datos.profe,
+    p_aula: datos.aula,
+    p_color: datos.color,
+    p_horarios: datos.horarios,
+  });
+
+  if (error) {
+    console.error('actualizarMateria:', error);
+    if (error.code === 'P0002') {
+      return { ok: false, error: 'Esa materia ya no existe.' };
+    }
     return { ok: false, error: ERROR_GUARDAR };
   }
   revalidarTodo();
@@ -164,16 +232,39 @@ export async function crearArchivo(
 ): Promise<ResultadoAction> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
-  const parsed = archivoSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: 'Poné un nombre y un link.' };
+  if (!supabaseConfigurado()) {
+    const parsedLocal = archivoSchema.safeParse(input);
+    if (!parsedLocal.success) return { ok: false, error: 'Poné un nombre y un link.' };
+    try {
+      await crearArchivoLocal(materiaId, {
+        nombre: parsedLocal.data.nombre,
+        url: normalizarUrl(parsedLocal.data.url),
+      });
+    } catch (e) {
+      console.error('crearArchivo (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
 
-  try {
-    await crearArchivoLocal(materiaId, {
-      nombre: parsed.data.nombre,
-      url: normalizarUrl(parsed.data.url),
-    });
-  } catch (e) {
-    console.error('crearArchivo:', e);
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
+
+  const parsed = archivoSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: 'Poné un nombre y un link.' };
+  }
+
+  const { error } = await supabase.from('archivos_manuales').insert({
+    curso_id: materiaId,
+    nombre: parsed.data.nombre,
+    url: normalizarUrl(parsed.data.url),
+  });
+
+  if (error) {
+    console.error('crearArchivo:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
   revalidarTodo();
@@ -183,15 +274,36 @@ export async function crearArchivo(
 export async function eliminarArchivo(id: string): Promise<ResultadoAction> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
+  if (!supabaseConfigurado()) {
+    if (!esManual(id)) return { ok: false, error: ERROR_ARCHIVO_MOODLE };
+    try {
+      const borrado = await eliminarArchivoLocal(id);
+      if (!borrado) return { ok: false, error: ERROR_NO_EXISTE };
+    } catch (e) {
+      console.error('eliminarArchivo (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
   if (!esManual(id)) return { ok: false, error: ERROR_ARCHIVO_MOODLE };
 
-  try {
-    const borrado = await eliminarArchivoLocal(id);
-    if (!borrado) return { ok: false, error: ERROR_NO_EXISTE };
-  } catch (e) {
-    console.error('eliminarArchivo:', e);
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
+
+  const { data, error } = await supabase
+    .from('archivos_manuales')
+    .delete()
+    .eq('id', id)
+    .select('id');
+
+  if (error) {
+    console.error('eliminarArchivo:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
+  if (!data || data.length === 0) return { ok: false, error: ERROR_NO_EXISTE };
   revalidarTodo();
   return { ok: true };
 }
@@ -212,8 +324,9 @@ const fechaSchema = z
 const avisoSchema = z.object({
   titulo: z.string().trim().min(1),
   // El select de "General" manda '' → lo tratamos como null.
-  // Cualquier string no vacío: los ids de materia son del aula virtual
-  // ("curso:2756"); si viene basura simplemente no matchea ninguna materia.
+  // Un solo schema para los dos modos: cualquier string no vacío. En Supabase el
+  // id es uuid y en local es "curso:2756"; si viene basura la rechaza la FK de
+  // la base (modo Supabase) o simplemente no matchea ninguna materia (local).
   materiaId: z
     .union([z.string().trim().min(1), z.literal(''), z.null()])
     .transform((v) => v || null),
@@ -227,17 +340,46 @@ export async function crearAviso(input: {
 }): Promise<ResultadoAction> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
-  const parsed = avisoSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: 'Poné un título y una fecha.' };
+  if (!supabaseConfigurado()) {
+    const parsedLocal = avisoSchema.safeParse(input);
+    if (!parsedLocal.success) return { ok: false, error: 'Poné un título y una fecha.' };
+    try {
+      await crearAvisoLocal({
+        titulo: parsedLocal.data.titulo,
+        materiaId: parsedLocal.data.materiaId,
+        fecha: parsedLocal.data.fecha,
+      });
+    } catch (e) {
+      console.error('crearAviso (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
 
-  try {
-    await crearAvisoLocal({
-      titulo: parsed.data.titulo,
-      materiaId: parsed.data.materiaId,
-      fecha: parsed.data.fecha,
-    });
-  } catch (e) {
-    console.error('crearAviso:', e);
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
+
+  const parsed = avisoSchema.safeParse(input);
+  if (!parsed.success) {
+    const esDeTituloOFecha = parsed.error.issues.every(
+      (issue) => issue.path[0] === 'titulo' || issue.path[0] === 'fecha'
+    );
+    return {
+      ok: false,
+      error: esDeTituloOFecha ? 'Poné un título y una fecha.' : ERROR_GUARDAR,
+    };
+  }
+
+  const { error } = await supabase.from('avisos_manuales').insert({
+    titulo: parsed.data.titulo,
+    curso_id: parsed.data.materiaId,
+    fecha: parsed.data.fecha,
+  });
+
+  if (error) {
+    console.error('crearAviso:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
   revalidarTodo();
@@ -265,39 +407,109 @@ export async function crearAvisoDesdeNota(input: {
   const parsed = avisoDesdeNotaSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'Poné una fecha para el aviso.' };
 
-  try {
-    const { materias, avisos } = await getDatosLocales();
+  if (!supabaseConfigurado()) {
+    try {
+      const { materias, avisos } = await getDatosLocales();
 
-    // Ya existe: no se duplica y no es un error para quien lo tocó.
-    if (avisos.some((a) => a.notaId === parsed.data.bloqueId)) return { ok: true };
+      // Ya existe: no se duplica y no es un error para quien lo tocó.
+      if (avisos.some((a) => a.notaId === parsed.data.bloqueId)) return { ok: true };
 
-    const materia = materias.find((m) => m.id === parsed.data.materiaId);
-    const bloque = materia?.bloques.find((b) => b.id === parsed.data.bloqueId);
-    if (!bloque) return { ok: false, error: ERROR_NO_EXISTE };
+      const materia = materias.find((m) => m.id === parsed.data.materiaId);
+      const bloque = materia?.bloques.find((b) => b.id === parsed.data.bloqueId);
+      if (!bloque) return { ok: false, error: ERROR_NO_EXISTE };
 
-    await crearAvisoLocal({
-      titulo: tituloDesdeNota(textoPlano(bloque.texto)),
-      materiaId: parsed.data.materiaId,
-      fecha: parsed.data.fecha,
-      notaId: bloque.id,
-    });
-  } catch (e) {
-    console.error('crearAvisoDesdeNota:', e);
+      await crearAvisoLocal({
+        titulo: tituloDesdeNota(textoPlano(bloque.texto)),
+        materiaId: parsed.data.materiaId,
+        fecha: parsed.data.fecha,
+        notaId: bloque.id,
+      });
+    } catch (e) {
+      console.error('crearAvisoDesdeNota (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
+
+  // Ya existe un aviso para esta nota: no se duplica.
+  const { data: existente, error: errorBusqueda } = await supabase
+    .from('avisos_manuales')
+    .select('id')
+    .eq('nota_id', parsed.data.bloqueId)
+    .maybeSingle();
+  if (errorBusqueda) {
+    console.error('crearAvisoDesdeNota (buscar):', errorBusqueda);
+    return { ok: false, error: ERROR_GUARDAR };
+  }
+  if (existente) return { ok: true };
+
+  // El título sale del texto del bloque (RLS garantiza que es de esta persona).
+  const { data: bloque, error: errorBloque } = await supabase
+    .from('bloques')
+    .select('texto')
+    .eq('id', parsed.data.bloqueId)
+    .maybeSingle();
+  if (errorBloque) {
+    console.error('crearAvisoDesdeNota (bloque):', errorBloque);
+    return { ok: false, error: ERROR_GUARDAR };
+  }
+  if (!bloque) return { ok: false, error: ERROR_NO_EXISTE };
+
+  const { error } = await supabase.from('avisos_manuales').insert({
+    titulo: tituloDesdeNota(textoPlano((bloque as { texto: string }).texto)),
+    curso_id: parsed.data.materiaId,
+    fecha: parsed.data.fecha,
+    nota_id: parsed.data.bloqueId,
+  });
+  if (error) {
+    console.error('crearAvisoDesdeNota:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
   revalidarTodo();
   return { ok: true };
 }
 
-/** El "hecho" vive en datos/avisos-estado.json y sobrevive al reload. */
 export async function toggleAviso(id: string, hecho: boolean): Promise<ResultadoAction> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
-  try {
-    await escribirEstadoAviso(id, hecho);
-  } catch (e) {
-    console.error('toggleAviso:', e);
-    return { ok: false, error: ERROR_GUARDAR };
+  // Sin Supabase: el "hecho" vive en datos/avisos-estado.json y sobrevive al reload.
+  if (!supabaseConfigurado()) {
+    try {
+      await escribirEstadoAviso(id, hecho);
+    } catch (e) {
+      console.error('toggleAviso (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
+
+  if (esManual(id)) {
+    const { error } = await supabase
+      .from('avisos_manuales')
+      .update({ hecho })
+      .eq('id', id);
+    if (error) {
+      console.error('toggleAviso:', error);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+  } else {
+    const { error } = await supabase
+      .from('avisos_estado')
+      .upsert({ aviso_id: id, hecho }, { onConflict: 'user_id,aviso_id' });
+    if (error) {
+      console.error('toggleAviso:', error);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
   }
   revalidarTodo();
   return { ok: true };
@@ -306,15 +518,36 @@ export async function toggleAviso(id: string, hecho: boolean): Promise<Resultado
 export async function eliminarAviso(id: string): Promise<ResultadoAction> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
+  if (!supabaseConfigurado()) {
+    if (!esManual(id)) return { ok: false, error: ERROR_AVISO_MOODLE };
+    try {
+      const borrado = await eliminarAvisoLocal(id);
+      if (!borrado) return { ok: false, error: ERROR_NO_EXISTE };
+    } catch (e) {
+      console.error('eliminarAviso (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
   if (!esManual(id)) return { ok: false, error: ERROR_AVISO_MOODLE };
 
-  try {
-    const borrado = await eliminarAvisoLocal(id);
-    if (!borrado) return { ok: false, error: ERROR_NO_EXISTE };
-  } catch (e) {
-    console.error('eliminarAviso:', e);
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
+
+  const { data, error } = await supabase
+    .from('avisos_manuales')
+    .delete()
+    .eq('id', id)
+    .select('id');
+
+  if (error) {
+    console.error('eliminarAviso:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
+  if (!data || data.length === 0) return { ok: false, error: ERROR_NO_EXISTE };
   revalidarTodo();
   return { ok: true };
 }
@@ -326,11 +559,13 @@ export async function eliminarAviso(id: string): Promise<ResultadoAction> {
 const perfilSchema = z.object({
   nombre: z.string().trim().min(1),
   instituto: z.string().trim(),
-  // undefined = no tocar la foto; string = nueva URL del avatar.
+  // undefined = no tocar la foto; string = nueva URL del avatar en Storage.
   avatarUrl: z.string().trim().min(1).optional(),
+  // undefined = no tocar la carrera (constante para el modo local; editable en Supabase).
+  carrera: z.string().trim().max(80).optional(),
 });
 
-/** Máximo de la foto de perfil: va al disco, en datos/avatar.<ext>. */
+/** Máximo de la foto de perfil en modo local (sin Storage, va al disco). */
 const MAX_AVATAR = 5 * 1024 * 1024;
 
 const ERROR_FOTO = 'No se pudo subir la foto. Probá de nuevo.';
@@ -340,8 +575,8 @@ const ERROR_FOTO_PESO = 'La foto pesa demasiado (máx 5 MB).';
 export type ResultadoFoto = { ok: true; url: string } | { ok: false; error: string };
 
 /**
- * Guarda la foto de perfil en datos/avatar.<ext> y devuelve la URL que la
- * sirve (app/api/avatar/route.ts), con ?v= para bustear la caché.
+ * Modo sin Supabase: guarda la foto de perfil en datos/avatar.<ext> y devuelve
+ * la URL que la sirve (app/api/avatar/route.ts), con ?v= para bustear la caché.
  */
 export async function guardarAvatarLocal(formData: FormData): Promise<ResultadoFoto> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
@@ -353,34 +588,98 @@ export async function guardarAvatarLocal(formData: FormData): Promise<ResultadoF
   if (!file.type.startsWith('image/') || !ext) return { ok: false, error: ERROR_FOTO_TIPO };
   if (file.size > MAX_AVATAR) return { ok: false, error: ERROR_FOTO_PESO };
 
-  try {
-    await escribirAvatarLocal(new Uint8Array(await file.arrayBuffer()), ext);
-  } catch (e) {
-    console.error('guardarAvatarLocal:', e);
+  if (!supabaseConfigurado()) {
+    try {
+      await escribirAvatarLocal(new Uint8Array(await file.arrayBuffer()), ext);
+    } catch (e) {
+      console.error('guardarAvatarLocal:', e);
+      return { ok: false, error: ERROR_FOTO };
+    }
+    revalidarTodo();
+    return { ok: true, url: `/api/avatar?v=${Date.now()}` };
+  }
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase, user } = sesion;
+
+  const { error: errorSubida } = await supabase.storage
+    .from('avatares')
+    .upload(`${user.id}.${ext}`, await file.arrayBuffer(), {
+      contentType: file.type,
+      upsert: true,
+    });
+
+  if (errorSubida) {
+    console.error('guardarAvatarLocal:', errorSubida);
     return { ok: false, error: ERROR_FOTO };
   }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('avatares').getPublicUrl(`${user.id}.${ext}`);
+  const url = `${publicUrl}?v=${Date.now()}`;
+
+  const { error } = await supabase
+    .from('perfiles')
+    .update({ avatar_url: url })
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('guardarAvatarLocal:', error);
+    return { ok: false, error: ERROR_FOTO };
+  }
+
   revalidarTodo();
-  return { ok: true, url: `/api/avatar?v=${Date.now()}` };
+  return { ok: true, url };
 }
 
 export async function guardarPerfil(input: {
   nombre: string;
   instituto: string;
   avatarUrl?: string;
+  carrera?: string;
 }): Promise<ResultadoAction> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
-  const parsed = perfilSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: 'Poné tu nombre así te saludamos.' };
+  if (!supabaseConfigurado()) {
+    const parsedLocal = perfilSchema.safeParse(input);
+    if (!parsedLocal.success) {
+      return { ok: false, error: 'Poné tu nombre así te saludamos.' };
+    }
+    try {
+      await escribirPerfilLocal({
+        nombre: parsedLocal.data.nombre,
+        instituto: parsedLocal.data.instituto,
+        avatarUrl: parsedLocal.data.avatarUrl,
+      });
+    } catch (e) {
+      console.error('guardarPerfil (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
 
-  try {
-    await escribirPerfilLocal({
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
+
+  const parsed = perfilSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: 'Poné tu nombre así te saludamos.' };
+  }
+
+  const { error } = await supabase
+    .from('perfiles')
+    .update({
       nombre: parsed.data.nombre,
-      instituto: parsed.data.instituto,
-      avatarUrl: parsed.data.avatarUrl,
-    });
-  } catch (e) {
-    console.error('guardarPerfil:', e);
+      ...(parsed.data.carrera !== undefined ? { carrera: parsed.data.carrera } : {}),
+    })
+    .eq('user_id', sesion.user.id);
+
+  if (error) {
+    console.error('guardarPerfil:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
   revalidarTodo();
@@ -425,19 +724,65 @@ export async function crearBloque(
 ): Promise<ResultadoAction> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
-  const parsed = bloqueNuevoSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: ERROR_DATOS };
+  if (!supabaseConfigurado()) {
+    const parsedLocal = bloqueNuevoSchema.safeParse(input);
+    if (!parsedLocal.success) return { ok: false, error: ERROR_DATOS };
+    try {
+      await crearBloqueLocal(materiaId, {
+        tipo: parsedLocal.data.tipo,
+        texto: parsedLocal.data.texto ?? '',
+        url: parsedLocal.data.url ? normalizarUrl(parsedLocal.data.url) : '',
+        ...(parsedLocal.data.estado ? { estado: parsedLocal.data.estado } : {}),
+        ...(parsedLocal.data.ref ? { ref: parsedLocal.data.ref } : {}),
+      });
+    } catch (e) {
+      console.error('crearBloque (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
 
-  try {
-    await crearBloqueLocal(materiaId, {
-      tipo: parsed.data.tipo,
-      texto: parsed.data.texto ?? '',
-      url: parsed.data.url ? normalizarUrl(parsed.data.url) : '',
-      ...(parsed.data.estado ? { estado: parsed.data.estado } : {}),
-      ...(parsed.data.ref ? { ref: parsed.data.ref } : {}),
-    });
-  } catch (e) {
-    console.error('crearBloque:', e);
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
+
+  const parsed = bloqueNuevoSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: ERROR_DATOS };
+  }
+
+  // orden = max(orden) + 1000 (huecos para reordenar sin reescribir todo).
+  // Hay una race si se crean dos bloques a la vez; riesgo aceptado (app de un usuario).
+  const { data: ultimo, error: errorOrden } = await supabase
+    .from('bloques')
+    .select('orden')
+    .eq('curso_id', materiaId)
+    .order('orden', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (errorOrden) {
+    console.error('crearBloque (orden):', errorOrden);
+    return { ok: false, error: ERROR_GUARDAR };
+  }
+
+  const orden = ((ultimo as { orden: number } | null)?.orden ?? 0) + 1000;
+
+  const { error } = await supabase.from('bloques').insert({
+    curso_id: materiaId,
+    tipo: parsed.data.tipo,
+    texto: parsed.data.texto ?? '',
+    url: parsed.data.url ? normalizarUrl(parsed.data.url) : '',
+    ...(parsed.data.estado
+      ? { estado: parsed.data.estado, hecho: parsed.data.estado === 'listo' }
+      : {}),
+    ...(parsed.data.ref ? { ref: parsed.data.ref } : {}),
+    orden,
+  });
+
+  if (error) {
+    console.error('crearBloque:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
   revalidarTodo();
@@ -461,18 +806,51 @@ export type BloquePatch = z.input<typeof bloquePatchSchema>;
 export async function actualizarBloque(id: string, patch: BloquePatch): Promise<ResultadoAction> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
-  const parsed = bloquePatchSchema.safeParse(patch);
-  if (!parsed.success) return { ok: false, error: ERROR_DATOS };
+  if (!supabaseConfigurado()) {
+    const parsedLocal = bloquePatchSchema.safeParse(patch);
+    if (!parsedLocal.success) return { ok: false, error: ERROR_DATOS };
 
-  const cambios: {
-    tipo?: (typeof TIPOS_BLOQUE)[number];
-    texto?: string;
-    url?: string;
-    estado?: (typeof ESTADOS_BLOQUE)[number];
-    hecho?: boolean;
-    fmt?: FormatoBloque;
-    ref?: RefBloque | null;
-  } = {};
+    const cambiosLocal: {
+      tipo?: (typeof TIPOS_BLOQUE)[number];
+      texto?: string;
+      url?: string;
+      estado?: (typeof ESTADOS_BLOQUE)[number];
+      hecho?: boolean;
+      fmt?: FormatoBloque;
+      ref?: RefBloque | null;
+    } = {};
+    if (parsedLocal.data.tipo !== undefined) cambiosLocal.tipo = parsedLocal.data.tipo;
+    if (parsedLocal.data.texto !== undefined) cambiosLocal.texto = parsedLocal.data.texto;
+    if (parsedLocal.data.url !== undefined)
+      cambiosLocal.url = parsedLocal.data.url ? normalizarUrl(parsedLocal.data.url) : '';
+    if (parsedLocal.data.estado !== undefined) cambiosLocal.estado = parsedLocal.data.estado;
+    if (parsedLocal.data.hecho !== undefined) cambiosLocal.hecho = parsedLocal.data.hecho;
+    if (parsedLocal.data.fmt !== undefined) cambiosLocal.fmt = parsedLocal.data.fmt;
+    // `null` es un valor válido acá: significa "quitá la referencia".
+    if (parsedLocal.data.ref !== undefined) cambiosLocal.ref = parsedLocal.data.ref;
+    if (Object.keys(cambiosLocal).length === 0) return { ok: true };
+
+    try {
+      const actualizado = await actualizarBloqueLocal(id, cambiosLocal);
+      if (!actualizado) return { ok: false, error: ERROR_NO_EXISTE };
+    } catch (e) {
+      console.error('actualizarBloque (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
+
+  const parsed = bloquePatchSchema.safeParse(patch);
+  if (!parsed.success) {
+    return { ok: false, error: ERROR_DATOS };
+  }
+
+  const cambios: Record<string, string | boolean | FormatoBloque | RefBloque | null> = {};
   if (parsed.data.tipo !== undefined) cambios.tipo = parsed.data.tipo;
   if (parsed.data.texto !== undefined) cambios.texto = parsed.data.texto;
   if (parsed.data.url !== undefined)
@@ -484,11 +862,10 @@ export async function actualizarBloque(id: string, patch: BloquePatch): Promise<
   if (parsed.data.ref !== undefined) cambios.ref = parsed.data.ref;
   if (Object.keys(cambios).length === 0) return { ok: true };
 
-  try {
-    const actualizado = await actualizarBloqueLocal(id, cambios);
-    if (!actualizado) return { ok: false, error: ERROR_NO_EXISTE };
-  } catch (e) {
-    console.error('actualizarBloque:', e);
+  const { error } = await supabase.from('bloques').update(cambios).eq('id', id);
+
+  if (error) {
+    console.error('actualizarBloque:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
   revalidarTodo();
@@ -498,19 +875,42 @@ export async function actualizarBloque(id: string, patch: BloquePatch): Promise<
 export async function eliminarBloque(id: string): Promise<ResultadoAction> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
-  try {
-    const borrado = await eliminarBloqueLocal(id);
-    if (!borrado) return { ok: false, error: ERROR_NO_EXISTE };
-  } catch (e) {
-    console.error('eliminarBloque:', e);
+  if (!supabaseConfigurado()) {
+    try {
+      const borrado = await eliminarBloqueLocal(id);
+      if (!borrado) return { ok: false, error: ERROR_NO_EXISTE };
+    } catch (e) {
+      console.error('eliminarBloque (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
+
+  const { data, error } = await supabase.from('bloques').delete().eq('id', id).select('id');
+
+  if (error) {
+    console.error('eliminarBloque:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
+  if (!data || data.length === 0) return { ok: false, error: ERROR_NO_EXISTE };
   revalidarTodo();
   return { ok: true };
 }
 
-/** Los ids de los bloques propios son "manual:<uuid>", no uuids pelados. */
 const reordenarSchema = z.array(
+  z.object({
+    id: z.uuid(),
+    orden: z.number().int(),
+  })
+);
+
+/** En local los ids son "manual:<uuid>", no uuids pelados. */
+const reordenarLocalSchema = z.array(
   z.object({
     id: z.string().min(1),
     orden: z.number().int(),
@@ -522,14 +922,37 @@ export async function reordenarBloques(
 ): Promise<ResultadoAction> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
+  if (!supabaseConfigurado()) {
+    const parsedLocal = reordenarLocalSchema.safeParse(items);
+    if (!parsedLocal.success) return { ok: false, error: ERROR_DATOS };
+    if (parsedLocal.data.length === 0) return { ok: true };
+    try {
+      await reordenarBloquesLocales(parsedLocal.data);
+    } catch (e) {
+      console.error('reordenarBloques (local):', e);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+    revalidarTodo();
+    return { ok: true };
+  }
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase } = sesion;
+
   const parsed = reordenarSchema.safeParse(items);
-  if (!parsed.success) return { ok: false, error: ERROR_DATOS };
+  if (!parsed.success) {
+    return { ok: false, error: ERROR_DATOS };
+  }
   if (parsed.data.length === 0) return { ok: true };
 
-  try {
-    await reordenarBloquesLocales(parsed.data);
-  } catch (e) {
-    console.error('reordenarBloques:', e);
+  // RPC transaccional: o se reordena todo o nada.
+  const { error } = await supabase.rpc('reordenar_bloques', {
+    p_items: parsed.data,
+  });
+
+  if (error) {
+    console.error('reordenarBloques:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
   revalidarTodo();

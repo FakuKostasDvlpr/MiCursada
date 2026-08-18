@@ -1,6 +1,7 @@
 import { PerfilVista } from '@/components/perfil-vista';
 import { leerCredenciales } from '@/lib/moodle/credenciales';
 import { getPerfil } from '@/lib/queries';
+import { supabaseConfigurado } from '@/lib/supabase/configurado';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export default async function PaginaPerfil() {
           {perfil?.nombre || 'Tu cursada'}
         </h1>
       </div>
-      <PerfilVista perfil={perfil} usuario={usuario} />
+      <PerfilVista perfil={perfil} usuario={usuario} conCuenta={supabaseConfigurado()} />
     </main>
   );
 }

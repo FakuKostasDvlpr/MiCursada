@@ -48,7 +48,13 @@ vi.mock('@/app/actions-moodle', () => ({
   },
 }));
 
-import { cerrarSesion, iniciarSesion, montarCursada } from '@/app/actions-sesion';
+import {
+  aceptarConsentimiento,
+  borrarMiCuenta,
+  cerrarSesion,
+  iniciarSesion,
+  montarCursada,
+} from '@/app/actions-sesion';
 import { rutaDatos } from '@/lib/datos-locales';
 import { leerPerfilLocal } from '@/lib/datos-locales';
 import { leerCredenciales } from '@/lib/moodle/credenciales';
@@ -111,7 +117,7 @@ describe('iniciarSesion', () => {
 
     const r = await iniciarSesion('fcostas', 'la-contraseña');
 
-    expect(r).toEqual({ ok: true, nombre: NOMBRE });
+    expect(r).toEqual({ ok: true, nombre: NOMBRE, carrera: null });
     expect(JSON.stringify(r)).not.toContain('la-contraseña');
     expect(JSON.stringify(r)).not.toContain('tok-nuevo');
 
@@ -156,7 +162,7 @@ describe('iniciarSesion', () => {
 
     const r = await iniciarSesion('fcostas', 'x');
 
-    expect(r).toEqual({ ok: true, nombre: NOMBRE });
+    expect(r).toEqual({ ok: true, nombre: NOMBRE, carrera: null });
     expect(jar.valor).toBeTruthy();
   });
 
@@ -269,5 +275,25 @@ describe('cerrarSesion', () => {
 
     expect(await validarSesion(compu)).toBeNull();
     expect(await validarSesion(celu)).not.toBeNull();
+  });
+});
+
+describe('aceptarConsentimiento', () => {
+  it('sin sesión de Supabase (modo local) manda a /login', async () => {
+    // Sin NEXT_PUBLIC_SUPABASE_URL/ANON_KEY, usuarioActual() siempre da null:
+    // esta pantalla no existe en modo local, así que la guarda manda afuera.
+    await expect(aceptarConsentimiento()).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(nav.destino).toBe('/login');
+  });
+});
+
+describe('borrarMiCuenta', () => {
+  it('sin sesión de Supabase (modo local) manda a /login sin tocar nada', async () => {
+    // Mismo motivo que aceptarConsentimiento: usuarioActual() da null en modo
+    // local, así que la guarda manda afuera antes de llegar al admin client.
+    await expect(borrarMiCuenta()).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(nav.destino).toBe('/login');
   });
 });

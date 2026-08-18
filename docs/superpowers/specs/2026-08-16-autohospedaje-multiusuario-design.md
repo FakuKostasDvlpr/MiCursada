@@ -1,7 +1,10 @@
 # Mi Cursada multiusuario y autohospedada — diseño
 
 Fecha: 2026-08-16
-Estado: **diseño aprobado, no implementado**
+Estado: **reemplazado el 2026-08-18** por
+`2026-08-18-vercel-supabase-multiusuario-design.md` (se volvió al camino
+Vercel + Supabase). Se conserva por las decisiones de privacidad y del panel,
+que el spec nuevo hereda.
 
 Reemplaza a `docs/PLAN-VERCEL.md`, que quedó obsoleto: asumía Vercel + Supabase y hoy
 la decisión es autohospedar. Ese archivo se archiva al empezar la fase 1.

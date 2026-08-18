@@ -1,14 +1,18 @@
 'use client';
 
-// Perfil de solo lectura (handoff v3 §0b). Los datos vienen del aula virtual, no
-// se escriben a mano: lo único editable es la foto, que es de la app y no de
-// Moodle.
+// Perfil (handoff v3 §0b). Todo el perfil es de solo lectura salvo el avatar:
+// nombre y carrera vienen fijos (ver comentario junto a `filas` más abajo).
+// Lo único editable es el avatar (de la app, no de Moodle): un predefinido o
+// una foto propia, ambos vía guardarAvatarLocal.
 
 import { Camera, Check, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { guardarAvatarLocal } from '@/app/actions';
+import { borrarMiCuenta } from '@/app/actions-sesion';
+import { type Avatar, AvatarPicker, crearAvatarBlob } from '@/components/kokonutui/avatar-picker';
 import { CerrarSesion } from '@/components/cerrar-sesion';
+import { Modal } from '@/components/modal';
 import { iniciales } from '@/lib/cursada';
 import { INSTITUTO, SEDE_Y_TURNO } from '@/lib/instituto';
 import type { Perfil } from '@/lib/types';
@@ -17,20 +21,38 @@ type Props = {
   perfil: Perfil | null;
   /** `username` del aula virtual (sale de datos/moodle.json, no del perfil). */
   usuario: string;
+  /** Solo con Supabase configurado hay cuenta real que borrar. */
+  conCuenta: boolean;
 };
 
-export function PerfilVista({ perfil, usuario }: Props) {
+export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
   const router = useRouter();
   const inputFoto = useRef<HTMLInputElement>(null);
 
   const [fotoUrl, setFotoUrl] = useState(perfil?.avatarUrl ?? null);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState('');
+  const [abiertoAvatar, setAbiertoAvatar] = useState(false);
+
+  const [abiertoBorrar, setAbiertoBorrar] = useState(false);
+  const [borrando, setBorrando] = useState(false);
+  const [errorBorrar, setErrorBorrar] = useState('');
+
+  const confirmarBorrado = async () => {
+    setBorrando(true);
+    setErrorBorrar('');
+    const resultado = await borrarMiCuenta();
+    if (!resultado.ok) {
+      setErrorBorrar(resultado.error);
+      setBorrando(false);
+    }
+  };
 
   const nombre = perfil?.nombre ?? '';
   const inis = iniciales(nombre);
 
-  const subirFoto = async (file: File) => {
+  /** Sube un archivo (propio o generado a partir de un predefinido) por la misma action. */
+  const subirArchivo = async (file: File): Promise<boolean> => {
     setSubiendo(true);
     setError('');
     try {
@@ -39,26 +61,68 @@ export function PerfilVista({ perfil, usuario }: Props) {
       const resultado = await guardarAvatarLocal(formData);
       if (!resultado.ok) {
         setError(resultado.error);
-        return;
+        return false;
       }
       setFotoUrl(resultado.url);
       router.refresh();
+      return true;
     } finally {
       setSubiendo(false);
     }
   };
 
+  /** Subida de foto propia (dentro del modal de avatar). Cierra el modal al éxito. */
+  const subirFoto = async (file: File) => {
+    const ok = await subirArchivo(file);
+    if (ok) setAbiertoAvatar(false);
+  };
+
+  /** Confirmar un predefinido del picker (dentro del modal). Cierra el modal al éxito. */
+  const elegirAvatar = async (avatar: Avatar) => {
+    // Guard: si ya hay una subida en curso, no arrancar otra — sin esto, un
+    // doble-click en "Usar este avatar" dispara dos generaciones/subidas en
+    // paralelo mientras `crearAvatarBlob` todavía corre y `subiendo` sigue en
+    // false.
+    if (subiendo) return;
+    setSubiendo(true);
+    setError('');
+    let blob: Blob;
+    try {
+      blob = await crearAvatarBlob(avatar);
+    } catch {
+      setError('No se pudo generar el avatar. Probá de nuevo.');
+      setSubiendo(false);
+      return;
+    }
+    const file = new File([blob], `avatar-${avatar.id}.png`, { type: 'image/png' });
+    const ok = await subirArchivo(file);
+    if (ok) setAbiertoAvatar(false);
+  };
+
+  const abrirModalAvatar = () => {
+    if (subiendo) return;
+    setError('');
+    setAbiertoAvatar(true);
+  };
+
+  // Nombre y carrera son de solo lectura acá: el nombre lo trae el aula
+  // virtual y la carrera quedó fija por decisión de producto (2026-08-18).
   const filas = [
     { label: 'Nombre', valor: nombre || 'Sin nombre', mono: false },
+    { label: 'Carrera', valor: perfil?.carrera ?? INSTITUTO.carrera, mono: false },
     { label: 'Usuario', valor: usuario || '—', mono: true },
-    { label: 'Carrera', valor: INSTITUTO.carrera, mono: false },
     { label: 'Instituto', valor: `${perfil?.instituto ?? INSTITUTO.nombre} · ${SEDE_Y_TURNO}`, mono: false },
   ];
 
   return (
     <>
-      {/* Avatar 104px */}
-      <div className="relative mx-auto mt-[26px] w-[104px]">
+      {/* Avatar 104px: única personalización de esta pantalla — se abre el picker al tocarlo */}
+      <button
+        type="button"
+        onClick={abrirModalAvatar}
+        aria-label="Cambiar tu avatar"
+        className="relative mx-auto mt-[26px] block w-[104px] cursor-pointer"
+      >
         {fotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -76,10 +140,26 @@ export function PerfilVista({ perfil, usuario }: Props) {
             <Check size={13} strokeWidth={3} aria-hidden />
           </span>
         )}
+      </button>
+
+      <div className="mt-3 flex justify-center">
+        <button
+          type="button"
+          onClick={abrirModalAvatar}
+          className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-bor2 bg-sup px-4 text-[13.5px] font-bold text-tx"
+        >
+          <Camera size={16} strokeWidth={2} aria-hidden />
+          Cambiar avatar
+        </button>
       </div>
 
-      {/* Captura de foto: lo único editable de esta pantalla */}
-      <div className="mt-4 flex justify-center">
+      <Modal
+        abierto={abiertoAvatar}
+        titulo="Elegir tu avatar"
+        onCerrar={() => {
+          if (!subiendo) setAbiertoAvatar(false);
+        }}
+      >
         <input
           ref={inputFoto}
           type="file"
@@ -92,20 +172,15 @@ export function PerfilVista({ perfil, usuario }: Props) {
             e.target.value = '';
           }}
         />
-        <button
-          type="button"
-          onClick={() => inputFoto.current?.click()}
-          disabled={subiendo}
-          className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-bor2 bg-sup px-4 text-[13.5px] font-bold text-tx disabled:opacity-60"
-        >
-          <Camera size={16} strokeWidth={2} aria-hidden />
-          {subiendo ? 'Subiendo…' : fotoUrl ? 'Sacar otra foto' : 'Sacate una foto'}
-        </button>
-      </div>
+        <AvatarPicker
+          subiendo={subiendo}
+          error={error}
+          onElegir={(avatar) => void elegirAvatar(avatar)}
+          onSubirPropia={() => inputFoto.current?.click()}
+        />
+      </Modal>
 
-      {error && <div className="mt-[10px] text-center text-[13px] text-vencido">{error}</div>}
-
-      <dl className="mt-[22px] flex flex-col gap-[10px]">
+      <dl className="mt-[14px] flex flex-col gap-[10px]">
         {filas.map((f) => (
           <div
             key={f.label}
@@ -135,6 +210,52 @@ export function PerfilVista({ perfil, usuario }: Props) {
         Listo
       </button>
       <CerrarSesion />
+
+      {conCuenta && (
+        <>
+          <button
+            type="button"
+            onClick={() => setAbiertoBorrar(true)}
+            className="tactil mt-2 flex min-h-11 w-full cursor-pointer items-center justify-center text-[13px] font-bold"
+            style={{ color: '#fb7185' }}
+          >
+            Borrar mi cuenta
+          </button>
+
+          <Modal
+            abierto={abiertoBorrar}
+            titulo="¿Borrar tu cuenta?"
+            onCerrar={() => setAbiertoBorrar(false)}
+          >
+            <p className="text-[14px] leading-[1.5] text-tx2">
+              Se borran tu token del aula virtual, tus notas, tus horarios y tus avisos. No hay
+              vuelta atrás.
+            </p>
+            {errorBorrar && (
+              <p className="mt-2 text-[13px] leading-[1.5] text-vencido">{errorBorrar}</p>
+            )}
+            <div className="mt-5 flex gap-[10px]">
+              <button
+                type="button"
+                onClick={() => setAbiertoBorrar(false)}
+                disabled={borrando}
+                className="min-h-12 cursor-pointer rounded-xl border border-bor2 px-5 text-[14.5px] font-bold text-tx disabled:opacity-60"
+              >
+                Mejor no
+              </button>
+              <button
+                type="button"
+                onClick={confirmarBorrado}
+                disabled={borrando}
+                className="min-h-12 flex-1 cursor-pointer rounded-xl border text-[14.5px] font-bold disabled:opacity-60"
+                style={{ borderColor: 'rgba(251,113,133,.45)', color: '#fb7185' }}
+              >
+                {borrando ? 'Borrando…' : 'Borrar todo'}
+              </button>
+            </div>
+          </Modal>
+        </>
+      )}
     </>
   );
 }

@@ -18,6 +18,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { sincronizarAhora } from '@/app/actions-moodle';
 import { escribirPerfilLocal, getDatosLocales, leerPerfilLocal } from '@/lib/datos-locales';
+import { registrarEvento } from '@/lib/eventos';
 import { sanitizar } from '@/lib/moodle/cliente';
 import {
   URL_MOODLE_DEFAULT,
@@ -26,11 +27,20 @@ import {
   hayArchivoCredenciales,
   leerCredenciales,
 } from '@/lib/moodle/credenciales';
+import { guardarCredencialDb } from '@/lib/moodle/credenciales-db';
 import { pedirToken } from '@/lib/moodle/login';
 import { obtenerSiteInfo } from '@/lib/moodle/plan';
-import { abrirSesion, cerrarSesionActual, hayAcceso } from '@/lib/sesion-actual';
+import { getAvisos, getMaterias } from '@/lib/queries';
+import { abrirSesion, cerrarSesionActual, hayAcceso, usuarioActual } from '@/lib/sesion-actual';
+import { adminClient } from '@/lib/supabase/admin';
+import { supabaseConfigurado } from '@/lib/supabase/configurado';
+import { createClient } from '@/lib/supabase/server';
+import { acunarSesion, asegurarUsuarioSombra } from '@/lib/supabase/puente';
+import { cursadaFresca } from '@/lib/sync-compartido';
 
-export type ResultadoLogin = { ok: true; nombre: string } | { ok: false; error: string };
+export type ResultadoLogin =
+  | { ok: true; nombre: string; carrera: string | null }
+  | { ok: false; error: string };
 
 const ERROR_GENERICO = 'Algo falló. Probá de nuevo.';
 const ERROR_OTRA_CUENTA =
@@ -110,6 +120,36 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
     return { ok: false, error: ERROR_NO_HABILITADO };
   }
 
+  if (supabaseConfigurado()) {
+    try {
+      const userId = await asegurarUsuarioSombra(site.userid, site.fullname);
+      await acunarSesion(userId);
+      await guardarCredencialDb(userId, {
+        ...cred,
+        userid: site.userid,
+        usuario: site.username,
+        ultimaVerificacion: { ok: true, cuando: new Date().toISOString(), nombre: site.fullname },
+      });
+      const admin = adminClient();
+      const { data: filaPerfil, error: ePerfil } = await admin
+        .from('perfiles')
+        .update({
+          instituto: site.sitename.trim(),
+          ultima_visita: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+        .select('carrera')
+        .maybeSingle();
+      if (ePerfil) loguear('iniciarSesion (perfil)', ePerfil);
+      await registrarEvento('sesion_iniciada', userId);
+      return { ok: true, nombre: site.fullname, carrera: filaPerfil?.carrera ?? null };
+    } catch (e) {
+      loguear('iniciarSesion (supabase)', e);
+      return { ok: false, error: ERROR_GENERICO };
+    }
+  }
+
+  // ——— Modo local (sin .env.local): el flujo de siempre, un solo dueño. ———
   // Un solo usuario: la primera cuenta que entra se queda con la app. Si ya hay
   // un datos/moodle.json, su userid lo escribió un login verificado, así que
   // cualquier otra cuenta del aula virtual queda afuera (y no puede pisar el
@@ -148,7 +188,9 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
   // Sin revalidatePath: quien sigue es montarCursada (que sí revalida) y después
   // el router.refresh() del cliente. Revalidar acá solo agregaría un re-render
   // de /login en medio de la secuencia de entrada.
-  return { ok: true, nombre: site.fullname };
+  // La carrera en modo local es siempre la constante (leerPerfilLocal la
+  // devuelve null): no hay nada editable que traer acá.
+  return { ok: true, nombre: site.fullname, carrera: null };
 }
 
 /** Un snapshot más nuevo que esto no se vuelve a bajar al entrar. */
@@ -168,6 +210,23 @@ export type ResultadoMontaje =
  */
 export async function montarCursada(): Promise<ResultadoMontaje> {
   if (!(await hayAcceso())) return { ok: false, error: 'No pudimos verificar tu sesión.' };
+
+  if (supabaseConfigurado()) {
+    const u = await usuarioActual();
+    if (!u) return { ok: false, error: 'No pudimos verificar tu sesión.' };
+    if (await cursadaFresca(u.userId)) {
+      try {
+        const [materias, avisos] = await Promise.all([getMaterias(), getAvisos()]);
+        return { ok: true, sincronizado: false, materias: materias.length, avisos: avisos.length };
+      } catch (e) {
+        loguear('montarCursada (fresca)', e);
+        return { ok: false, error: ERROR_GENERICO };
+      }
+    }
+    const r = await sincronizarAhora();
+    if (!r.ok) return { ok: false, error: r.error };
+    return { ok: true, sincronizado: true, materias: r.materias, avisos: r.avisos };
+  }
 
   const datos = await getDatosLocales();
   const generado = datos.generado ? new Date(datos.generado).getTime() : 0;
@@ -201,4 +260,78 @@ export async function cerrarSesion(): Promise<void> {
   // Invalida el árbol cacheado de (app) para que "atrás" no muestre la app.
   revalidatePath('/', 'layout');
   redirect('/login');
+}
+
+/**
+ * Borra la cuenta DE VERDAD: el usuario de Auth (que cascadea perfiles,
+ * credenciales, inscripciones, horarios, materias_extra, bloques,
+ * avisos_estado, avisos_manuales y archivos_manuales), más el avatar del
+ * bucket. Los eventos quedan: son hashes, no identifican a nadie.
+ */
+export async function borrarMiCuenta(): Promise<{ ok: false; error: string } | never> {
+  const u = await usuarioActual();
+  if (!u) redirect('/login');
+  const admin = adminClient();
+  // El deleteUser va primero y solo: es lo irreversible. Si falla acá, no se
+  // tocó nada más — la cuenta sigue intacta con su foto y sin evento espurio.
+  // Lo que sigue (avatar, evento) es limpieza best-effort de algo que YA
+  // pasó: si eso falla no hay que devolver error ni dejar la cuenta viva.
+  try {
+    const { error } = await admin.auth.admin.deleteUser(u.userId);
+    if (error) throw error;
+  } catch (e) {
+    loguear('borrarMiCuenta', e);
+    return { ok: false, error: 'No se pudo borrar la cuenta. Probá de nuevo.' };
+  }
+  try {
+    const { data: lista } = await admin.storage.from('avatares').list('', { search: u.userId });
+    const nombres = (lista ?? []).map((f) => f.name).filter((n) => n.startsWith(u.userId));
+    if (nombres.length > 0) await admin.storage.from('avatares').remove(nombres);
+  } catch (e) {
+    loguear('borrarMiCuenta (avatar)', e); // huérfano en el bucket, no es motivo para fallar
+  }
+  await registrarEvento('cuenta_borrada', u.userId);
+  await cerrarSesionActual();
+  revalidatePath('/', 'layout');
+  redirect('/login');
+}
+
+/**
+ * Guarda el consentimiento del primer ingreso (solo modo Supabase — en modo
+ * local no hay pantalla de consentimiento, así que esta action no se llama).
+ *
+ * Dispara acá mismo la carga inicial (`montarCursada`): antes de aceptar,
+ * `sincronizarAhora` rechazaba todo por falta de consentimiento, así que la
+ * cursada de una cuenta nueva nunca se llegó a bajar — sin este paso, la
+ * primera pantalla después de aceptar se vería vacía. Un error de
+ * `montarCursada` NO bloquea la entrada (mismo criterio que documenta esa
+ * función): el panel del aula virtual ya cuenta el problema.
+ *
+ * El `redirect` va acá adentro por la misma razón que en `cerrarSesion`: sin
+ * él, el re-render de (app) se encuentra sin consentimiento otra vez y el
+ * redirect del layout sale como error de la action. Por eso queda fuera del
+ * try/catch — que redirect() tire su excepción de control sin que nada de
+ * acá la atrape.
+ */
+export async function aceptarConsentimiento(): Promise<void> {
+  const u = await usuarioActual();
+  if (!u) redirect('/login');
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('perfiles')
+    .update({ consentimiento_en: new Date().toISOString() })
+    .eq('user_id', u.userId);
+  if (error) {
+    loguear('aceptarConsentimiento', error);
+    throw new Error('No se pudo guardar. Probá de nuevo.');
+  }
+  await registrarEvento('consentimiento_aceptado', u.userId);
+
+  const montaje = await montarCursada();
+  if (!montaje.ok) loguear('aceptarConsentimiento (montarCursada)', new Error(montaje.error));
+
+  // Después de la sincronización: así el árbol que revalida ya tiene los
+  // datos recién bajados, no el estado vacío de antes de aceptar.
+  revalidatePath('/', 'layout');
+  redirect('/');
 }

@@ -19,13 +19,15 @@ type Props = {
   nombre: string;
   iniciales: string;
   avatarUrl?: string | null;
+  /** Carrera de la persona; INSTITUTO.carrera es solo el respaldo (ver lib/instituto.ts). */
+  carrera?: string | null;
 };
 
 /**
  * Nav lateral fija de 232px (>640px). En móvil la reemplaza BottomNav.
  * No se muestra en /login ni /perfil.
  */
-export function Sidebar({ nombre, iniciales, avatarUrl = null }: Props) {
+export function Sidebar({ nombre, iniciales, avatarUrl = null, carrera = null }: Props) {
   const pathname = usePathname();
   if (pathname.startsWith('/login') || pathname.startsWith('/perfil')) return null;
 
@@ -47,7 +49,7 @@ export function Sidebar({ nombre, iniciales, avatarUrl = null }: Props) {
           />
         </span>
         <div className="mt-[10px] truncate text-sm font-extrabold tracking-[-0.01em]">
-          {INSTITUTO.carrera}
+          {carrera ?? INSTITUTO.carrera}
         </div>
         <div className="kicker mt-px truncate text-[9.5px]">{SEDE_Y_TURNO}</div>
       </div>
