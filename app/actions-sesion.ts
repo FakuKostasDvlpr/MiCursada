@@ -18,6 +18,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { sincronizarAhora } from '@/app/actions-moodle';
 import { escribirPerfilLocal, getDatosLocales, leerPerfilLocal } from '@/lib/datos-locales';
+import { registrarEvento } from '@/lib/eventos';
 import { sanitizar } from '@/lib/moodle/cliente';
 import {
   URL_MOODLE_DEFAULT,
@@ -26,9 +27,13 @@ import {
   hayArchivoCredenciales,
   leerCredenciales,
 } from '@/lib/moodle/credenciales';
+import { guardarCredencialDb } from '@/lib/moodle/credenciales-db';
 import { pedirToken } from '@/lib/moodle/login';
 import { obtenerSiteInfo } from '@/lib/moodle/plan';
 import { abrirSesion, cerrarSesionActual, hayAcceso } from '@/lib/sesion-actual';
+import { adminClient } from '@/lib/supabase/admin';
+import { supabaseConfigurado } from '@/lib/supabase/configurado';
+import { acunarSesion, asegurarUsuarioSombra } from '@/lib/supabase/puente';
 
 export type ResultadoLogin = { ok: true; nombre: string } | { ok: false; error: string };
 
@@ -110,6 +115,34 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
     return { ok: false, error: ERROR_NO_HABILITADO };
   }
 
+  if (supabaseConfigurado()) {
+    try {
+      const userId = await asegurarUsuarioSombra(site.userid, site.fullname);
+      await acunarSesion(userId);
+      await guardarCredencialDb(userId, {
+        ...cred,
+        userid: site.userid,
+        usuario: site.username,
+        ultimaVerificacion: { ok: true, cuando: new Date().toISOString(), nombre: site.fullname },
+      });
+      const admin = adminClient();
+      const { error: ePerfil } = await admin
+        .from('perfiles')
+        .update({
+          instituto: site.sitename.trim(),
+          ultima_visita: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+      if (ePerfil) loguear('iniciarSesion (perfil)', ePerfil);
+      await registrarEvento('sesion_iniciada', userId);
+    } catch (e) {
+      loguear('iniciarSesion (supabase)', e);
+      return { ok: false, error: ERROR_GENERICO };
+    }
+    return { ok: true, nombre: site.fullname };
+  }
+
+  // ——— Modo local (sin .env.local): el flujo de siempre, un solo dueño. ———
   // Un solo usuario: la primera cuenta que entra se queda con la app. Si ya hay
   // un datos/moodle.json, su userid lo escribió un login verificado, así que
   // cualquier otra cuenta del aula virtual queda afuera (y no puede pisar el
