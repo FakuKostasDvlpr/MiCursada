@@ -78,6 +78,12 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
   };
 
   const elegirPredefinido = async (color: string) => {
+    // Guard: si ya hay una subida en curso (predefinido o foto propia), no
+    // arrancar otra — sin esto, un doble-click dispara dos generaciones/
+    // subidas en paralelo mientras `crearAvatarPredefinido` todavía corre y
+    // `subiendo` sigue en false.
+    if (subiendo) return;
+    setSubiendo(true);
     setColorActivo(null);
     setError('');
     let blob: Blob;
@@ -85,6 +91,7 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
       blob = await crearAvatarPredefinido(color);
     } catch {
       setError('No se pudo generar el avatar. Probá de nuevo.');
+      setSubiendo(false);
       return;
     }
     const file = new File([blob], `avatar-${color.slice(1)}.png`, { type: 'image/png' });
