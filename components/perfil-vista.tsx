@@ -8,7 +8,9 @@ import { Camera, Check, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { guardarAvatarLocal } from '@/app/actions';
+import { borrarMiCuenta } from '@/app/actions-sesion';
 import { CerrarSesion } from '@/components/cerrar-sesion';
+import { Modal } from '@/components/modal';
 import { iniciales } from '@/lib/cursada';
 import { INSTITUTO, SEDE_Y_TURNO } from '@/lib/instituto';
 import type { Perfil } from '@/lib/types';
@@ -17,15 +19,31 @@ type Props = {
   perfil: Perfil | null;
   /** `username` del aula virtual (sale de datos/moodle.json, no del perfil). */
   usuario: string;
+  /** Solo con Supabase configurado hay cuenta real que borrar. */
+  conCuenta: boolean;
 };
 
-export function PerfilVista({ perfil, usuario }: Props) {
+export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
   const router = useRouter();
   const inputFoto = useRef<HTMLInputElement>(null);
 
   const [fotoUrl, setFotoUrl] = useState(perfil?.avatarUrl ?? null);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState('');
+
+  const [abiertoBorrar, setAbiertoBorrar] = useState(false);
+  const [borrando, setBorrando] = useState(false);
+  const [errorBorrar, setErrorBorrar] = useState('');
+
+  const confirmarBorrado = async () => {
+    setBorrando(true);
+    setErrorBorrar('');
+    const resultado = await borrarMiCuenta();
+    if (!resultado.ok) {
+      setErrorBorrar(resultado.error);
+      setBorrando(false);
+    }
+  };
 
   const nombre = perfil?.nombre ?? '';
   const inis = iniciales(nombre);
@@ -135,6 +153,52 @@ export function PerfilVista({ perfil, usuario }: Props) {
         Listo
       </button>
       <CerrarSesion />
+
+      {conCuenta && (
+        <>
+          <button
+            type="button"
+            onClick={() => setAbiertoBorrar(true)}
+            className="tactil mt-2 flex min-h-11 w-full cursor-pointer items-center justify-center text-[13px] font-bold"
+            style={{ color: '#fb7185' }}
+          >
+            Borrar mi cuenta
+          </button>
+
+          <Modal
+            abierto={abiertoBorrar}
+            titulo="¿Borrar tu cuenta?"
+            onCerrar={() => setAbiertoBorrar(false)}
+          >
+            <p className="text-[14px] leading-[1.5] text-tx2">
+              Se borran tu token del aula virtual, tus notas, tus horarios y tus avisos. No hay
+              vuelta atrás.
+            </p>
+            {errorBorrar && (
+              <p className="mt-2 text-[13px] leading-[1.5] text-vencido">{errorBorrar}</p>
+            )}
+            <div className="mt-5 flex gap-[10px]">
+              <button
+                type="button"
+                onClick={() => setAbiertoBorrar(false)}
+                disabled={borrando}
+                className="min-h-12 cursor-pointer rounded-xl border border-bor2 px-5 text-[14.5px] font-bold text-tx disabled:opacity-60"
+              >
+                Mejor no
+              </button>
+              <button
+                type="button"
+                onClick={confirmarBorrado}
+                disabled={borrando}
+                className="min-h-12 flex-1 cursor-pointer rounded-xl border text-[14.5px] font-bold disabled:opacity-60"
+                style={{ borderColor: 'rgba(251,113,133,.45)', color: '#fb7185' }}
+              >
+                {borrando ? 'Borrando…' : 'Borrar todo'}
+              </button>
+            </div>
+          </Modal>
+        </>
+      )}
     </>
   );
 }

@@ -48,7 +48,13 @@ vi.mock('@/app/actions-moodle', () => ({
   },
 }));
 
-import { aceptarConsentimiento, cerrarSesion, iniciarSesion, montarCursada } from '@/app/actions-sesion';
+import {
+  aceptarConsentimiento,
+  borrarMiCuenta,
+  cerrarSesion,
+  iniciarSesion,
+  montarCursada,
+} from '@/app/actions-sesion';
 import { rutaDatos } from '@/lib/datos-locales';
 import { leerPerfilLocal } from '@/lib/datos-locales';
 import { leerCredenciales } from '@/lib/moodle/credenciales';
@@ -277,6 +283,16 @@ describe('aceptarConsentimiento', () => {
     // Sin NEXT_PUBLIC_SUPABASE_URL/ANON_KEY, usuarioActual() siempre da null:
     // esta pantalla no existe en modo local, así que la guarda manda afuera.
     await expect(aceptarConsentimiento()).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(nav.destino).toBe('/login');
+  });
+});
+
+describe('borrarMiCuenta', () => {
+  it('sin sesión de Supabase (modo local) manda a /login sin tocar nada', async () => {
+    // Mismo motivo que aceptarConsentimiento: usuarioActual() da null en modo
+    // local, así que la guarda manda afuera antes de llegar al admin client.
+    await expect(borrarMiCuenta()).rejects.toThrow('NEXT_REDIRECT');
 
     expect(nav.destino).toBe('/login');
   });

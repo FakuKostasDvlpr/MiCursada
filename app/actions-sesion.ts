@@ -257,6 +257,32 @@ export async function cerrarSesion(): Promise<void> {
 }
 
 /**
+ * Borra la cuenta DE VERDAD: el usuario de Auth (que cascadea perfiles,
+ * credenciales, inscripciones, horarios, materias_extra, bloques,
+ * avisos_estado, avisos_manuales y archivos_manuales), más el avatar del
+ * bucket. Los eventos quedan: son hashes, no identifican a nadie.
+ */
+export async function borrarMiCuenta(): Promise<{ ok: false; error: string } | never> {
+  const u = await usuarioActual();
+  if (!u) redirect('/login');
+  try {
+    const admin = adminClient();
+    const { data: lista } = await admin.storage.from('avatares').list('', { search: u.userId });
+    const nombres = (lista ?? []).map((f) => f.name).filter((n) => n.startsWith(u.userId));
+    if (nombres.length > 0) await admin.storage.from('avatares').remove(nombres);
+    await registrarEvento('cuenta_borrada', u.userId);
+    const { error } = await admin.auth.admin.deleteUser(u.userId);
+    if (error) throw error;
+  } catch (e) {
+    loguear('borrarMiCuenta', e);
+    return { ok: false, error: 'No se pudo borrar la cuenta. Probá de nuevo.' };
+  }
+  await cerrarSesionActual();
+  revalidatePath('/', 'layout');
+  redirect('/login');
+}
+
+/**
  * Guarda el consentimiento del primer ingreso (solo modo Supabase — en modo
  * local no hay pantalla de consentimiento, así que esta action no se llama).
  *
