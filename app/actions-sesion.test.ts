@@ -48,7 +48,7 @@ vi.mock('@/app/actions-moodle', () => ({
   },
 }));
 
-import { cerrarSesion, iniciarSesion, montarCursada } from '@/app/actions-sesion';
+import { aceptarConsentimiento, cerrarSesion, iniciarSesion, montarCursada } from '@/app/actions-sesion';
 import { rutaDatos } from '@/lib/datos-locales';
 import { leerPerfilLocal } from '@/lib/datos-locales';
 import { leerCredenciales } from '@/lib/moodle/credenciales';
@@ -269,5 +269,15 @@ describe('cerrarSesion', () => {
 
     expect(await validarSesion(compu)).toBeNull();
     expect(await validarSesion(celu)).not.toBeNull();
+  });
+});
+
+describe('aceptarConsentimiento', () => {
+  it('sin sesión de Supabase (modo local) manda a /login', async () => {
+    // Sin NEXT_PUBLIC_SUPABASE_URL/ANON_KEY, usuarioActual() siempre da null:
+    // esta pantalla no existe en modo local, así que la guarda manda afuera.
+    await expect(aceptarConsentimiento()).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(nav.destino).toBe('/login');
   });
 });

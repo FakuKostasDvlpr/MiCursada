@@ -34,6 +34,7 @@ import { getAvisos, getMaterias } from '@/lib/queries';
 import { abrirSesion, cerrarSesionActual, hayAcceso, usuarioActual } from '@/lib/sesion-actual';
 import { adminClient } from '@/lib/supabase/admin';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
+import { createClient } from '@/lib/supabase/server';
 import { acunarSesion, asegurarUsuarioSombra } from '@/lib/supabase/puente';
 import { cursadaFresca } from '@/lib/sync-compartido';
 
@@ -253,4 +254,29 @@ export async function cerrarSesion(): Promise<void> {
   // Invalida el árbol cacheado de (app) para que "atrás" no muestre la app.
   revalidatePath('/', 'layout');
   redirect('/login');
+}
+
+/**
+ * Guarda el consentimiento del primer ingreso (solo modo Supabase — en modo
+ * local no hay pantalla de consentimiento, así que esta action no se llama).
+ *
+ * El `redirect` va acá adentro por la misma razón que en `cerrarSesion`: sin
+ * él, el re-render de (app) se encuentra sin consentimiento otra vez y el
+ * redirect del layout sale como error de la action.
+ */
+export async function aceptarConsentimiento(): Promise<void> {
+  const u = await usuarioActual();
+  if (!u) redirect('/login');
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('perfiles')
+    .update({ consentimiento_en: new Date().toISOString() })
+    .eq('user_id', u.userId);
+  if (error) {
+    loguear('aceptarConsentimiento', error);
+    throw new Error('No se pudo guardar. Probá de nuevo.');
+  }
+  await registrarEvento('consentimiento_aceptado', u.userId);
+  revalidatePath('/', 'layout');
+  redirect('/');
 }
