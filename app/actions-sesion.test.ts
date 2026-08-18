@@ -117,7 +117,7 @@ describe('iniciarSesion', () => {
 
     const r = await iniciarSesion('fcostas', 'la-contraseña');
 
-    expect(r).toEqual({ ok: true, nombre: NOMBRE });
+    expect(r).toEqual({ ok: true, nombre: NOMBRE, carrera: null });
     expect(JSON.stringify(r)).not.toContain('la-contraseña');
     expect(JSON.stringify(r)).not.toContain('tok-nuevo');
 
@@ -162,7 +162,7 @@ describe('iniciarSesion', () => {
 
     const r = await iniciarSesion('fcostas', 'x');
 
-    expect(r).toEqual({ ok: true, nombre: NOMBRE });
+    expect(r).toEqual({ ok: true, nombre: NOMBRE, carrera: null });
     expect(jar.valor).toBeTruthy();
   });
 

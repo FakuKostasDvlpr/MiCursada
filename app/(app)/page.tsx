@@ -22,6 +22,7 @@ export default async function PaginaHoy() {
         nombre={perfil?.nombre ?? ''}
         iniciales={iniciales(perfil?.nombre ?? '')}
         avatarUrl={perfil?.avatarUrl ?? null}
+        carrera={perfil?.carrera ?? null}
         inicialIso={new Date().toISOString()}
         syncIso={sync?.corridaAt ?? null}
       />

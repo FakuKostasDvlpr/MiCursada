@@ -35,6 +35,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         nombre={perfil?.nombre ?? ''}
         iniciales={iniciales(perfil?.nombre ?? '')}
         avatarUrl={perfil?.avatarUrl ?? null}
+        carrera={perfil?.carrera ?? null}
       />
       <Contenedor>{children}</Contenedor>
       <BottomNav />

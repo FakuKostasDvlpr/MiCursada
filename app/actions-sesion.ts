@@ -38,7 +38,9 @@ import { createClient } from '@/lib/supabase/server';
 import { acunarSesion, asegurarUsuarioSombra } from '@/lib/supabase/puente';
 import { cursadaFresca } from '@/lib/sync-compartido';
 
-export type ResultadoLogin = { ok: true; nombre: string } | { ok: false; error: string };
+export type ResultadoLogin =
+  | { ok: true; nombre: string; carrera: string | null }
+  | { ok: false; error: string };
 
 const ERROR_GENERICO = 'Algo falló. Probá de nuevo.';
 const ERROR_OTRA_CUENTA =
@@ -129,20 +131,22 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
         ultimaVerificacion: { ok: true, cuando: new Date().toISOString(), nombre: site.fullname },
       });
       const admin = adminClient();
-      const { error: ePerfil } = await admin
+      const { data: filaPerfil, error: ePerfil } = await admin
         .from('perfiles')
         .update({
           instituto: site.sitename.trim(),
           ultima_visita: new Date().toISOString(),
         })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .select('carrera')
+        .maybeSingle();
       if (ePerfil) loguear('iniciarSesion (perfil)', ePerfil);
       await registrarEvento('sesion_iniciada', userId);
+      return { ok: true, nombre: site.fullname, carrera: filaPerfil?.carrera ?? null };
     } catch (e) {
       loguear('iniciarSesion (supabase)', e);
       return { ok: false, error: ERROR_GENERICO };
     }
-    return { ok: true, nombre: site.fullname };
   }
 
   // ——— Modo local (sin .env.local): el flujo de siempre, un solo dueño. ———
@@ -184,7 +188,9 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
   // Sin revalidatePath: quien sigue es montarCursada (que sí revalida) y después
   // el router.refresh() del cliente. Revalidar acá solo agregaría un re-render
   // de /login en medio de la secuencia de entrada.
-  return { ok: true, nombre: site.fullname };
+  // La carrera en modo local es siempre la constante (leerPerfilLocal la
+  // devuelve null): no hay nada editable que traer acá.
+  return { ok: true, nombre: site.fullname, carrera: null };
 }
 
 /** Un snapshot más nuevo que esto no se vuelve a bajar al entrar. */

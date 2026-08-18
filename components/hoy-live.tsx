@@ -36,6 +36,8 @@ type Props = {
   nombre: string;
   iniciales: string;
   avatarUrl?: string | null;
+  /** Carrera de la persona; INSTITUTO.carrera es solo el respaldo (ver lib/instituto.ts). */
+  carrera?: string | null;
   /** Instante del render en el server, para hidratar sin desajuste. */
   inicialIso: string;
   /** ISO de la última sincronización con el aula virtual, o null si nunca corrió. */
@@ -53,6 +55,7 @@ export function HoyLive({
   nombre,
   iniciales,
   avatarUrl = null,
+  carrera = null,
   inicialIso,
   syncIso = null,
 }: Props) {
@@ -90,7 +93,9 @@ export function HoyLive({
                 className="h-[16px] w-auto"
               />
             </span>
-            <div className="kicker min-w-0 truncate tracking-[0.1em]">{INSTITUTO.carrera}</div>
+            <div className="kicker min-w-0 truncate tracking-[0.1em]">
+              {carrera ?? INSTITUTO.carrera}
+            </div>
           </div>
           <Saludo nombre={nombre} />
           <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.015em]">

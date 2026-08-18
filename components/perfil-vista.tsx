@@ -1,13 +1,13 @@
 'use client';
 
-// Perfil de solo lectura (handoff v3 §0b). Los datos vienen del aula virtual, no
-// se escriben a mano: lo único editable es la foto, que es de la app y no de
-// Moodle.
+// Perfil (handoff v3 §0b). La mayoría de los datos vienen del aula virtual y no
+// se escriben a mano; lo editable es la foto (de la app, no de Moodle) y la
+// carrera (de la persona, no del aula virtual — ver lib/instituto.ts).
 
 import { Camera, Check, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
-import { guardarAvatarLocal } from '@/app/actions';
+import { guardarAvatarLocal, guardarPerfil } from '@/app/actions';
 import { borrarMiCuenta } from '@/app/actions-sesion';
 import { CerrarSesion } from '@/components/cerrar-sesion';
 import { Modal } from '@/components/modal';
@@ -34,6 +34,9 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
   const [abiertoBorrar, setAbiertoBorrar] = useState(false);
   const [borrando, setBorrando] = useState(false);
   const [errorBorrar, setErrorBorrar] = useState('');
+
+  const [carrera, setCarrera] = useState(perfil?.carrera ?? INSTITUTO.carrera);
+  const [errorCarrera, setErrorCarrera] = useState('');
 
   const confirmarBorrado = async () => {
     setBorrando(true);
@@ -66,10 +69,24 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
     }
   };
 
+  const guardarCarrera = async () => {
+    const valor = carrera.trim();
+    setErrorCarrera('');
+    const resultado = await guardarPerfil({
+      nombre,
+      instituto: perfil?.instituto ?? INSTITUTO.nombre,
+      carrera: valor,
+    });
+    if (!resultado.ok) {
+      setErrorCarrera(resultado.error);
+      return;
+    }
+    router.refresh();
+  };
+
   const filas = [
     { label: 'Nombre', valor: nombre || 'Sin nombre', mono: false },
     { label: 'Usuario', valor: usuario || '—', mono: true },
-    { label: 'Carrera', valor: INSTITUTO.carrera, mono: false },
     { label: 'Instituto', valor: `${perfil?.instituto ?? INSTITUTO.nombre} · ${SEDE_Y_TURNO}`, mono: false },
   ];
 
@@ -123,7 +140,25 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
 
       {error && <div className="mt-[10px] text-center text-[13px] text-vencido">{error}</div>}
 
-      <dl className="mt-[22px] flex flex-col gap-[10px]">
+      <div className="mt-[22px]">
+        <label htmlFor="carrera" className="kicker mb-[7px] block">
+          Carrera
+        </label>
+        <input
+          id="carrera"
+          type="text"
+          value={carrera}
+          onChange={(e) => setCarrera(e.target.value)}
+          onBlur={guardarCarrera}
+          maxLength={80}
+          className="min-h-12 w-full rounded-xl border border-bor bg-bg px-[14px] text-[15px] text-tx"
+        />
+        {errorCarrera && (
+          <div className="mt-[6px] text-[13px] text-vencido">{errorCarrera}</div>
+        )}
+      </div>
+
+      <dl className="mt-[14px] flex flex-col gap-[10px]">
         {filas.map((f) => (
           <div
             key={f.label}

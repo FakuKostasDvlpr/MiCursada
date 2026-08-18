@@ -42,6 +42,7 @@ export function LoginEntrada() {
   const [error, setError] = useState('');
   const [camposMal, setCamposMal] = useState(false);
   const [nombre, setNombre] = useState('');
+  const [carrera, setCarrera] = useState<string | null>(null);
   const [materias, setMaterias] = useState<number | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -92,6 +93,7 @@ export function LoginEntrada() {
 
     setPassword(''); // la contraseña no sobrevive al login
     setNombre(r.nombre);
+    setCarrera(r.carrera);
 
     // El montaje arranca YA, en paralelo con el check y el colapso: para cuando
     // se ve el bloque de datos, el snapshot suele estar a mitad de camino.
@@ -198,7 +200,7 @@ export function LoginEntrada() {
             <div className="mt-1 font-mono text-[13px] text-tx2">{SEDE_Y_TURNO}</div>
             <dl className="mt-5 flex flex-col gap-[10px]">
               {[
-                { k: 'Carrera', v: INSTITUTO.carrera, verde: false },
+                { k: 'Carrera', v: carrera ?? INSTITUTO.carrera, verde: false },
                 {
                   k: 'Materias',
                   v: materias === null ? 'buscando…' : `${materias} activas`,
