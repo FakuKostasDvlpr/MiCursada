@@ -49,7 +49,11 @@ export function CifraRodante({ valor, demora = 0.12 }: Props) {
           <span
             className={sinTransicion ? 'block' : 'cifra-tira block'}
             style={{
-              transform: `translateY(-${Number(d) * 100}%)`,
+              // En em y no en %: el % de translateY es sobre la ALTURA DE LA
+              // TIRA (10em, los diez glifos), así que -d*100% se iba diez veces
+              // de largo y el dígito quedaba fuera de la ventana — el número se
+              // veía en blanco para todo valor distinto de 0.
+              transform: `translateY(calc(${Number(d)} * -1em))`,
               transitionDelay: `${demora + i * 0.08}s`,
             }}
           >

@@ -1,4 +1,4 @@
-// Tipos de dominio de Mi Cursada — versión filas de DB (ver supabase/migrations/0001_init.sql).
+// Tipos de dominio de Mi Cursada.
 
 /** Colores de materia del handoff (solo riel de 4px o dot de 6–8px, nunca fondos). */
 export const COLORES_MATERIA = [
@@ -16,8 +16,12 @@ export type ColorMateria = (typeof COLORES_MATERIA)[number];
 export const ESTADOS_BLOQUE = ['pendiente', 'proceso', 'listo'] as const;
 export type EstadoBloque = (typeof ESTADOS_BLOQUE)[number];
 
-/** Tipos de bloque del editor estilo Notion. */
-export const TIPOS_BLOQUE = ['texto', 'titulo', 'tarea', 'link', 'divisor'] as const;
+/**
+ * Tipos de bloque del editor estilo Notion. `ref` es una cita a algo del curso
+ * (un TP, un cuestionario, una unidad): su `texto` es un único marcador
+ * `[[mod:…|nombre]]`, ver lib/referencias.ts.
+ */
+export const TIPOS_BLOQUE = ['texto', 'titulo', 'tarea', 'link', 'ref', 'divisor'] as const;
 export type TipoBloque = (typeof TIPOS_BLOQUE)[number];
 
 /** Día de cursada: 1=Lunes … 6=Sábado (domingo no se cursa). */
@@ -33,6 +37,37 @@ export type Horario = {
   fin: string;
 };
 
+/**
+ * Qué se puede citar desde una nota. `modulo` es un ítem del aula virtual (lo
+ * que el prototipo llama "archivo"); los otros dos son cosas de la propia app.
+ */
+export const TIPOS_REF = ['modulo', 'materia', 'aviso'] as const;
+export type TipoRef = (typeof TIPOS_REF)[number];
+
+/** Color del chip de cada tipo de referencia (`REFCOL` del prototipo). */
+export const COLOR_REF: Record<TipoRef, string> = {
+  modulo: '#fbbf24',
+  materia: '#a78bfa',
+  aviso: '#fb7185',
+};
+
+/** Cita colgada de un bloque: vive afuera del `texto`, no como marcador. */
+export type RefBloque = {
+  tipo: TipoRef;
+  id: string;
+};
+
+/**
+ * Marcas de formato de un bloque: negrita, cursiva, subrayado y resaltado
+ * ámbar. Se aplican al bloque y a su card del tablero.
+ */
+export type FormatoBloque = {
+  b?: boolean;
+  i?: boolean;
+  u?: boolean;
+  hl?: boolean;
+};
+
 export type Bloque = {
   id: string;
   materiaId: string;
@@ -46,6 +81,10 @@ export type Bloque = {
   orden: number;
   /** ISO timestamptz. */
   createdAt: string;
+  /** Marcas de formato. Los bloques viejos no lo traen: se lee como vacío. */
+  fmt?: FormatoBloque;
+  /** Cita a un módulo, otra materia o un aviso. `null` = sin referencia. */
+  ref?: RefBloque | null;
 };
 
 export type Archivo = {
@@ -104,6 +143,23 @@ export type ModuloCurso = {
   video?: string;
   /** Archivos descargables del módulo, con `ref` opaca para el proxy. */
   archivos?: ArchivoModulo[];
+  /**
+   * Estado de finalización en el aula virtual, solo si el módulo TIENE
+   * seguimiento activo. `undefined` = el profe no le puso seguimiento, así que
+   * no se muestra nada (distinto de `false`, que es "pendiente" de verdad).
+   */
+  hecho?: boolean;
+  /**
+   * Qué pide el aula para darlo por hecho ("Ver", "Hacer un envío", "Completa
+   * la actividad hasta el final"). El texto lo redacta Moodle, ya en castellano.
+   */
+  requisitos?: Requisito[];
+};
+
+/** Una condición de finalización y si ya la cumpliste. */
+export type Requisito = {
+  texto: string;
+  cumplido: boolean;
 };
 
 /** Una unidad/sección del curso en el aula virtual ("Unidad 1", "Evaluaciones Generales"…). */
@@ -150,14 +206,19 @@ export type Aviso = {
   /** 'YYYY-MM-DD' */
   fecha: string;
   hecho: boolean;
+  /**
+   * Id del bloque que lo originó, si el aviso nació de una nota. Si esa nota se
+   * borra el aviso queda igual, solo sin snippet: nunca se borra en cascada
+   * (avisos-manuales.json es la única copia).
+   */
+  notaId?: string | null;
 };
 
 /**
  * True si una fila (archivo o aviso) la cargó el usuario a mano y por lo tanto
  * se puede borrar. Las que vienen del aula virtual tienen ids con prefijo
  * ("mod:123", "assign:14782", "curso:2756") y las regenera el sync, así que no
- * se tocan. Los ids manuales son "manual:<uuid>" en modo local y un uuid pelado
- * en modo Supabase — ninguno de los dos tiene un prefijo de Moodle.
+ * se tocan. Los ids manuales son "manual:<uuid>" — sin prefijo de Moodle.
  */
 export function esManual(id: string): boolean {
   return id.startsWith('manual:') || !id.includes(':');

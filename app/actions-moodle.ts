@@ -22,7 +22,6 @@ import {
 import { pedirToken } from '@/lib/moodle/login';
 import { obtenerSiteInfo, sincronizarSnapshot } from '@/lib/moodle/plan';
 import { hayAcceso } from '@/lib/sesion-actual';
-import { supabaseConfigurado } from '@/lib/supabase/configurado';
 
 /** Motivo por el que falló la verificación del token. */
 export type MotivoError = 'vencido' | 'red' | 'desconocido';
@@ -88,9 +87,7 @@ export async function estadoToken(): Promise<EstadoToken> {
     // Ya tenemos el site info en la mano: es el momento barato para dejar el
     // instituto del perfil igual al `sitename` del aula virtual (escribe solo
     // si cambió), sin esperar a que vuelvas a entrar.
-    if (!supabaseConfigurado()) {
-      await sincronizarInstitutoLocal(site.sitename);
-    }
+    await sincronizarInstitutoLocal(site.sitename);
     return {
       configurado: true,
       activo: true,

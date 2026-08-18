@@ -12,7 +12,10 @@ export const dynamic = 'force-dynamic';
  */
 export default function PaginaLogin() {
   return (
-    <main className="px-[18px] py-[30px]">
+    // El alto de la escena vive acá (y no en LoginEntrada): adentro las dos
+    // cards se estiran al mismo alto, y si la fila cargara con el min-height
+    // se irían a la altura del viewport.
+    <main className="flex min-h-[calc(100dvh-160px)] items-center justify-center px-[18px] py-[30px]">
       <LoginEntrada />
     </main>
   );

@@ -1,4 +1,4 @@
-// Sirve la foto de perfil guardada en disco (modo local, sin Supabase Storage).
+// Sirve la foto de perfil guardada en disco (datos/avatar.<ext>).
 // La escribe la action guardarAvatarLocal en datos/avatar.<ext>.
 
 import { leerAvatarLocal } from '@/lib/datos-locales';

@@ -12,31 +12,40 @@ import {
   FileText,
   Folder,
   HelpCircle,
+  Image as ImageIcon,
   Link2,
   MessagesSquare,
+  Play,
   Trash2,
+  Video as VideoIcon,
   type LucideIcon,
 } from 'lucide-react';
-import { useId, useOptimistic, useState, useTransition } from 'react';
+import { useEffect, useId, useOptimistic, useRef, useState, useTransition } from 'react';
 import {
   crearArchivo,
   crearAviso,
+  crearBloque,
   eliminarArchivo,
   eliminarAviso,
   toggleAviso,
 } from '@/app/actions';
+import { useRouter } from 'next/navigation';
 import { NotasEditor } from '@/components/notas-editor';
 import { estadoAviso, hoyISO } from '@/lib/cursada';
+import { EVENTO_NOTA_CREADA } from '@/lib/logro';
+import { marcador } from '@/lib/referencias';
 import {
   dominio,
   esLista,
-  esPdf,
-  idLista,
+  miniaturaYoutube,
+  playerEnHtml,
   tamanoLegible,
   tipoArchivo,
+  tipoVisor,
   urlArchivo,
   urlEmbed,
   urlYoutube,
+  type Visor,
 } from '@/lib/embebido';
 import {
   esManual,
@@ -44,6 +53,7 @@ import {
   type Aviso,
   type Materia,
   type ModuloCurso,
+  type Requisito,
   type Seccion,
 } from '@/lib/types';
 
@@ -56,6 +66,12 @@ type Props = {
   materia: Materia;
   /** Avisos de esta materia, ordenados por fecha ascendente. */
   avisos: Aviso[];
+  /** Todas las materias: lo que se puede citar con `@` además del curso. */
+  materiasRef?: { id: string; nombre: string; color: string }[];
+  /** Todos los avisos de la cursada: `catalogoRefs` filtra los pendientes. */
+  avisosRef?: Aviso[];
+  /** Hoy en Buenos Aires ('YYYY-MM-DD'), calculado en el server. */
+  hoyIso: string;
 };
 
 const claseInput =
@@ -67,8 +83,17 @@ const claseVacio =
 /** Tabs del detalle de materia: Curso (las unidades del aula virtual), Notas
  *  (editor de bloques con menú de comandos), Archivos (alta inline + lista) y
  *  Avisos (alta inline + lista con toggle). */
-export function MateriaDetalle({ materia, avisos }: Props) {
+export function MateriaDetalle({
+  materia,
+  avisos,
+  materiasRef = [],
+  avisosRef = [],
+  hoyIso,
+}: Props) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>('curso');
+  /** Módulo que hay que abrir al entrar a la tab Curso (viene de una nota). */
+  const [irAModulo, setIrAModulo] = useState<string | null>(null);
 
   const secciones = materia.secciones ?? [];
   const modulos = secciones.reduce((n, s) => n + s.modulos.length, 0);
@@ -100,8 +125,32 @@ export function MateriaDetalle({ materia, avisos }: Props) {
         ))}
       </div>
 
-      {tab === 'curso' && <TabCurso secciones={secciones} />}
-      {tab === 'notas' && <NotasEditor materiaId={materia.id} bloques={materia.bloques} />}
+      {tab === 'curso' && (
+        <TabCurso
+          secciones={secciones}
+          materiaId={materia.id}
+          irAModulo={irAModulo}
+          onAtendido={() => setIrAModulo(null)}
+        />
+      )}
+      {tab === 'notas' && (
+        <NotasEditor
+          materiaId={materia.id}
+          bloques={materia.bloques}
+          secciones={secciones}
+          materias={materiasRef}
+          avisos={avisosRef}
+          hoyIso={hoyIso}
+          // El "Ver" de un aviso ya creado: lo lleva a la pantalla de Avisos.
+          // El modal grande del aviso todavía no existe (spec 3).
+          onVerAvisos={() => router.push('/avisos')}
+          // Tocar una referencia en una nota abre ese módulo en la tab Curso.
+          onIrAModulo={(id) => {
+            setIrAModulo(id);
+            setTab('curso');
+          }}
+        />
+      )}
       {tab === 'archivos' && <TabArchivos materia={materia} />}
       {tab === 'avisos' && <TabAvisos materiaId={materia.id} avisos={avisos} />}
     </>
@@ -131,6 +180,72 @@ const ICONO_MODULO: Record<string, LucideIcon> = {
 const MAX_TODAS_ABIERTAS = 3;
 
 /**
+ * Chip "Hecho" al lado del nombre del material.
+ *
+ * Ámbar de fondo con texto oscuro: es el pill primario del handoff
+ * (`--acc-bg` / `--acc-fg`), idéntico en tema claro y oscuro.
+ */
+function PillHecho() {
+  return (
+    <span className="ml-2 inline-flex translate-y-[-1px] items-center gap-1 rounded-full bg-acc-bg px-[7px] py-[2px] align-middle text-[10.5px] leading-none font-extrabold tracking-[0.04em] text-acc-fg uppercase">
+      <Check size={10} strokeWidth={3.5} aria-hidden />
+      Hecho
+    </span>
+  );
+}
+
+/**
+ * El punto de finalización, igual que en el índice del aula virtual: relleno
+ * cuando ya lo hiciste, contorno vacío cuando falta.
+ *
+ * DECISIÓN: se muestran los DOS estados, no solo lo hecho — un círculo vacío te
+ * dice "esto te falta", que es la mitad de la información. Sin seguimiento no
+ * se dibuja nada (lo decide quien lo renderiza): ahí "pendiente" no
+ * significaría nada.
+ */
+function PuntoFinalizacion({ hecho, activo }: { hecho: boolean; activo: boolean }) {
+  return (
+    <span className="mt-[4px] flex items-center">
+      <span
+        aria-hidden
+        className={`block h-[10px] w-[10px] rounded-full border-2 ${
+          hecho ? 'border-acc bg-acc' : 'border-bor2'
+        } ${activo ? 'ring-2 ring-acc/40' : ''}`}
+      />
+      {/* Lo que el lector de pantalla anuncia del botón. "Pendiente" no tiene
+          chip que lo diga, y lo hecho igual necesita nombrar la acción. */}
+      <span className="sr-only">
+        {hecho ? 'Hecho' : 'Pendiente'} — {activo ? 'ocultar' : 'ver'} el detalle
+      </span>
+    </span>
+  );
+}
+
+/** Las condiciones de finalización, con su tilde o su círculo. */
+function ListaRequisitos({ requisitos }: { requisitos: Requisito[] }) {
+  return (
+    <ul className="flex flex-wrap gap-x-3 gap-y-1">
+      {requisitos.map((r) => (
+        <li
+          key={r.texto}
+          className={`flex items-center gap-[5px] text-[12px] ${
+            r.cumplido ? 'text-acc' : 'text-tx3'
+          }`}
+        >
+          {r.cumplido ? (
+            <Check size={12} strokeWidth={3} aria-hidden />
+          ) : (
+            <span aria-hidden className="block h-[8px] w-[8px] rounded-full border-2 border-bor2" />
+          )}
+          {r.texto}
+          <span className="sr-only">{r.cumplido ? '(cumplido)' : '(pendiente)'}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
  * Las unidades del aula virtual, con cada módulo desplegable para LEER el
  * material adentro de la app (el contenido ya viene sanitizado en el snapshot,
  * así que abrir es instantáneo y anda sin conexión; solo los archivos salen a
@@ -142,7 +257,18 @@ const MAX_TODAS_ABIERTAS = 3;
  * infinito donde no se encuentra nada. Las UNIDADES sí admiten varias abiertas:
  * plegadas son una sola línea y sirven de índice.
  */
-function TabCurso({ secciones }: { secciones: Seccion[] }) {
+function TabCurso({
+  secciones,
+  materiaId,
+  irAModulo = null,
+  onAtendido,
+}: {
+  secciones: Seccion[];
+  materiaId: string;
+  /** Módulo a abrir al entrar (lo pide una referencia de una nota). */
+  irAModulo?: string | null;
+  onAtendido?: () => void;
+}) {
   const idBase = useId();
   const [abiertas, setAbiertas] = useState<ReadonlySet<number>>(() =>
     secciones.length <= MAX_TODAS_ABIERTAS
@@ -150,6 +276,24 @@ function TabCurso({ secciones }: { secciones: Seccion[] }) {
       : new Set(secciones.length > 0 ? [0] : [])
   );
   const [moduloAbierto, setModuloAbierto] = useState<string | null>(null);
+  const refModulo = useRef<HTMLDivElement>(null);
+
+  // Vino de una nota: se abre la unidad, se despliega el módulo y se scrollea.
+  useEffect(() => {
+    if (!irAModulo) return;
+    const i = secciones.findIndex((s) => s.modulos.some((m) => m.id === irAModulo));
+    const esUnidad = irAModulo.startsWith('sec:');
+    const indiceUnidad = esUnidad ? Number(irAModulo.slice(4)) : i;
+    if (indiceUnidad >= 0) setAbiertas((prev) => new Set(prev).add(indiceUnidad));
+    setModuloAbierto(esUnidad ? null : irAModulo);
+    onAtendido?.();
+  }, [irAModulo, secciones, onAtendido]);
+
+  // El scroll va en su propio efecto: recién después de que el módulo se abrió.
+  useEffect(() => {
+    if (!moduloAbierto) return;
+    refModulo.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [moduloAbierto]);
 
   const alternar = (i: number) =>
     setAbiertas((prev) => {
@@ -180,7 +324,22 @@ function TabCurso({ secciones }: { secciones: Seccion[] }) {
                 className="flex min-h-[44px] w-full cursor-pointer items-center gap-2 py-2 text-left"
               >
                 <span className="kicker min-w-0 flex-1 truncate">{s.nombre || 'Sin título'}</span>
-                <span className="font-mono text-[11px] text-tx3">{s.modulos.length}</span>
+                {(() => {
+                  // "2/5" solo si la unidad tiene algún módulo con seguimiento;
+                  // si el profe no lo usa, se sigue viendo el total pelado.
+                  const conSeguimiento = s.modulos.filter((m) => m.hecho !== undefined);
+                  const hechos = conSeguimiento.filter((m) => m.hecho).length;
+                  return conSeguimiento.length > 0 ? (
+                    <span
+                      className={`font-mono text-[11px] ${hechos > 0 ? 'text-acc' : 'text-tx3'}`}
+                      title={`${hechos} de ${conSeguimiento.length} hechas`}
+                    >
+                      {hechos}/{conSeguimiento.length}
+                    </span>
+                  ) : (
+                    <span className="font-mono text-[11px] text-tx3">{s.modulos.length}</span>
+                  );
+                })()}
                 <ChevronDown
                   size={15}
                   strokeWidth={2}
@@ -194,7 +353,10 @@ function TabCurso({ secciones }: { secciones: Seccion[] }) {
                   <ModuloAcordeon
                     key={m.id}
                     modulo={m}
+                    unidad={s.nombre}
+                    materiaId={materiaId}
                     abierto={moduloAbierto === m.id}
+                    anclaRef={moduloAbierto === m.id ? refModulo : undefined}
                     onAlternar={() => setModuloAbierto((prev) => (prev === m.id ? null : m.id))}
                   />
                 ))}
@@ -225,51 +387,118 @@ function LinkAula({ url }: { url: string }) {
 /** Cabecera clickeable + panel con el material del módulo. */
 function ModuloAcordeon({
   modulo,
+  unidad,
+  materiaId,
   abierto,
+  anclaRef,
   onAlternar,
 }: {
   modulo: ModuloCurso;
+  unidad: string;
+  materiaId: string;
   abierto: boolean;
+  /** Se lo pone el módulo al que hay que scrollear al venir de una nota. */
+  anclaRef?: React.RefObject<HTMLDivElement | null>;
   onAlternar: () => void;
 }) {
-  const idPanel = `${useId()}-mod`;
+  const idBase = useId();
+  const idPanel = `${idBase}-mod`;
+  const idEstado = `${idBase}-estado`;
+  /** Detalle de finalización abierto (se despliega al tocar el punto). */
+  const [verEstado, setVerEstado] = useState(false);
   const Icono = ICONO_MODULO[modulo.tipo] ?? File;
   const archivos = modulo.archivos ?? [];
+  // Si el html del profe ya trae ese player, no se repite la celda.
+  const hayVideo = Boolean(modulo.video) && !playerEnHtml(modulo.video ?? '', modulo.html ?? '');
   const hayAlgo = Boolean(modulo.html || modulo.video || modulo.enlace || archivos.length > 0);
 
   return (
-    <div className="rounded-[13px] border border-bor bg-sup">
-      <button
-        type="button"
-        onClick={onAlternar}
-        aria-expanded={abierto}
-        aria-controls={idPanel}
-        className="flex min-h-[54px] w-full cursor-pointer items-start gap-3 px-[14px] py-3 text-left"
-      >
-        <Icono size={16} strokeWidth={2} aria-hidden className="mt-[2px] shrink-0 text-tx3" />
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-acc">{modulo.nombre}</span>
-          {/* line-clamp-2 ya pone display:-webkit-box: sumarle `block` lo pisa
-              y la descripción se vería entera. */}
-          {modulo.descripcion && !abierto && (
-            <span className="mt-[3px] line-clamp-2 text-[13px] leading-[1.45] text-tx2">
-              {modulo.descripcion}
+    <div ref={anclaRef} className="rounded-[13px] border border-bor bg-sup">
+      {/* El punto es su PROPIO botón, hermano del acordeón y no hijo: un
+          <button> adentro de otro <button> es HTML inválido y el navegador lo
+          desarma. Por eso la fila es un flex con los dos al lado. */}
+      <div className="flex items-start">
+        {modulo.hecho !== undefined && (
+          <button
+            type="button"
+            onClick={() => setVerEstado((v) => !v)}
+            aria-expanded={verEstado}
+            aria-controls={idEstado}
+            className="tactil flex min-h-[54px] shrink-0 cursor-pointer items-start py-3 pl-[14px] pr-0"
+          >
+            <PuntoFinalizacion hecho={modulo.hecho} activo={verEstado} />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onAlternar}
+          aria-expanded={abierto}
+          aria-controls={idPanel}
+          className={`flex min-h-[54px] flex-1 cursor-pointer items-start gap-3 py-3 pr-[14px] text-left ${
+            modulo.hecho === undefined ? 'pl-[14px]' : 'pl-[10px]'
+          }`}
+        >
+          <Icono size={16} strokeWidth={2} aria-hidden className="mt-[2px] shrink-0 text-tx3" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-acc">
+              {modulo.nombre}
+              {/* Badge VISIBLE y no un tooltip: el `title` nativo tarda ~1s, no
+                  existe en touch y obliga a apuntarle fino. Solo va en lo hecho
+                  — ponerle "Pendiente" a los otros 220 sería ruido, y para eso
+                  ya está el círculo vacío. */}
+              {modulo.hecho === true && <PillHecho />}
             </span>
+            {/* line-clamp-2 ya pone display:-webkit-box: sumarle `block` lo pisa
+                y la descripción se vería entera. */}
+            {modulo.descripcion && !abierto && (
+              <span className="mt-[3px] line-clamp-2 text-[13px] leading-[1.45] text-tx2">
+                {modulo.descripcion}
+              </span>
+            )}
+          </span>
+          <ChevronDown
+            size={15}
+            strokeWidth={2}
+            aria-hidden
+            className={`mt-[2px] shrink-0 text-tx3 ${abierto ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
+
+      {/* Detalle del estado, desplegado por CLICK en el punto. Va inline y no
+          flotando: un popover absoluto se recorta contra el borde de la tarjeta
+          y en móvil termina medio afuera de la pantalla. */}
+      {modulo.hecho !== undefined && verEstado && (
+        <div id={idEstado} className="border-t border-bor px-[14px] py-[10px]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-[6px]">
+            <span
+              className={`kicker ${modulo.hecho ? 'text-acc' : 'text-tx3'}`}
+            >
+              {modulo.hecho ? 'Ya lo hiciste' : 'Todavía te falta'}
+            </span>
+            {modulo.requisitos && modulo.requisitos.length > 0 && (
+              <ListaRequisitos requisitos={modulo.requisitos} />
+            )}
+          </div>
+          {(!modulo.requisitos || modulo.requisitos.length === 0) && (
+            <p className="mt-1 text-[12px] text-tx3">
+              El aula virtual no dice qué condición usa para este material.
+            </p>
           )}
-        </span>
-        <ChevronDown
-          size={15}
-          strokeWidth={2}
-          aria-hidden
-          className={`mt-[2px] shrink-0 text-tx3 ${abierto ? 'rotate-180' : ''}`}
-        />
-      </button>
+          <p className="mt-[6px] text-[12px] text-tx3">
+            Lo marca el aula virtual sola. Abrirlo acá no lo tilda.
+          </p>
+        </div>
+      )}
 
       <div
         id={idPanel}
         hidden={!abierto}
         className="flex flex-col gap-3 border-t border-bor px-[14px] py-3"
       >
+        {/* Los requisitos NO se repiten acá: viven en el detalle del punto, que
+            se abre con un click y no obliga a desplegar el material entero. */}
+
         {modulo.html && (
           // Sanitizado en el server con whitelist (lib/moodle/contenido.ts):
           // sin script, sin on*, sin javascript: y solo iframes de YouTube
@@ -277,11 +506,27 @@ function ModuloAcordeon({
           <div className="prosa" dangerouslySetInnerHTML={{ __html: modulo.html }} />
         )}
 
-        {modulo.video && <Video video={modulo.video} html={modulo.html ?? ''} />}
-
-        {archivos.map((a) => (
-          <ArchivoEmbebido key={a.ref} archivo={a} />
-        ))}
+        {(hayVideo || archivos.length > 0) && (
+          // Bento: los archivos van en grilla y no apilados. Una materia con 17
+          // adjuntos, cada uno a ancho completo y a su alto natural, era un
+          // scroll de varias pantallas. `auto-fill` decide solo cuántas
+          // columnas entran, así que es la misma grilla en 390px y en desktop.
+          // El mínimo baja en móvil a propósito: con 190px a 390px de ancho
+          // entraba UNA sola columna y 23 adjuntos daban 9000px de scroll. Con
+          // 148px entran dos, y en desktop siguen entrando cuatro.
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(148px,1fr))] gap-2 min-[641px]:grid-cols-[repeat(auto-fill,minmax(190px,1fr))]">
+            {/* El video de YouTube es una celda más de la grilla, al lado de las
+                imágenes: antes iba suelto a ancho completo arriba y rompía la
+                lectura del módulo. */}
+            {hayVideo && modulo.video && <VideoCelda video={modulo.video} />}
+            {archivos.map((a) => (
+              // `abierto` NO es cosmético: el panel se renderiza siempre (con
+              // `hidden`), así que sin esto las 35 imágenes y los 26 videos del
+              // aula saldrían a pedirse por el proxy apenas se abre la materia.
+              <ArchivoEmbebido key={a.ref} archivo={a} activo={abierto} />
+            ))}
+          </div>
+        )}
 
         {modulo.enlace && (
           <a
@@ -304,58 +549,319 @@ function ModuloAcordeon({
           </p>
         )}
 
-        <LinkAula url={modulo.url} />
+        <div className="flex flex-wrap items-center gap-2">
+          <LinkAula url={modulo.url} />
+          <AccionesNota modulo={modulo} unidad={unidad} materiaId={materiaId} />
+        </div>
       </div>
     </div>
   );
 }
 
-/** Reproductor 16:9 de youtube-nocookie (o el link, si es una playlist). */
-function Video({ video, html }: { video: string; html: string }) {
-  const lista = esLista(video);
-  // Si el html ya trae ESE player (venía como iframe o como link de video que
-  // el sanitizador convirtió) no lo repetimos.
-  if (html.includes(lista ? `list=${idLista(video)}` : `/embed/${video}`)) return null;
+/**
+ * Mandar un módulo a las notas sin salir del curso: "Anotar" lo deja como
+ * bloque `ref`, "Realizar" como tarea en Por hacer. Las dos guardan el marcador
+ * de lib/referencias.ts, así que después se ven como chip/card y linkean acá.
+ */
+function AccionesNota({
+  modulo,
+  unidad,
+  materiaId,
+}: {
+  modulo: ModuloCurso;
+  unidad: string;
+  materiaId: string;
+}) {
+  const [hecho, setHecho] = useState<'nota' | 'tarea' | null>(null);
+  const [pendiente, empezar] = useTransition();
+
+  const mandar = (tipo: 'ref' | 'tarea') => {
+    const marca = marcador({ id: modulo.id, nombre: modulo.nombre });
+    empezar(async () => {
+      const r = await crearBloque(materiaId, { tipo, texto: marca });
+      if (!r.ok) return;
+      setHecho(tipo === 'ref' ? 'nota' : 'tarea');
+      window.dispatchEvent(new CustomEvent(EVENTO_NOTA_CREADA));
+    });
+  };
+
+  if (hecho) {
+    return (
+      <span className="ml-auto inline-flex items-center gap-1 font-mono text-[11px] text-sync-ok">
+        <Check size={12} strokeWidth={3} aria-hidden />
+        {hecho === 'nota' ? 'Anotado' : 'A tus tareas'}
+      </span>
+    );
+  }
+
+  const clase =
+    'inline-flex min-h-[30px] cursor-pointer items-center gap-1 rounded-full border border-bor px-[10px] font-mono text-[11px] text-tx3 hover:border-acc hover:text-acc disabled:opacity-50';
 
   return (
-    <div className="flex flex-col gap-2">
-      <iframe
-        src={urlEmbed(video)}
-        title={lista ? 'Lista de reproducción de YouTube' : 'Video de YouTube'}
-        allowFullScreen
-        className="aspect-video w-full rounded-xl border-0 bg-bg"
-      />
-      <a
-        href={urlYoutube(video)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 self-start font-mono text-[11px] text-tx3"
+    <span className="ml-auto flex gap-2">
+      <button
+        type="button"
+        disabled={pendiente}
+        onClick={() => mandar('ref')}
+        title={`Guardar "${modulo.nombre}" en las notas de ${unidad}`}
+        className={clase}
       >
-        {lista ? 'Abrir la lista en YouTube' : 'Abrir en YouTube'}
-        <ArrowUpRight size={12} strokeWidth={2} aria-hidden />
-      </a>
+        + Anotar
+      </button>
+      <button
+        type="button"
+        disabled={pendiente}
+        onClick={() => mandar('tarea')}
+        title={`Agregar "${modulo.nombre}" como tarea por hacer`}
+        className={clase}
+      >
+        ☑ Realizar
+      </button>
+    </span>
+  );
+}
+
+/** Reproductor 16:9 de youtube-nocookie (o el link, si es una playlist). */
+/**
+ * El video de YouTube como una celda más del bento, igual que una imagen:
+ * miniatura + botón de play. Recién al tocarlo se carga el reproductor, y ahí
+ * la celda pasa a ocupar la fila entera (un player de 148px no se puede mirar).
+ *
+ * DECISIÓN: no se monta el `<iframe>` de entrada. Un módulo con varios videos
+ * cargaba un iframe de YouTube por cada uno apenas lo abrías — cientos de KB y
+ * las cookies de YouTube sin que nadie le hubiera dado play. Con la miniatura
+ * no sale ni un request a YouTube hasta que querés ver algo.
+ */
+function VideoCelda({ video }: { video: string }) {
+  const [reproduciendo, setReproduciendo] = useState(false);
+  const [miniaturaRota, setMiniaturaRota] = useState(false);
+  const lista = esLista(video);
+  const titulo = lista ? 'Lista de reproducción de YouTube' : 'Video de YouTube';
+  const miniatura = miniaturaYoutube(video);
+
+  if (reproduciendo) {
+    return (
+      <div className="col-span-full flex flex-col gap-2">
+        <iframe
+          src={urlEmbed(video)}
+          title={titulo}
+          allowFullScreen
+          className="aspect-video w-full rounded-xl border-0 bg-bg"
+        />
+        <a
+          href={urlYoutube(video)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 self-start font-mono text-[11px] text-tx3"
+        >
+          {lista ? 'Abrir la lista en YouTube' : 'Abrir en YouTube'}
+          <ArrowUpRight size={12} strokeWidth={2} aria-hidden />
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setReproduciendo(true)}
+      // Misma relación que las imágenes: la grilla queda pareja.
+      className="tactil relative block aspect-[4/3] cursor-pointer overflow-hidden rounded-xl border border-bor bg-bg"
+    >
+      {miniatura && !miniaturaRota ? (
+        // La miniatura viene de i.ytimg.com: next/image no la puede optimizar
+        // y no aporta nada sobre un jpg ya chico.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={miniatura}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setMiniaturaRota(true)}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        // Las playlists no tienen miniatura derivable del id, y un video puede
+        // no tenerla: en vez de una celda vacía, el fondo con el ícono.
+        <span aria-hidden className="absolute inset-0 bg-bor" />
+      )}
+      <span
+        aria-hidden
+        className="absolute inset-0 grid place-items-center bg-black/25 transition-colors"
+      >
+        <span className="grid h-11 w-11 place-items-center rounded-full bg-acc-bg text-acc-fg">
+          <Play size={18} strokeWidth={2.5} className="ml-[2px]" />
+        </span>
+      </span>
+      <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-2 py-1 text-left font-mono text-[10.5px] text-white">
+        {lista ? 'Lista de YouTube' : 'Video de YouTube'}
+      </span>
+      <span className="sr-only">Reproducir {titulo}</span>
+    </button>
+  );
+}
+
+// --- visores de archivo ----------------------------------------------------
+//
+// Todo lo que se ve acá pasa por /api/archivo?ref=… (el proxy es el único que
+// tiene el token). El usuario NO debería tener que descargar nada para mirar
+// una imagen o un video: por eso el visor se elige por mimetype y, cuando el
+// mime no dice nada, por extensión (ver `tipoVisor`).
+
+/** En qué anda un recurso que se está trayendo de la red. */
+type EstadoCarga = 'cargando' | 'listo' | 'error';
+
+/**
+ * Bloque de "Cargando…" con la altura ya reservada.
+ *
+ * DECISIÓN: es un overlay `absolute` y no un reemplazo del contenido — si
+ * desmontáramos el `<img>`/`<video>` para mostrar el spinner, nunca se
+ * dispararía su `onLoad` y el estado quedaría clavado en "cargando".
+ */
+function Cargando({ etiqueta = 'Cargando…' }: { etiqueta?: string }) {
+  return (
+    <div
+      role="status"
+      className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl border border-bor bg-sup"
+    >
+      <span aria-hidden className="girando h-5 w-5 rounded-full border-2 border-bor2 border-t-acc" />
+      <span className="font-mono text-[11px] text-tx3">{etiqueta}</span>
     </div>
   );
 }
 
-/**
- * Un archivo del módulo: nombre, "PDF · 161 KB" y los botones. Los PDFs se
- * previsualizan en un visor embebido; el resto solo se descarga (un .zip o un
- * .docx en un iframe no muestra nada).
- */
-function ArchivoEmbebido({ archivo }: { archivo: ArchivoModulo }) {
-  const [viendo, setViendo] = useState(false);
-  const idVisor = `${useId()}-visor`;
-  const url = urlArchivo(archivo.ref);
-  const pdf = esPdf(archivo.mime, archivo.nombre);
-  const tamano = tamanoLegible(archivo.tamano);
+/** Cartel de "no cargó": el archivo puede seguir sirviendo bajándolo. */
+function FalloCarga() {
+  return (
+    <div className="rounded-xl border border-dashed border-bor p-4 text-center text-[13px] text-tx2">
+      No se pudo cargar. Probá descargarlo.
+    </div>
+  );
+}
+
+/** Botón de descarga con señal de vida: "Descargando…" → "Listo" → normal. */
+function BotonDescargar({ archivo, url }: { archivo: ArchivoModulo; url: string }) {
+  const [estado, setEstado] = useState<'normal' | 'bajando' | 'listo' | 'error'>('normal');
+  const reloj = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Si el módulo se cierra mientras corre el "Listo", el timer no puede
+  // setear estado sobre un componente desmontado.
+  useEffect(
+    () => () => {
+      if (reloj.current !== null) clearTimeout(reloj.current);
+    },
+    []
+  );
+
+  const descargar = async () => {
+    if (estado === 'bajando') return;
+    setEstado('bajando');
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('no ok');
+      const blob = await r.blob();
+      // El <a download> nativo no avisa nada; con el blob en la mano sabemos
+      // que el archivo YA está y recién ahí disparamos el guardado.
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = archivo.nombre;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+      setEstado('listo');
+      reloj.current = setTimeout(() => setEstado('normal'), 2000);
+    } catch {
+      setEstado('error');
+    }
+  };
+
+  const texto =
+    estado === 'bajando'
+      ? 'Descargando…'
+      : estado === 'listo'
+        ? 'Listo'
+        : estado === 'error'
+          ? 'Reintentar'
+          : 'Descargar';
 
   return (
-    <div className="rounded-xl border border-bor bg-bg p-[10px]">
+    <>
+      <button
+        type="button"
+        onClick={descargar}
+        disabled={estado === 'bajando'}
+        className="tactil flex min-h-[44px] cursor-pointer items-center gap-[6px] rounded-xl border border-bor2 px-3 text-[12.5px] font-bold text-tx2 disabled:opacity-60"
+      >
+        {estado === 'listo' ? (
+          <Check size={13} strokeWidth={2.5} aria-hidden />
+        ) : (
+          <Download size={13} strokeWidth={2.5} aria-hidden />
+        )}
+        {texto}
+      </button>
+      {estado === 'error' && (
+        <span role="status" className="w-full text-[12.5px] text-vencido">
+          No se pudo descargar.
+        </span>
+      )}
+    </>
+  );
+}
+
+/** Ícono de la fila del archivo, según con qué se va a ver. */
+const ICONO_VISOR: Record<Visor, LucideIcon> = {
+  pdf: FileText,
+  imagen: ImageIcon,
+  video: VideoIcon,
+  ninguno: File,
+};
+
+/**
+ * Un archivo del módulo: nombre, "PDF · 161 KB" y su visor.
+ *
+ * - imagen → se ve SOLA, sin tocar nada (es lo que el usuario espera de una
+ *   captura pegada en la clase)
+ * - video → `<video controls preload="metadata">` contra el proxy, que soporta
+ *   Range (206) para poder adelantar
+ * - pdf → visor embebido detrás de "Ver" (70vh: pesa, no se abre solo)
+ * - el resto (zip, docx…) → solo "Descargar"
+ *
+ * `activo` = el módulo está desplegado. El panel del acordeón se renderiza
+ * siempre (solo se le pone `hidden`), así que la imagen y el video se montan
+ * únicamente cuando el módulo está abierto: si no, entrar a una materia
+ * dispararía decenas de descargas por el proxy sin que nadie las mire.
+ */
+function ArchivoEmbebido({ archivo, activo }: { archivo: ArchivoModulo; activo: boolean }) {
+  const [viendo, setViendo] = useState(false);
+  const [estado, setEstado] = useState<EstadoCarga>('cargando');
+  const idVisor = `${useId()}-visor`;
+  const url = urlArchivo(archivo.ref);
+  const visor = tipoVisor(archivo.mime, archivo.nombre);
+  const tamano = tamanoLegible(archivo.tamano);
+  const Icono = ICONO_VISOR[visor];
+
+  const listo = () => setEstado('listo');
+  const fallo = () => setEstado('error');
+
+  return (
+    // Al abrir el visor de PDF la celda pasa a ocupar la fila entera: leer un
+    // PDF en una columna de 190px no tiene sentido.
+    <div
+      className={`flex flex-col rounded-xl border border-bor bg-bg p-[10px] ${
+        visor === 'pdf' && viendo ? 'col-span-full' : ''
+      }`}
+    >
       <div className="flex min-w-0 items-start gap-2">
-        <FileText size={15} strokeWidth={2} aria-hidden className="mt-[3px] shrink-0 text-tx3" />
+        <Icono size={15} strokeWidth={2} aria-hidden className="mt-[3px] shrink-0 text-tx3" />
         <div className="min-w-0 flex-1">
-          <div className="text-[13.5px] leading-[1.35] font-semibold break-words text-tx">
+          {/* line-clamp-2: en una celda angosta un nombre largo se comía la
+              altura de todas las demás. El completo queda en el title. */}
+          <div
+            title={archivo.nombre}
+            className="line-clamp-2 text-[13.5px] leading-[1.35] font-semibold break-words text-tx"
+          >
             {archivo.nombre}
           </div>
           <div className="mt-[2px] font-mono text-[11px] text-tx3">
@@ -364,36 +870,100 @@ function ArchivoEmbebido({ archivo }: { archivo: ArchivoModulo }) {
           </div>
         </div>
       </div>
-      <div className="mt-[10px] flex flex-wrap gap-2">
-        {pdf && (
+
+      {visor === 'imagen' &&
+        activo &&
+        (estado === 'error' ? (
+          <div className="mt-[10px]">
+            <FalloCarga />
+          </div>
+        ) : (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Abrir a tamaño completo"
+            // Relación fija en vez del alto natural: una foto vertical del
+            // pizarrón medía 1500px y empujaba todo lo de abajo.
+            className="relative mt-[10px] block aspect-[4/3] overflow-hidden rounded-xl border border-bor bg-bg"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- el proxy
+                sirve bytes opacos por ref: next/image no puede optimizarlos. */}
+            <img
+              src={url}
+              alt={archivo.nombre}
+              // Con la grilla entran muchas más celdas por módulo: que el
+              // navegador pida solo las que se acercan a la pantalla.
+              loading="lazy"
+              decoding="async"
+              onLoad={listo}
+              onError={fallo}
+              className={`h-full w-full object-cover ${estado === 'listo' ? '' : 'opacity-0'}`}
+            />
+            {estado === 'cargando' && <Cargando />}
+          </a>
+        ))}
+
+      {visor === 'video' &&
+        activo &&
+        (estado === 'error' ? (
+          <div className="mt-[10px]">
+            <FalloCarga />
+          </div>
+        ) : (
+          <div className="relative mt-[10px] aspect-video overflow-hidden rounded-xl border border-bor bg-bg">
+            {/* Sin <track>: son los videos que subió el profe, no hay
+                subtítulos para ofrecer. */}
+            <video
+              src={url}
+              controls
+              preload="metadata"
+              playsInline
+              onLoadedMetadata={listo}
+              onError={fallo}
+              className={`h-full w-full object-contain ${estado === 'listo' ? '' : 'opacity-0'}`}
+            />
+            {estado === 'cargando' && <Cargando />}
+          </div>
+        ))}
+
+      {/* mt-auto: los botones se apoyan abajo, así todas las celdas de la fila
+          terminan alineadas aunque los nombres ocupen distinta cantidad de líneas. */}
+      <div className="mt-auto flex flex-wrap items-center gap-2 pt-[10px]">
+        {visor === 'pdf' && (
           <button
             type="button"
             onClick={() => setViendo((v) => !v)}
             aria-expanded={viendo}
             aria-controls={idVisor}
-            className="tactil flex min-h-[38px] cursor-pointer items-center gap-[6px] rounded-xl bg-acc-bg px-3 text-[12.5px] font-bold text-acc-fg"
+            className="tactil flex min-h-[44px] cursor-pointer items-center gap-[6px] rounded-xl bg-acc-bg px-3 text-[12.5px] font-bold text-acc-fg"
           >
             <Eye size={13} strokeWidth={2.5} aria-hidden />
             {viendo ? 'Cerrar' : 'Ver'}
           </button>
         )}
-        <a
-          href={url}
-          download={archivo.nombre}
-          className="tactil flex min-h-[38px] items-center gap-[6px] rounded-xl border border-bor2 px-3 text-[12.5px] font-bold !text-tx2"
-        >
-          <Download size={13} strokeWidth={2.5} aria-hidden />
-          Descargar
-        </a>
+        <BotonDescargar archivo={archivo} url={url} />
       </div>
-      {pdf && (
-        <div id={idVisor} hidden={!viendo} className="mt-[10px]">
-          {viendo && (
-            <iframe
-              src={url}
-              title={archivo.nombre}
-              className="h-[70vh] w-full rounded-xl border border-bor bg-sup"
-            />
+
+      {/* El visor va con un tope además del 70vh: en un monitor alto eran
+          900px de iframe y el resto del módulo quedaba fuera de la pantalla. */}
+      {visor === 'pdf' && viendo && activo && (
+        <div id={idVisor} className="mt-[10px]">
+          {estado === 'error' ? (
+            <FalloCarga />
+          ) : (
+            <div className="relative h-[min(70vh,540px)]">
+              <iframe
+                src={url}
+                title={archivo.nombre}
+                onLoad={listo}
+                onError={fallo}
+                className={`h-full w-full rounded-xl border border-bor bg-sup ${
+                  estado === 'listo' ? '' : 'opacity-0'
+                }`}
+              />
+              {estado === 'cargando' && <Cargando />}
+            </div>
           )}
         </div>
       )}

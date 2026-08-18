@@ -1,5 +1,5 @@
-// Modo sin Supabase: la app lee un snapshot del aula virtual desde disco y le
-// aplica encima overlays locales (lo que el usuario edita/agrega a mano).
+// La app lee un snapshot del aula virtual desde disco y le aplica encima
+// overlays locales (lo que el usuario edita/agrega a mano y la API no expone).
 //
 // Archivos (todos en datos/, ignorado por git — son datos personales):
 //   datos/aula-virtual.json      → snapshot generado desde Moodle (materias, archivos, avisos)
@@ -26,15 +26,18 @@ import {
   COLORES_MATERIA,
   ESTADOS_BLOQUE,
   TIPOS_BLOQUE,
+  TIPOS_REF,
   type Archivo,
   type Aviso,
   type Bloque,
   type Dia,
   type EstadoBloque,
   type Horario,
+  type FormatoBloque,
   type Materia,
   type ModuloCurso,
   type Perfil,
+  type RefBloque,
   type Seccion,
   type TipoBloque,
 } from '@/lib/types';
@@ -118,6 +121,15 @@ const moduloCursoSchema = z.object({
   enlace: z.string().optional(),
   video: z.string().optional(),
   archivos: z.array(archivoModuloSchema).optional(),
+  /**
+   * Finalización en el aula virtual. OJO: este schema es un `z.object()`, que
+   * DESCARTA lo que no esté declarado — un campo nuevo en el snapshot que no se
+   * agregue acá se pierde en silencio al leer, sin error ni warning.
+   */
+  hecho: z.boolean().optional(),
+  requisitos: z
+    .array(z.object({ texto: z.string(), cumplido: z.boolean() }))
+    .optional(),
 });
 
 /** Una unidad del curso tal como está armada en el aula virtual. */
@@ -149,6 +161,8 @@ const avisoSchema = z.object({
   titulo: z.string(),
   fecha: z.string(),
   hecho: z.boolean().optional(),
+  // Moodle nunca lo manda, pero así el tipo del aviso es uno solo.
+  notaId: z.string().nullable().optional(),
 });
 
 const snapshotSchema = z.object({
@@ -200,20 +214,42 @@ export const archivosManualesArchivoSchema = z.record(
 export type ArchivoManual = z.infer<typeof archivoManualSchema>;
 export type ArchivosManualesArchivo = z.infer<typeof archivosManualesArchivoSchema>;
 
-/** [{ id: "manual:…", materiaId: "curso:2756" | null, titulo, fecha, hecho }] */
+/** [{ id: "manual:…", materiaId: "curso:2756" | null, titulo, fecha, hecho, notaId? }] */
 export const avisoManualSchema = z.object({
   id: z.string(),
   materiaId: z.string().nullable().optional(),
   titulo: z.string(),
   fecha: z.string(),
   hecho: z.boolean().optional(),
+  /** Bloque que lo originó, cuando el aviso se creó desde una nota. */
+  notaId: z.string().nullable().optional(),
 });
 
 export const avisosManualesArchivoSchema = z.array(avisoManualSchema);
 
 export type AvisoManual = z.infer<typeof avisoManualSchema>;
 
-/** { "curso:2756": [{ id: "manual:…", tipo: "tarea", texto, url, estado, hecho, orden, createdAt }] } */
+/** Marcas de formato del bloque. Todas opcionales: un bloque viejo no las trae. */
+export const formatoBloqueSchema = z.object({
+  b: z.boolean().optional(),
+  i: z.boolean().optional(),
+  u: z.boolean().optional(),
+  hl: z.boolean().optional(),
+});
+
+/** Cita colgada del bloque: `{ tipo: "materia", id: "curso:2775" }`. */
+export const refBloqueSchema = z.object({
+  tipo: z.enum(TIPOS_REF),
+  id: z.string(),
+});
+
+/**
+ * { "curso:2756": [{ id: "manual:…", tipo: "tarea", texto, url, estado, hecho, orden, createdAt, fmt?, ref? }] }
+ *
+ * OJO: este schema descarta lo que no declara. Si agregás un campo al bloque y
+ * no lo sumás acá, la próxima lectura lo tira y el siguiente guardado reescribe
+ * el archivo sin él — y `datos/bloques.json` es irrecuperable.
+ */
 export const bloqueLocalSchema = z.object({
   id: z.string(),
   materiaId: z.string().optional(),
@@ -224,6 +260,8 @@ export const bloqueLocalSchema = z.object({
   hecho: z.boolean().default(false),
   orden: z.number().default(0),
   createdAt: z.string().default(() => new Date(0).toISOString()),
+  fmt: formatoBloqueSchema.optional(),
+  ref: refBloqueSchema.nullable().optional(),
 });
 
 export const bloquesArchivoSchema = z.record(z.string(), z.array(bloqueLocalSchema));
@@ -353,6 +391,13 @@ function armar(snapshot: z.infer<typeof snapshotSchema>, ov: Overlays): DatosLoc
                     })),
                   }
                 : {}),
+              // `!== undefined` y NO `mo.hecho ? …` como los de arriba: `false`
+              // es un valor válido ("lo tenés pendiente") y con el patrón
+              // truthy se perdería, que es justo la mitad de la información.
+              ...(mo.hecho !== undefined ? { hecho: mo.hecho } : {}),
+              ...(mo.requisitos && mo.requisitos.length > 0
+                ? { requisitos: mo.requisitos }
+                : {}),
             })
           ),
         }))
@@ -405,6 +450,8 @@ function armar(snapshot: z.infer<typeof snapshotSchema>, ov: Overlays): DatosLoc
       titulo: a.titulo,
       fecha: a.fecha,
       hecho: ov.estados[a.id] ?? a.hecho ?? false,
+      // Se reconstruye campo por campo: lo que no se nombre acá se pierde.
+      notaId: a.notaId ?? null,
     }))
     .sort((x, y) => x.fecha.localeCompare(y.fecha));
 
@@ -560,6 +607,8 @@ export async function crearAvisoLocal(aviso: {
   materiaId: string | null;
   titulo: string;
   fecha: string;
+  /** Bloque del que nació, si vino del modal de una nota. */
+  notaId?: string | null;
 }): Promise<string> {
   const lista = [...(await leerOverlay('avisosManuales', avisosManualesArchivoSchema, []))];
   const id = nuevoId();
@@ -569,6 +618,7 @@ export async function crearAvisoLocal(aviso: {
     titulo: aviso.titulo,
     fecha: aviso.fecha,
     hecho: false,
+    ...(aviso.notaId ? { notaId: aviso.notaId } : {}),
   });
   await escribirJson(rutaDatos('avisosManuales'), lista);
   return id;
@@ -600,7 +650,13 @@ const PASO_ORDEN = 1000;
  */
 export async function crearBloqueLocal(
   materiaId: string,
-  bloque: { tipo: TipoBloque; texto?: string; url?: string }
+  bloque: {
+    tipo: TipoBloque;
+    texto?: string;
+    url?: string;
+    estado?: EstadoBloque;
+    ref?: RefBloque | null;
+  }
 ): Promise<string> {
   const mapa = { ...(await leerOverlay('bloques', bloquesArchivoSchema, {})) };
   const lista = mapa[materiaId] ?? [];
@@ -614,10 +670,14 @@ export async function crearBloqueLocal(
       tipo: bloque.tipo,
       texto: bloque.texto ?? '',
       url: bloque.url ?? '',
-      estado: 'pendiente',
-      hecho: false,
+      // El "+ Agregar" de una columna del tablero crea el bloque ya en esa
+      // columna; desde el documento siempre arranca pendiente.
+      estado: bloque.estado ?? 'pendiente',
+      hecho: bloque.estado === 'listo',
       orden: ultimo + PASO_ORDEN,
       createdAt: new Date().toISOString(),
+      // El `@` del composer adjunta la cita al bloque que nace con ella.
+      ...(bloque.ref ? { ref: bloque.ref } : {}),
     },
   ];
   await escribirJson(rutaDatos('bloques'), mapa);
@@ -627,7 +687,15 @@ export async function crearBloqueLocal(
 /** Aplica un patch a un bloque local. False si ese id no está en el overlay. */
 export async function actualizarBloqueLocal(
   id: string,
-  patch: { texto?: string; url?: string; estado?: EstadoBloque; hecho?: boolean }
+  patch: {
+    tipo?: TipoBloque;
+    texto?: string;
+    url?: string;
+    estado?: EstadoBloque;
+    hecho?: boolean;
+    fmt?: FormatoBloque;
+    ref?: RefBloque | null;
+  }
 ): Promise<boolean> {
   const mapa = { ...(await leerOverlay('bloques', bloquesArchivoSchema, {})) };
   let encontrado = false;
@@ -687,8 +755,7 @@ export async function leerPerfilLocal(): Promise<Perfil | null> {
 }
 
 /**
- * Escribe datos/perfil.json. `avatarUrl: undefined` conserva la foto guardada
- * (mismo contrato que el upsert de Supabase).
+ * Escribe datos/perfil.json. `avatarUrl: undefined` conserva la foto guardada.
  */
 export async function escribirPerfilLocal(perfil: {
   nombre: string;
@@ -742,7 +809,7 @@ export const extensionAvatar = (mime: string): string | null =>
 
 /**
  * Guarda la foto de perfil en datos/avatar.<ext> (borrando la anterior, que
- * puede tener otra extensión). Sin Supabase Storage, el disco es el bucket.
+ * puede tener otra extensión). El disco es el bucket.
  */
 export async function escribirAvatarLocal(datos: Uint8Array, ext: string): Promise<void> {
   const dir = dirDatos();

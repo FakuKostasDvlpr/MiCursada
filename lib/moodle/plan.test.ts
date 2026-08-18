@@ -11,6 +11,8 @@ import {
   filtrarCursosVigentes,
   nombreCortoCurso,
   contenidosPorModulo,
+  finalizacionDeModulo,
+  requisitosDeModulo,
   seccionesDesdeContenidos,
   urlAsistenciaDesdeContenidos,
   urlClaseDesdeContenidos,
@@ -276,6 +278,8 @@ describe('armarSnapshot', () => {
     ],
     avisosDescartados: [],
     refsArchivos: {},
+    cursosFallados: [],
+    degradado: [],
   };
 
   const snap = armarSnapshot(plan, '2026-03-01T00:00:00.000Z');
@@ -468,6 +472,8 @@ describe('armarSnapshot con asistencia', () => {
     avisos: [],
     avisosDescartados: [],
     refsArchivos: {},
+    cursosFallados: [],
+    degradado: [],
   };
 
   it('copia asistenciaUrl solo en las materias que la tienen', () => {
@@ -651,6 +657,8 @@ describe('seccionesDesdeContenidos', () => {
       avisos: [],
       avisosDescartados: [],
       refsArchivos: {},
+    cursosFallados: [],
+    degradado: [],
     };
     const snap = armarSnapshot(plan, '2026-08-16T00:00:00.000Z');
     expect(snap.materias[0]?.secciones?.[0]?.nombre).toBe('Unidad 1');
@@ -844,5 +852,113 @@ describe('seccionesDesdeContenidos con contenido embebible', () => {
     // El que no tiene contenido sigue con su link al aula virtual y nada más.
     expect(salida[0]?.modulos[1]?.html).toBeUndefined();
     expect(salida[0]?.modulos[1]?.url).toBe('https://aula.test/mod/resource/view.php?id=11');
+  });
+});
+
+describe('finalizacionDeModulo (lo que ya hiciste en el aula)', () => {
+  const mod = (completiondata?: unknown) =>
+    ({ id: 1, name: 'X', modname: 'resource', ...(completiondata ? { completiondata } : {}) }) as
+      Parameters<typeof finalizacionDeModulo>[0];
+
+  it('state 0 es pendiente', () => {
+    expect(finalizacionDeModulo(mod({ state: 0, hascompletion: true, istrackeduser: true }))).toBe(
+      false
+    );
+  });
+
+  it('state 1, 2 y 3 cuentan como hecho (2 = aprobado, 3 = desaprobado pero HECHO)', () => {
+    for (const state of [1, 2, 3]) {
+      expect(
+        finalizacionDeModulo(mod({ state, hascompletion: true, istrackeduser: true }))
+      ).toBe(true);
+    }
+  });
+
+  it('sin completiondata devuelve undefined, no false', () => {
+    // Es la diferencia entre "no tiene seguimiento" y "lo tenés pendiente":
+    // con false la UI pintaría un pendiente que el profe nunca configuró.
+    expect(finalizacionDeModulo(mod())).toBeUndefined();
+  });
+
+  it('hascompletion false o istrackeduser false → undefined', () => {
+    expect(finalizacionDeModulo(mod({ state: 0, hascompletion: false }))).toBeUndefined();
+    expect(finalizacionDeModulo(mod({ state: 0, istrackeduser: false }))).toBeUndefined();
+  });
+});
+
+describe('seccionesDesdeContenidos con finalización', () => {
+  it('copia `hecho` al módulo del snapshot, y lo omite si no hay seguimiento', () => {
+    const secs = seccionesDesdeContenidos(
+      [
+        {
+          name: 'Unidad 1',
+          modules: [
+            {
+              id: 1,
+              name: 'Visto',
+              modname: 'resource',
+              uservisible: true,
+              completiondata: { state: 1, hascompletion: true, istrackeduser: true },
+            },
+            {
+              id: 2,
+              name: 'Pendiente',
+              modname: 'resource',
+              uservisible: true,
+              completiondata: { state: 0, hascompletion: true, istrackeduser: true },
+            },
+            { id: 3, name: 'Sin seguimiento', modname: 'resource', uservisible: true },
+          ],
+        },
+      ],
+      'https://aula.example'
+    );
+
+    expect(secs[0]?.modulos.map((m) => m.hecho)).toEqual([true, false, undefined]);
+  });
+});
+
+describe('requisitosDeModulo (las condiciones que muestra el aula)', () => {
+  const con = (details: unknown) =>
+    ({
+      id: 1,
+      name: 'X',
+      modname: 'assign',
+      completiondata: { state: 0, hascompletion: true, istrackeduser: true, details },
+    }) as Parameters<typeof requisitosDeModulo>[0];
+
+  it('usa el texto de Moodle tal cual y marca cuál está cumplida', () => {
+    // Caso real del TP Nº3: pide ver el enunciado Y entregar.
+    expect(
+      requisitosDeModulo(
+        con([
+          { rulename: 'completionview', rulevalue: { status: 1, description: 'Ver' } },
+          { rulename: 'completionsubmit', rulevalue: { status: 0, description: 'Hacer un envío' } },
+        ])
+      )
+    ).toEqual([
+      { texto: 'Ver', cumplido: true },
+      { texto: 'Hacer un envío', cumplido: false },
+    ]);
+  });
+
+  it('decodifica entidades HTML del texto', () => {
+    expect(
+      requisitosDeModulo(
+        con([{ rulevalue: { status: 0, description: 'Recibir una calificaci&oacute;n' } }])
+      )
+    ).toEqual([{ texto: 'Recibir una calificación', cumplido: false }]);
+  });
+
+  it('descarta las condiciones sin texto en vez de mostrar una vacía', () => {
+    expect(requisitosDeModulo(con([{ rulevalue: { status: 1 } }, {}]))).toEqual([]);
+  });
+
+  it('sin completiondata no hay requisitos', () => {
+    expect(
+      requisitosDeModulo({ id: 1, name: 'X', modname: 'resource' } as Parameters<
+        typeof requisitosDeModulo
+      >[0])
+    ).toEqual([]);
   });
 });

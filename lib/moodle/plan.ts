@@ -15,8 +15,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { rutaDatos } from '@/lib/datos-locales';
-import type { ModuloCurso, Seccion } from '@/lib/types';
-import { call } from './cliente';
+import type { ModuloCurso, Requisito, Seccion } from '@/lib/types';
+import { call, TokenInvalido } from './cliente';
 import {
   RegistroRefs,
   sanitizar,
@@ -127,6 +127,56 @@ export interface ModuloContenido {
   description?: string | undefined;
   /** ⚠️ `fileurl` trae el token: solo se usa en memoria (ver contenido.ts). */
   contents?: Array<ArchivoWs & { type: string }> | undefined;
+  /** Seguimiento de finalización de ESTE usuario (ver moduloSchema). */
+  completiondata?:
+    | {
+        state: number;
+        hascompletion?: boolean | undefined;
+        istrackeduser?: boolean | undefined;
+        details?:
+          | ReadonlyArray<{
+              rulevalue?: { status?: number | undefined; description?: string | undefined };
+            }>
+          | undefined;
+      }
+    | undefined;
+}
+
+/**
+ * ¿El módulo está marcado como hecho en el aula virtual?
+ *
+ * `undefined` cuando el módulo NO tiene seguimiento de finalización o el
+ * usuario no es un alumno trackeado: ahí "pendiente" no significaría nada y la
+ * app no debe mostrar ni un tilde ni un vacío. Es distinto de `false`, que sí
+ * es "tenés esto pendiente".
+ *
+ * Estados de Moodle: 0 = pendiente, 1 = completo, 2 = completo y aprobado,
+ * 3 = completo y desaprobado. Los tres últimos cuentan como hecho: la actividad
+ * se hizo, la nota es otro tema.
+ */
+export function finalizacionDeModulo(mod: ModuloContenido): boolean | undefined {
+  const c = mod.completiondata;
+  if (!c) return undefined;
+  if (c.hascompletion === false || c.istrackeduser === false) return undefined;
+  return c.state !== 0;
+}
+
+/**
+ * Las condiciones de finalización, con el texto que ya redactó Moodle en
+ * castellano ("Ver", "Hacer un envío", "Completa la actividad hasta el final").
+ *
+ * NO se traduce ni se reescribe nada: es el mismo texto que ve en el aula
+ * virtual, así que coincide con lo que el profe configuró.
+ */
+export function requisitosDeModulo(mod: ModuloContenido): Requisito[] {
+  const detalles = mod.completiondata?.details ?? [];
+  const salida: Requisito[] = [];
+  for (const d of detalles) {
+    const texto = decodificarHtml(d.rulevalue?.description ?? '').trim();
+    if (texto === '') continue;
+    salida.push({ texto, cumplido: d.rulevalue?.status === 1 });
+  }
+  return salida;
 }
 
 export interface SeccionContenido {
@@ -413,12 +463,16 @@ export function seccionesDesdeContenidos(
       if (MODNAMES_NO_CONTENIDO.has(mod.modname)) continue;
       const nombre = decodificarHtml(mod.name).trim();
       const descripcion = recortar(aTextoPlano(mod.description ?? ''), MAX_DESCRIPCION);
+      const hecho = finalizacionDeModulo(mod);
+      const requisitos = requisitosDeModulo(mod);
       modulos.push({
         id: `mod:${mod.id}`,
         nombre,
         tipo: mod.modname,
         url: urlModuloAbsoluta(baseUrl, mod.modname, mod.id),
         ...(descripcion !== '' && descripcion !== nombre ? { descripcion } : {}),
+        ...(hecho !== undefined ? { hecho } : {}),
+        ...(requisitos.length > 0 ? { requisitos } : {}),
         ...(contenidos?.get(mod.id) ?? {}),
       });
     }
@@ -655,9 +709,9 @@ export async function obtenerAssignments(
  * Contenido de los módulos de TODOS los cursos: cinco llamadas en total (una
  * por tipo de módulo), no una por módulo. Cada una recibe `courseids[]` entero.
  *
- * Si una función no está habilitada en la instancia, la llamada se descarta con
- * un warning y se sigue: el lector muestra lo que haya y el resto cae al link
- * del aula virtual.
+ * Ninguna de las cinco es indispensable: si una falla, el lector muestra lo que
+ * haya y el resto cae al link del aula virtual. Por eso cada una degrada sola,
+ * sin voltear el sync.
  */
 export async function obtenerContenidoModulos(
   courseids: number[],
@@ -666,36 +720,61 @@ export async function obtenerContenidoModulos(
   const vacios = { pages: [], urls: [], resources: [], lessons: [], quizzes: [] };
   if (courseids.length === 0) return vacios;
 
-  async function pedir<T>(
+  const porque = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+  /**
+   * Pide una función `*_by_courses` para todos los cursos de una.
+   *
+   * Si el LOTE falla, reintenta curso por curso antes de rendirse: en esta
+   * instancia `mod_quiz_get_quizzes_by_courses` revienta con
+   * `noconfigfilefound` por UN cuestionario con Safe Exam Browser, y Moodle
+   * devuelve el error del lote entero — sin este fallback los 7 cursos se
+   * quedaban sin descripción de sus cuestionarios por culpa de uno solo.
+   *
+   * El reintento cuesta N llamadas extra, pero solo se paga cuando el lote ya
+   * falló (nunca en el camino feliz).
+   */
+  async function pedirLista<T>(
     fn: Parameters<typeof call>[0],
-    parse: (crudo: unknown) => T,
-    fallback: T
-  ): Promise<T> {
+    extraer: (crudo: unknown) => T[]
+  ): Promise<T[]> {
     try {
-      return parse(await call(fn, { courseids }, cred));
+      return extraer(await call(fn, { courseids }, cred));
     } catch (e) {
-      console.warn(`[moodle] sin contenido de ${fn}: ${e instanceof Error ? e.message : e}`);
-      return fallback;
+      console.warn(`[moodle] ${fn} falló para el lote: ${porque(e)}`);
+      if (courseids.length < 2) return [];
+
+      const partes: T[] = [];
+      let rotos = 0;
+      for (const id of courseids) {
+        try {
+          partes.push(...extraer(await call(fn, { courseids: [id] }, cred)));
+        } catch (e2) {
+          rotos += 1;
+          console.warn(`[moodle] ${fn} sin datos del curso ${id}: ${porque(e2)}`);
+        }
+      }
+      console.warn(
+        `[moodle] ${fn} recuperada curso por curso: ${courseids.length - rotos}/${courseids.length}`
+      );
+      return partes;
     }
   }
 
   const [pages, urls, resources, lessons, quizzes] = await Promise.all([
-    pedir('mod_page_get_pages_by_courses', (c) => paginasSchema.parse(c).pages, [] as Pagina[]),
-    pedir('mod_url_get_urls_by_courses', (c) => urlsSchema.parse(c).urls, [] as UrlModulo[]),
-    pedir(
+    pedirLista<Pagina>('mod_page_get_pages_by_courses', (c) => paginasSchema.parse(c).pages),
+    pedirLista<UrlModulo>('mod_url_get_urls_by_courses', (c) => urlsSchema.parse(c).urls),
+    pedirLista<Recurso>(
       'mod_resource_get_resources_by_courses',
-      (c) => recursosSchema.parse(c).resources,
-      [] as Recurso[]
+      (c) => recursosSchema.parse(c).resources
     ),
-    pedir(
+    pedirLista<Leccion>(
       'mod_lesson_get_lessons_by_courses',
-      (c) => leccionesSchema.parse(c).lessons,
-      [] as Leccion[]
+      (c) => leccionesSchema.parse(c).lessons
     ),
-    pedir(
+    pedirLista<Cuestionario>(
       'mod_quiz_get_quizzes_by_courses',
-      (c) => cuestionariosSchema.parse(c).quizzes,
-      [] as Cuestionario[]
+      (c) => cuestionariosSchema.parse(c).quizzes
     ),
   ]);
   return { pages, urls, resources, lessons, quizzes };
@@ -731,6 +810,20 @@ export interface PlanMoodle {
    * /api/archivo.
    */
   refsArchivos: Record<string, RefArchivo>;
+  /**
+   * Cursos cuyo contenido no se pudo bajar, y por qué. El sync sigue igual con
+   * el resto: que una materia falle no puede dejarte sin las otras seis.
+   */
+  cursosFallados: CursoFallado[];
+  /** Partes opcionales del plan que se cayeron (avisos), para reportarlo. */
+  degradado: string[];
+}
+
+/** Un curso que quedó sin contenido en esta corrida. */
+export interface CursoFallado {
+  cursoId: number;
+  nombre: string;
+  motivo: string;
 }
 
 /**
@@ -760,8 +853,23 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
   const asistenciaPorCurso = new Map<number, string>();
   const clasePorCurso = new Map<number, string>();
   const contenidosPorCurso = new Map<number, SeccionCurso[]>();
+  const cursosFallados: CursoFallado[] = [];
+  const degradado: string[] = [];
   for (const curso of cursos) {
-    const secciones = await obtenerContenidos(curso.id, cred);
+    // Un curso que falla (permisos, un módulo raro, el servidor tosiendo) NO
+    // puede voltear el sync entero: se anota y se sigue con los demás.
+    let secciones: SeccionCurso[];
+    try {
+      secciones = await obtenerContenidos(curso.id, cred);
+    } catch (e) {
+      // El token inválido no es "un curso que falló": van a fallar todos y hay
+      // que volver a loguearse, así que se propaga tal cual.
+      if (e instanceof TokenInvalido) throw e;
+      const motivo = e instanceof Error ? e.message : String(e);
+      console.warn(`[moodle] sin contenido del curso ${curso.id}: ${motivo}`);
+      cursosFallados.push({ cursoId: curso.id, nombre: limpiarNombre(curso.fullname), motivo });
+      continue;
+    }
     contenidosPorCurso.set(curso.id, secciones);
     const r = archivosDesdeContenidos(curso.id, secciones, cred.url);
     archivos.push(...r.archivos);
@@ -775,10 +883,31 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
     if (clase !== null) clasePorCurso.set(curso.id, clase);
   }
 
-  // assignments (una sola llamada) + calendario (+60 días) → avisos
+  // Si NINGÚN curso trajo contenido, no es "una materia que falló": está roto
+  // el servidor, la red o los permisos. Seguir escribiría un snapshot vacío
+  // ENCIMA del bueno y te dejaría la app en blanco — mejor cortar acá y
+  // conservar el snapshot anterior.
+  if (cursos.length > 0 && contenidosPorCurso.size === 0) {
+    throw new Error(
+      `No se pudo bajar el contenido de ninguno de los ${cursos.length} cursos. ` +
+        `Se conserva el snapshot anterior. Último motivo: ${cursosFallados.at(-1)?.motivo ?? 'desconocido'}`
+    );
+  }
+
+  // assignments (una sola llamada) + calendario (+60 días) → avisos.
+  // Los avisos son un extra: si el aula no los da, preferimos una app con las
+  // materias y sin avisos antes que un sync que no termina nunca.
   const idsCursos = cursos.map((c) => c.id);
-  const cursosConTps = await obtenerAssignments(idsCursos, cred);
-  const assignments = cursosConTps.flatMap((c) => c.assignments);
+  let assignments: Assignment[] = [];
+  try {
+    const cursosConTps = await obtenerAssignments(idsCursos, cred);
+    assignments = cursosConTps.flatMap((c) => c.assignments);
+  } catch (e) {
+    if (e instanceof TokenInvalido) throw e;
+    const motivo = e instanceof Error ? e.message : String(e);
+    console.warn(`[moodle] sin entregas (mod_assign_get_assignments): ${motivo}`);
+    degradado.push('entregas');
+  }
   const deAssigns = avisosDesdeAssignments(assignments, nombresCortos);
 
   // Contenido embebible de los módulos: 5 llamadas más para TODOS los cursos.
@@ -806,7 +935,15 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
   }
 
   const ahora = Math.floor(Date.now() / 1000);
-  const eventos = await obtenerEventos(ahora, ahora + DIAS_CALENDARIO * 24 * 60 * 60, cred);
+  let eventos: EventoCalendario[] = [];
+  try {
+    eventos = await obtenerEventos(ahora, ahora + DIAS_CALENDARIO * 24 * 60 * 60, cred);
+  } catch (e) {
+    if (e instanceof TokenInvalido) throw e;
+    const motivo = e instanceof Error ? e.message : String(e);
+    console.warn(`[moodle] sin calendario: ${motivo}`);
+    degradado.push('calendario');
+  }
   const eventosNormalizados: EventoBasico[] = eventos.map((e) => ({
     id: e.id,
     name: e.name,
@@ -827,6 +964,8 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
     avisos: [...deAssigns.avisos, ...deEventos.avisos],
     avisosDescartados: [...deAssigns.descartados, ...deEventos.descartados],
     refsArchivos,
+    cursosFallados,
+    degradado,
   };
 }
 
@@ -934,6 +1073,13 @@ export type ResumenSync = {
   conHtml: number;
   conVideo: number;
   conArchivos: number;
+  /**
+   * Materias que quedaron sin contenido en esta corrida, y partes que se
+   * cayeron ("entregas", "calendario"). Vacíos = sync completo. Se reportan
+   * para que un sync a medias NO se vea igual que uno entero.
+   */
+  cursosFallados: CursoFallado[];
+  degradado: string[];
 };
 
 /**
@@ -961,5 +1107,7 @@ export async function sincronizarSnapshot(cred?: Credencial): Promise<ResumenSyn
     conHtml: todos.filter((m) => m.html).length,
     conVideo: todos.filter((m) => m.video).length,
     conArchivos: todos.filter((m) => m.archivos && m.archivos.length > 0).length,
+    cursosFallados: plan.cursosFallados,
+    degradado: plan.degradado,
   };
 }

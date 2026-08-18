@@ -1,8 +1,10 @@
 import { BottomNav } from '@/components/bottom-nav';
 import { Contenedor } from '@/components/contenedor';
+import { Logro } from '@/components/logro';
 import { Sidebar } from '@/components/sidebar';
+import { Toast } from '@/components/toast';
 import { iniciales } from '@/lib/cursada';
-import { getPerfil } from '@/lib/queries';
+import { getMaterias, getPerfil } from '@/lib/queries';
 import { exigirSesion } from '@/lib/sesion-actual';
 
 /**
@@ -15,7 +17,12 @@ import { exigirSesion } from '@/lib/sesion-actual';
  */
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   await exigirSesion();
-  const perfil = await getPerfil();
+  const [perfil, materias] = await Promise.all([getPerfil(), getMaterias()]);
+  // Total de notas de toda la cursada: es el hito que muestra el toast de logro.
+  const totalNotas = materias.reduce(
+    (n, m) => n + m.bloques.filter((b) => b.tipo !== 'divisor').length,
+    0
+  );
 
   return (
     <>
@@ -26,6 +33,8 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       />
       <Contenedor>{children}</Contenedor>
       <BottomNav />
+      <Logro totalNotas={totalNotas} />
+      <Toast />
     </>
   );
 }

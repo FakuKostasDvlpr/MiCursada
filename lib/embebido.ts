@@ -35,6 +35,41 @@ export function urlEmbedVimeo(id: string): string {
   return `https://player.vimeo.com/video/${encodeURIComponent(id)}`;
 }
 
+/**
+ * URL de embed de una presentación de SlideShare, a partir de su `key`.
+ *
+ * La key NO se puede derivar del link público de la presentación
+ * (`/Autor/titulo-del-slide`): sale únicamente del código de embed que pegó el
+ * profe. Por eso este helper recibe la key ya extraída de un `<iframe>` real y
+ * nunca se arma una a partir de un `<a href>`.
+ */
+export function urlEmbedSlideShare(key: string): string {
+  return `https://www.slideshare.net/slideshow/embed_code/key/${encodeURIComponent(key)}`;
+}
+
+/**
+ * ¿El HTML del módulo ya trae ESE player embebido?
+ *
+ * El sanitizador convierte los links de video del profe en `<figure class=
+ * "video">`, así que el `video` del módulo puede estar ya dibujado adentro del
+ * html: sin este chequeo se vería el mismo video dos veces.
+ */
+export function playerEnHtml(video: string, html: string): boolean {
+  return esLista(video) ? html.includes(`list=${idLista(video)}`) : html.includes(`/embed/${video}`);
+}
+
+/**
+ * Miniatura de un video de YouTube, o null si es una playlist (no tiene una
+ * propia derivable del id).
+ *
+ * `hqdefault` existe SIEMPRE, incluso en videos viejos; `maxresdefault` da 404
+ * en muchos y dejaría la celda vacía.
+ */
+export function miniaturaYoutube(video: string): string | null {
+  if (esLista(video)) return null;
+  return `https://i.ytimg.com/vi/${encodeURIComponent(video)}/hqdefault.jpg`;
+}
+
 /** Link "de verdad" a YouTube, para abrirlo afuera si el embed no alcanza. */
 export function urlYoutube(video: string): string {
   return esLista(video)
@@ -79,6 +114,41 @@ export function tipoArchivo(mime: string, nombre: string): string {
 /** Los PDFs se pueden previsualizar en un iframe; el resto solo se descarga. */
 export const esPdf = (mime: string, nombre: string): boolean =>
   mime.toLowerCase() === 'application/pdf' || /\.pdf$/i.test(nombre);
+
+/**
+ * Con qué se muestra un archivo adentro de la app.
+ *
+ * - `pdf` → visor embebido (iframe)
+ * - `imagen` → `<img>` inline, se ve sin descargar nada
+ * - `video` → `<video controls>` contra el proxy (soporta Range)
+ * - `ninguno` → zip, docx, lo que sea: solo "Descargar"
+ */
+export type Visor = 'pdf' | 'imagen' | 'video' | 'ninguno';
+
+/** Extensión en minúsculas, sin el punto ("Unidad 6 - 2018.MP4" → "mp4"). */
+const extension = (nombre: string): string =>
+  nombre.includes('.') ? (nombre.split('.').pop() ?? '').toLowerCase() : '';
+
+const EXT_IMAGEN = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg']);
+const EXT_VIDEO = new Set(['mp4', 'm4v', 'webm', 'ogv', 'mov']);
+
+/**
+ * Visor que le toca a un archivo, por mimetype y —si el mime no dice nada— por
+ * extensión.
+ *
+ * El fallback por extensión NO es cosmético: en el aula real hay 14 archivos que
+ * Moodle informa como `application/octet-stream` y que en realidad son PDFs,
+ * PNGs y hasta un `.mp4` ("Unidad 6 - 2018.mp4"). Sin esto quedarían como
+ * "solo descargar".
+ */
+export function tipoVisor(mime: string, nombre: string): Visor {
+  const m = mime.toLowerCase().split(';')[0]?.trim() ?? '';
+  const ext = extension(nombre);
+  if (esPdf(m, nombre)) return 'pdf';
+  if (m.startsWith('image/') || EXT_IMAGEN.has(ext)) return 'imagen';
+  if (m.startsWith('video/') || EXT_VIDEO.has(ext)) return 'video';
+  return 'ninguno';
+}
 
 /** 0 → "", 165 000 → "161 KB", 2 400 000 → "2,3 MB". */
 export function tamanoLegible(bytes: number): string {

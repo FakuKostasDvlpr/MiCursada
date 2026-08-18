@@ -8,6 +8,14 @@
 :root {
   color-scheme: dark;
 
+  /* Fuentes del handoff. Van acá y NO dentro de `@theme inline`: `inline` le
+     dice a Tailwind que resuelva el valor dentro de las utilidades y que NO
+     emita la custom property, así que un `font-family: var(--font-sans)` suelto
+     (body, .kicker, .prosa) quedaba vacío y todo caía al sans del preflight.
+     --font-jakarta / --font-jetbrains las pone next/font en <html>. */
+  --fuente-sans: var(--font-jakarta), system-ui, sans-serif;
+  --fuente-mono: var(--font-jetbrains), ui-monospace, monospace;
+
   --bg: #020617; /* body, chips de clase, inputs de modal, cards kanban */
   --sup: #0f172a; /* cards, nav, modales, inputs */
   --bor: #1e293b; /* bordes de card/input, divisores */
@@ -92,8 +100,8 @@ html[data-tema="claro"] {
   --color-kanban-en-proceso: var(--kanban-en-proceso);
   --color-kanban-listo: var(--kanban-listo);
 
-  --font-sans: var(--font-jakarta), system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --font-sans: var(--fuente-sans);
+  --font-mono: var(--fuente-mono);
 }
 
 @layer base {
@@ -103,6 +111,10 @@ html[data-tema="claro"] {
     height: auto;
     min-height: 100%;
     overflow-y: auto;
+    /* Acá y no en body: el preflight de Tailwind le pone su propio sans a
+       <html>, y sin esto todo heredaba ese fallback en vez de Jakarta. */
+    font-family: var(--fuente-sans);
+    background: var(--bg);
   }
 
   body {
@@ -110,7 +122,7 @@ html[data-tema="claro"] {
     min-height: 100%;
     background: var(--bg);
     color: var(--tx);
-    font-family: var(--font-sans);
+    font-family: inherit;
   }
 
   /* Links por defecto en ámbar */
@@ -236,6 +248,33 @@ html[data-tema="claro"] {
   }
 }
 
+/* logroIn: el pill sube desde abajo con rebote. Lo usan el toast de logro y el
+   toast de acción, los dos anclados abajo: por eso entra de abajo hacia arriba. */
+@keyframes logro-in {
+  0% {
+    transform: translateY(26px) scale(0.88);
+    opacity: 0;
+  }
+  55% {
+    transform: translateY(-4px) scale(1.03);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* logroBrillo: la franja de brillo que recorre el pill una sola vez */
+@keyframes logro-brillo {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(320%) skewX(-18deg);
+  }
+}
+
 /* charRoll: cada letra del saludo "Bienvenido, …" */
 @keyframes char-roll {
   0% {
@@ -269,6 +308,27 @@ html[data-tema="claro"] {
   animation: char-roll 0.5s cubic-bezier(0.22, 0.8, 0.3, 1) both;
 }
 
+.logro-in {
+  animation: logro-in 0.55s cubic-bezier(0.3, 1.4, 0.4, 1) both;
+}
+
+.logro-brillo {
+  animation: logro-brillo 1.4s ease 0.35s both;
+}
+
+/* Mismo movimiento que el logro pero más corto: el toast es un aviso, no una
+   celebración. */
+.toast-in {
+  animation: logro-in 0.4s cubic-bezier(0.3, 1.4, 0.4, 1) both;
+}
+
+/* Los dos pills viven a 96px del piso: el del logro pegado a la derecha y el
+   toast centrado. En 390px se superponen, así que mientras hay logro el toast
+   se apila arriba (alto del pill del logro + 8px de aire). */
+html[data-logro='1'] .toast-cont {
+  bottom: 168px;
+}
+
 /* Transiciones de la secuencia de entrada. Van en clases (y no inline) para que
    el bloque de reduced-motion de abajo pueda apagarlas todas de una. */
 .transicion-card {
@@ -281,7 +341,9 @@ html[data-tema="claro"] {
 }
 
 .transicion-alto {
-  transition: min-height 0.6s cubic-bezier(0.22, 0.8, 0.3, 1);
+  transition:
+    min-height 0.6s cubic-bezier(0.22, 0.8, 0.3, 1),
+    padding-top 0.5s ease;
 }
 
 /* Relevo de capas: nunca se montan/desmontan, se cruzan. */
@@ -318,8 +380,16 @@ html[data-tema="claro"] {
   .card-in,
   .fila-in,
   .bienvenida-in,
-  .char-roll {
+  .char-roll,
+  .logro-in,
+  .toast-in {
     animation: none;
+  }
+
+  /* La franja de brillo solo existe mientras se mueve: quieta sería una banda
+     blanca fija sobre el pill. */
+  .logro-brillo {
+    display: none;
   }
 
   /* El number-flow deja de rodar: el dígito correcto ya está en su lugar. */
@@ -330,7 +400,7 @@ html[data-tema="claro"] {
 
 /* Kicker: PRÓXIMA CLASE, CLASES DE HOY, … */
 @utility kicker {
-  font-family: var(--font-mono);
+  font-family: var(--fuente-mono);
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -435,7 +505,7 @@ html[data-tema="claro"] {
 }
 
 .prosa code {
-  font-family: var(--font-mono);
+  font-family: var(--fuente-mono);
   font-size: 12.5px;
   background: var(--bg);
   border: 1px solid var(--bor);
@@ -444,7 +514,7 @@ html[data-tema="claro"] {
 }
 
 .prosa pre {
-  font-family: var(--font-mono);
+  font-family: var(--fuente-mono);
   font-size: 12.5px;
   background: var(--bg);
   border: 1px solid var(--bor);
@@ -510,9 +580,14 @@ html[data-tema="claro"] {
 .prosa figure.video figcaption {
   margin-top: 5px;
   color: var(--tx3);
-  font-family: var(--font-mono);
+  font-family: var(--fuente-mono);
   font-size: 11px;
   line-height: 1.4;
+}
+
+/* Las diapositivas de SlideShare son 595x485, no 16:9 */
+.prosa iframe.slides {
+  aspect-ratio: 595 / 485;
 }
 
 /* Los iframes que sobreviven al sanitizador (YouTube / Vimeo) van 16:9 */

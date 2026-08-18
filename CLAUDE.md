@@ -5,8 +5,14 @@ App personal (un solo usuario) para organizar una cursada nocturna. **Desktop-fi
 ## Stack
 - Next.js 15 (App Router) + TypeScript estricto. **Sin `src/`** — `app/`, `lib/`, `components/` en la raíz. Alias `@/*`.
 - Tailwind v4 (config en CSS vía `@theme` en `app/globals.css`, no hay `tailwind.config`).
-- Supabase (`@supabase/supabase-js` + `@supabase/ssr`) para datos. `zod` para validación, `lucide-react` para íconos, `vitest` para tests.
+- `zod` para validación, `lucide-react` para íconos, `date-fns`/`date-fns-tz` para fechas, `sanitize-html` para el contenido del aula, `vitest` para tests. **Nada más** — si una dependencia no la usa nadie, se va.
 - **Nada de librería de estado global** (ni Redux, ni Zustand). Estado de servidor + estado local de componentes.
+- **No hay base de datos.** Todo sale de la API del aula virtual (Moodle) y vive en `datos/`. Se sacó el camino Supabase entero (estaba muerto: las env vars nunca estuvieron puestas). No volver a agregar un ORM ni un cliente de base "por las dudas".
+
+## Datos
+- **Snapshot + overlays.** `datos/aula-virtual.json` es lo que devuelve la API (lo regenera cada sync). Lo que la API **no** expone y edita el usuario va en overlays que el sync nunca pisa: `horarios.json`, `materias-extra.json` (profe/aula/color), `bloques.json` (las notas), `avisos-estado.json`, `perfil.json`. Son **irrecuperables** — no se borran ni se regeneran.
+- `lib/datos-locales.ts` mergea snapshot + overlays y **cachea en memoria invalidando por `mtime`**: una página no re-parsea el JSON en cada request. Si agregás un overlay, sumalo a la lista de `getDatosLocales()` o el caché se queda viejo.
+- Las páginas leen por `lib/queries.ts` (la puerta de lectura), no directo de `datos-locales`.
 
 ## Autenticación
 - Se entra con **el usuario y la contraseña del aula virtual** (Moodle): `app/actions-sesion.ts` pide el token a `/login/token.php`, lo guarda en `datos/moodle.json` y abre la sesión (cookie `cursada_sesion`, 30 días, hash en `datos/sesiones.json`).
@@ -33,3 +39,13 @@ App personal (un solo usuario) para organizar una cursada nocturna. **Desktop-fi
 ## Copy
 - Español rioplatense **con voseo** ("Anotá", "Cargá tus materias", "Hoy no cursás").
 - Los textos son EXACTOS los del handoff — no parafrasear ni "corregir" a tuteo/neutro.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

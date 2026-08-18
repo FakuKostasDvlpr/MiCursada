@@ -4,8 +4,7 @@ import { Bell, BookOpen, Calendar, Moon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CerrarSesion } from '@/components/cerrar-sesion';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { IconoGrafo } from '@/components/icono-grafo';
 import { INSTITUTO, SEDE_Y_TURNO } from '@/lib/instituto';
 
 const ITEMS = [
@@ -13,6 +12,7 @@ const ITEMS = [
   { href: '/semana', label: 'Semana', Icono: Calendar },
   { href: '/materias', label: 'Materias', Icono: BookOpen },
   { href: '/avisos', label: 'Avisos', Icono: Bell },
+  { href: '/grafo', label: 'Grafo', Icono: IconoGrafo },
 ] as const;
 
 type Props = {
@@ -71,8 +71,9 @@ export function Sidebar({ nombre, iniciales, avatarUrl = null }: Props) {
         })}
       </nav>
 
+      {/* Abajo va SOLO el perfil: el tema y el cerrar sesión viven en el header
+          de Hoy (interruptor + menú del avatar), como en el prototipo. */}
       <div className="mt-auto flex flex-col gap-1">
-        <ThemeToggle variante="sidebar" />
         <Link
           href="/perfil"
           className="flex min-h-12 items-center gap-[11px] rounded-[11px] px-3 !text-tx"
@@ -98,7 +99,6 @@ export function Sidebar({ nombre, iniciales, avatarUrl = null }: Props) {
             <span className="block truncate text-[11px] text-tx3">Tu perfil</span>
           </span>
         </Link>
-        <CerrarSesion variante="sidebar" />
       </div>
     </aside>
   );

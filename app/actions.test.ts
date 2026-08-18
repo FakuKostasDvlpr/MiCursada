@@ -1,4 +1,4 @@
-// Ruta local de las Server Actions (sin Supabase configurado): que persistan de
+// Server Actions contra los overlays de datos/: que persistan de
 // verdad en datos/ y devuelvan el copy exacto. Cada test usa su propio tmpdir.
 
 import fs from 'node:fs/promises';
@@ -60,8 +60,6 @@ let dir: string;
 beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cursada-actions-'));
   process.env.CURSADA_DATOS_DIR = dir;
-  delete process.env.NEXT_PUBLIC_SUPABASE_URL;
-  delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   await fs.writeFile(rutaDatos('snapshot'), JSON.stringify(SNAPSHOT), 'utf8');
   cookie.token = await crearSesion('Test');
 });
@@ -252,6 +250,22 @@ describe('bloques (local)', () => {
       ok: false,
       error: 'Datos inválidos.',
     });
+  });
+
+  it('convierte el tipo de un bloque conservando el texto', async () => {
+    // El "Convertir en" del modal de card: cambiar de tipo no vacía lo escrito
+    // (el prototipo sí lo vacía, ver spec modal-de-card §2).
+    await crearBloque('curso:2756', { tipo: 'texto', texto: 'Apunte del parcial' });
+    const id = (await bloques())[0]!.id;
+
+    expect(await actualizarBloque(id, { tipo: 'tarea' })).toEqual({ ok: true });
+    expect((await bloques())[0]).toMatchObject({ tipo: 'tarea', texto: 'Apunte del parcial' });
+
+    expect(await actualizarBloque(id, { tipo: 'pagina' as 'texto' })).toEqual({
+      ok: false,
+      error: 'Datos inválidos.',
+    });
+    expect((await bloques())[0]).toMatchObject({ tipo: 'tarea' });
   });
 
   it('avisa cuando el bloque ya no existe', async () => {

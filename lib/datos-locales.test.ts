@@ -1,4 +1,4 @@
-// Overlays locales (modo sin Supabase). Cada test corre contra un tmpdir propio
+// Overlays locales. Cada test corre contra un tmpdir propio
 // apuntado con CURSADA_DATOS_DIR, así no toca los datos reales de datos/.
 
 import fs from 'node:fs/promises';
@@ -61,10 +61,13 @@ afterEach(async () => {
 const leer = async (cual: Parameters<typeof rutaDatos>[0]) =>
   JSON.parse(await fs.readFile(rutaDatos(cual), 'utf8'));
 
+const escribir = async (cual: Parameters<typeof rutaDatos>[0], datos: unknown) =>
+  fs.writeFile(rutaDatos(cual), JSON.stringify(datos), 'utf8');
+
 describe('esManual', () => {
   it('distingue las filas del aula virtual de las manuales', () => {
     expect(esManual('manual:2f1a-...')).toBe(true);
-    // uuid pelado = fila de Supabase
+    // uuid pelado, sin prefijo de Moodle
     expect(esManual('7b7b1f8e-0f6a-4a1f-9f0e-1f2a3b4c5d6e')).toBe(true);
     expect(esManual('mod:9001')).toBe(false);
     expect(esManual('assign:14782')).toBe(false);
@@ -199,6 +202,47 @@ describe('avisos-manuales.json', () => {
   });
 });
 
+describe('avisos nacidos de una nota', () => {
+  it('guarda notaId y lo devuelve en el merge', async () => {
+    const id = await crearAvisoLocal({
+      materiaId: 'curso:2756',
+      titulo: 'Terminar el TP',
+      fecha: '2026-08-25',
+      notaId: 'manual:bloque-1',
+    });
+
+    const { avisos } = await getDatosLocales();
+    expect(avisos.find((a) => a.id === id)).toMatchObject({ notaId: 'manual:bloque-1' });
+  });
+
+  it('un aviso sin nota queda con notaId null', async () => {
+    const id = await crearAvisoLocal({
+      materiaId: null,
+      titulo: 'Suelto',
+      fecha: '2026-08-25',
+    });
+
+    const { avisos } = await getDatosLocales();
+    expect(avisos.find((a) => a.id === id)!.notaId).toBeNull();
+  });
+
+  it('marcarlo hecho no pierde el vínculo con la nota', async () => {
+    const id = await crearAvisoLocal({
+      materiaId: 'curso:2756',
+      titulo: 'Con nota',
+      fecha: '2026-08-25',
+      notaId: 'manual:bloque-1',
+    });
+    await escribirEstadoAviso(id, true);
+
+    const { avisos } = await getDatosLocales();
+    expect(avisos.find((a) => a.id === id)).toMatchObject({
+      hecho: true,
+      notaId: 'manual:bloque-1',
+    });
+  });
+});
+
 describe('bloques.json', () => {
   it('crea bloques con orden en huecos de 1000 y los mergea en la materia', async () => {
     const uno = await crearBloqueLocal('curso:2756', { tipo: 'titulo', texto: 'Unidad 1' });
@@ -243,6 +287,73 @@ describe('bloques.json', () => {
     expect(await eliminarBloqueLocal(id)).toBe(true);
     expect(await leer('bloques')).toEqual({});
     expect((await getDatosLocales()).materias[0]!.bloques).toHaveLength(0);
+  });
+
+  // El overlay es irrecuperable y el schema descarta lo que no declara: si `fmt`
+  // o `ref` no sobreviven a un guardado posterior, se pierden sin aviso.
+  it('conserva fmt y ref al releer y al guardar de nuevo', async () => {
+    const id = await crearBloqueLocal('curso:2756', {
+      tipo: 'texto',
+      texto: 'Con cita',
+      ref: { tipo: 'materia', id: 'curso:2775' },
+    });
+    await actualizarBloqueLocal(id, { fmt: { b: true, hl: true } });
+
+    const { materias } = await getDatosLocales();
+    expect(materias[0]!.bloques[0]).toMatchObject({
+      fmt: { b: true, hl: true },
+      ref: { tipo: 'materia', id: 'curso:2775' },
+    });
+
+    // Un guardado que no menciona los campos nuevos no los puede borrar.
+    await actualizarBloqueLocal(id, { texto: 'Editado' });
+    const guardados = await leer('bloques');
+    expect(guardados['curso:2756'][0]).toMatchObject({
+      texto: 'Editado',
+      fmt: { b: true, hl: true },
+      ref: { tipo: 'materia', id: 'curso:2775' },
+    });
+  });
+
+  it('quita la referencia con ref: null', async () => {
+    const id = await crearBloqueLocal('curso:2756', {
+      tipo: 'texto',
+      ref: { tipo: 'modulo', id: 'mod:146532' },
+    });
+    await actualizarBloqueLocal(id, { ref: null });
+
+    const { materias } = await getDatosLocales();
+    expect(materias[0]!.bloques[0]!.ref).toBeNull();
+  });
+
+  it('convierte el tipo de un bloque ya escrito sin tocar el texto', async () => {
+    const id = await crearBloqueLocal('curso:2756', { tipo: 'texto', texto: 'Leer el TP' });
+    expect(await actualizarBloqueLocal(id, { tipo: 'tarea' })).toBe(true);
+
+    const { materias } = await getDatosLocales();
+    expect(materias[0]!.bloques[0]).toMatchObject({ tipo: 'tarea', texto: 'Leer el TP' });
+  });
+
+  it('un bloque viejo sin fmt ni ref sigue leyéndose', async () => {
+    await escribir('bloques', {
+      'curso:2756': [
+        {
+          id: 'manual:viejo',
+          materiaId: 'curso:2756',
+          tipo: 'texto',
+          texto: 'De antes',
+          url: '',
+          estado: 'pendiente',
+          hecho: false,
+          orden: 1000,
+          createdAt: '2026-08-17T02:18:48.719Z',
+        },
+      ],
+    });
+
+    const { materias } = await getDatosLocales();
+    expect(materias[0]!.bloques[0]).toMatchObject({ texto: 'De antes' });
+    expect(materias[0]!.bloques[0]!.fmt).toBeUndefined();
   });
 
   it('reordena por orden', async () => {
@@ -328,5 +439,70 @@ describe('caché', () => {
   it('sin overlays no crea archivos de más', async () => {
     await getDatosLocales();
     expect(await fs.readdir(dir)).toEqual(['aula-virtual.json']);
+  });
+});
+
+describe('finalización: del snapshot a la app', () => {
+  // Este bug ya pasó una vez: `hecho` y `requisitos` se agregaron al snapshot y
+  // al tipo de dominio, pero NO al schema de lectura ni al mapeo de módulos.
+  // Zod descarta lo que no declara y el mapeo copia campo por campo, así que el
+  // dato se perdía DOS veces, en silencio y sin romper ningún test.
+  const conFinalizacion = {
+    ...SNAPSHOT,
+    materias: [
+      {
+        ...SNAPSHOT.materias[0],
+        secciones: [
+          {
+            nombre: 'Unidad 1',
+            modulos: [
+              {
+                id: 'mod:1',
+                nombre: 'Visto',
+                tipo: 'resource',
+                url: 'https://aula/mod/resource/view.php?id=1',
+                hecho: true,
+                requisitos: [{ texto: 'Ver', cumplido: true }],
+              },
+              {
+                id: 'mod:2',
+                nombre: 'Pendiente',
+                tipo: 'assign',
+                url: 'https://aula/mod/assign/view.php?id=2',
+                hecho: false,
+                requisitos: [{ texto: 'Hacer un envío', cumplido: false }],
+              },
+              {
+                id: 'mod:3',
+                nombre: 'Sin seguimiento',
+                tipo: 'url',
+                url: 'https://aula/mod/url/view.php?id=3',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  it('conserva hecho=true, hecho=false y la ausencia de seguimiento', async () => {
+    await fs.writeFile(rutaDatos('snapshot'), JSON.stringify(conFinalizacion), 'utf8');
+
+    const { materias } = await getDatosLocales();
+    const modulos = materias[0]?.secciones?.[0]?.modulos ?? [];
+
+    // `false` es el que se perdía con el patrón truthy del resto del mapeo.
+    expect(modulos.map((m) => m.hecho)).toEqual([true, false, undefined]);
+  });
+
+  it('conserva las condiciones de finalización con su estado', async () => {
+    await fs.writeFile(rutaDatos('snapshot'), JSON.stringify(conFinalizacion), 'utf8');
+
+    const { materias } = await getDatosLocales();
+    const modulos = materias[0]?.secciones?.[0]?.modulos ?? [];
+
+    expect(modulos[0]?.requisitos).toEqual([{ texto: 'Ver', cumplido: true }]);
+    expect(modulos[1]?.requisitos).toEqual([{ texto: 'Hacer un envío', cumplido: false }]);
+    expect(modulos[2]?.requisitos).toBeUndefined();
   });
 });

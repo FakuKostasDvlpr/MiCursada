@@ -7,8 +7,11 @@ import { cerrarSesion } from '@/app/actions-sesion';
 import { Modal } from '@/components/modal';
 
 type Props = {
-  /** 'sidebar' = fila de la nav lateral. 'boton' = botón full-width (perfil). */
-  variante?: 'sidebar' | 'boton';
+  /**
+   * 'menu' = fila del menú del avatar (header de Hoy). 'sidebar' = fila de la
+   * nav lateral. 'boton' = botón full-width (perfil).
+   */
+  variante?: 'menu' | 'sidebar' | 'boton';
 };
 
 /**
@@ -25,7 +28,17 @@ export function CerrarSesion({ variante = 'boton' }: Props) {
 
   return (
     <>
-      {variante === 'sidebar' ? (
+      {variante === 'menu' ? (
+        <button
+          type="button"
+          onClick={() => setAbierto(true)}
+          className="flex min-h-[42px] w-full cursor-pointer items-center gap-[9px] rounded-[10px] px-[10px] text-left text-[13.5px] font-bold hover:bg-[rgba(251,113,133,.12)]"
+          style={{ color: '#fb7185' }}
+        >
+          <LogOut size={15} strokeWidth={2} aria-hidden />
+          Cerrar sesión
+        </button>
+      ) : variante === 'sidebar' ? (
         <button
           type="button"
           onClick={() => setAbierto(true)}

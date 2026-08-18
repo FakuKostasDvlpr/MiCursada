@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
@@ -12,6 +11,7 @@ import {
 } from '@/components/aula-virtual';
 import { TileAsistencia } from '@/components/asistencia';
 import { CifraRodante } from '@/components/cifra-rodante';
+import { MenuPerfil } from '@/components/menu-perfil';
 import { Saludo } from '@/components/saludo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
@@ -23,7 +23,6 @@ import {
   statsBento,
   textoEstado,
 } from '@/lib/cursada';
-import { INSTITUTO } from '@/lib/instituto';
 import type { Aviso, Materia } from '@/lib/types';
 
 /** 'YYYY-MM-DD' → 'dd/mm'. */
@@ -36,6 +35,8 @@ type Props = {
   nombre: string;
   iniciales: string;
   avatarUrl?: string | null;
+  /** Instituto que informa el aula virtual: segunda línea del menú del avatar. */
+  instituto?: string | null;
   /** Instante del render en el server, para hidratar sin desajuste. */
   inicialIso: string;
   /** ISO de la última sincronización con el aula virtual, o null si nunca corrió. */
@@ -53,6 +54,7 @@ export function HoyLive({
   nombre,
   iniciales,
   avatarUrl = null,
+  instituto = null,
   inicialIso,
   syncIso = null,
 }: Props) {
@@ -77,21 +79,6 @@ export function HoyLive({
     <>
       <header className="flex items-start gap-[10px]">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            {/* El logo es azul sobre blanco: en tema oscuro se perdería, así
-                que va sobre un chip blanco (idéntico en ambos temas). */}
-            <span className="flex shrink-0 items-center rounded-md bg-white px-[6px] py-[3px]">
-              <Image
-                src={INSTITUTO.logo}
-                alt={INSTITUTO.logoAlt}
-                width={INSTITUTO.logoAncho}
-                height={INSTITUTO.logoAlto}
-                priority
-                className="h-[16px] w-auto"
-              />
-            </span>
-            <div className="kicker min-w-0 truncate tracking-[0.1em]">{INSTITUTO.carrera}</div>
-          </div>
           <Saludo nombre={nombre} />
           <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.015em]">
             {fechaLargaHoy(ahora)}
@@ -103,22 +90,16 @@ export function HoyLive({
           detalles={detalles}
           onAbrirPanel={() => setPanel(true)}
         />
-        {/* En desktop el tema y el perfil viven en la sidebar. */}
-        <div className="flex items-start gap-[10px] min-[641px]:hidden">
-          <ThemeToggle />
-          <Link
-            href="/perfil"
-            aria-label="Tu perfil"
-            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-[#fbbf24] text-[13px] font-extrabold !text-[#221a00]"
-          >
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              iniciales || '·'
-            )}
-          </Link>
-        </div>
+        {/* El interruptor de tema y el avatar viven acá en los dos tamaños: en
+            el prototipo el header de Hoy los tiene siempre, y la sidebar abajo
+            solo lleva el perfil. */}
+        <ThemeToggle variante="switch" />
+        <MenuPerfil
+          nombre={nombre}
+          iniciales={iniciales}
+          avatarUrl={avatarUrl}
+          segunda={instituto}
+        />
       </header>
 
       {/* Bento: 2 columnas en móvil, 4 en desktop (hero 1/3, stats en 3 y 4,

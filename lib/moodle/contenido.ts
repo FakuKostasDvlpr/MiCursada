@@ -20,7 +20,7 @@
  * SOLO SERVIDOR (parte de lib/moodle/).
  */
 import sanitizeHtml from 'sanitize-html';
-import { urlEmbed, urlEmbedVimeo } from '@/lib/embebido';
+import { urlEmbed, urlEmbedSlideShare, urlEmbedVimeo } from '@/lib/embebido';
 import { decodificarHtml } from './normalizar';
 
 // ─── refs opacas ─────────────────────────────────────────────────────────────
@@ -206,6 +206,41 @@ export function videoVimeo(crudo: string | null | undefined): string | null {
   return /^\d{6,12}$/.test(id) ? id : null;
 }
 
+// ─── SlideShare ──────────────────────────────────────────────────────────────
+
+const HOSTS_SLIDESHARE = new Set(['slideshare.net', 'www.slideshare.net']);
+
+/** La `key` de un embed son letras y números (ej: "D4Lx71futWdQ4D"). */
+const RE_KEY_SLIDESHARE = /^[A-Za-z0-9]{6,40}$/;
+
+/**
+ * La `key` del código de embed de SlideShare, o null.
+ *
+ * Solo reconoce la URL de embed (`/slideshow/embed_code/key/{key}`), que es la
+ * que trae el `<iframe>` que pega el profe. El link público de la presentación
+ * (`/Matiaskb16/clasificacion-de-los-numeros`) NO alcanza: la key no se deriva
+ * del slug sin llamar a la API de SlideShare, así que esos `<a>` se dejan como
+ * links y listo — no se inventa un embed.
+ *
+ * El `src` suele venir protocol-relative (`//www.slideshare.net/…`), que es como
+ * lo generaba SlideShare: se normaliza a https.
+ */
+export function keySlideShare(crudo: string | null | undefined): string | null {
+  if (!crudo) return null;
+  const texto = crudo.trim();
+  let u: URL;
+  try {
+    u = new URL(texto.startsWith('//') ? `https:${texto}` : texto);
+  } catch {
+    return null;
+  }
+  if (!HOSTS_SLIDESHARE.has(u.hostname.toLowerCase())) return null;
+  const partes = u.pathname.split('/').filter(Boolean);
+  if (partes[0] !== 'slideshow' || partes[1] !== 'embed_code' || partes[2] !== 'key') return null;
+  const key = partes[3] ?? '';
+  return RE_KEY_SLIDESHARE.test(key) ? key : null;
+}
+
 // ─── links de video → URL de embed ───────────────────────────────────────────
 
 /** "90", "90s", "1m30s", "1h2m3s" → segundos. null si no se entiende. */
@@ -281,11 +316,15 @@ const ETIQUETAS = [
   'hr',
 ];
 
-/** Único origen de iframes permitido, después de reescribir YouTube a nocookie. */
+/** Únicos orígenes de iframe permitidos, después de reescribir cada src. */
 const PREFIJOS_IFRAME_OK = [
   'https://www.youtube-nocookie.com/embed/',
   'https://player.vimeo.com/video/',
+  'https://www.slideshare.net/slideshow/embed_code/key/',
 ];
+
+/** Los mismos prefijos, pero solo los que sirven para un player de VIDEO. */
+const PREFIJOS_VIDEO_OK = PREFIJOS_IFRAME_OK.slice(0, 2);
 
 /** ¿Es una URL de archivo servido por Moodle (necesita token)? */
 export function esPluginfile(src: string): boolean {
@@ -313,7 +352,7 @@ function opciones(o: OpcionesSanitizar): sanitizeHtml.IOptions {
     allowedAttributes: {
       a: ['href', 'title', 'target', 'rel'],
       img: ['src', 'alt', 'width', 'height'],
-      iframe: ['src', 'width', 'height', 'allowfullscreen'],
+      iframe: ['src', 'class', 'width', 'height', 'allowfullscreen'],
     },
     // `javascript:` / `data:` quedan afuera por no estar en la lista.
     allowedSchemes: ['http', 'https', 'mailto'],
@@ -340,17 +379,26 @@ function opciones(o: OpcionesSanitizar): sanitizeHtml.IOptions {
         };
       },
       iframe: (nombre, attribs) => {
-        const video = videoYoutube(attribs.src ?? '');
+        const crudo = attribs.src ?? '';
+        const video = videoYoutube(crudo);
+        // La presentación de SlideShare venía protocol-relative: sin
+        // normalizarla acá, `allowProtocolRelative: false` la mata y el material
+        // desaparece de la app.
+        const key = keySlideShare(crudo);
         const src =
           video !== null
             ? urlEmbed(video)
-            : /^https:\/\/player\.vimeo\.com\/video\//i.test(attribs.src ?? '')
-              ? (attribs.src as string)
-              : '';
+            : key !== null
+              ? urlEmbedSlideShare(key)
+              : /^https:\/\/player\.vimeo\.com\/video\//i.test(crudo)
+                ? crudo
+                : '';
         return {
           tagName: 'iframe',
           attribs: {
             src,
+            // Las diapositivas no son 16:9: la clase le da su relación propia.
+            ...(key !== null ? { class: 'slides' } : {}),
             ...(attribs.width ? { width: attribs.width } : {}),
             ...(attribs.height ? { height: attribs.height } : {}),
             allowfullscreen: '',
@@ -438,7 +486,7 @@ function textoDeLink(interior: string): string {
 
 /** `<figure class="video">` con el player y la leyenda (el texto del link, tal cual). */
 function figuraVideo(src: string, interior: string): string | null {
-  if (!PREFIJOS_IFRAME_OK.some((p) => src.startsWith(p))) return null;
+  if (!PREFIJOS_VIDEO_OK.some((p) => src.startsWith(p))) return null;
   const texto = textoDeLink(interior);
   const attr = src.replace(/&/g, '&amp;');
   const titulo = (texto === '' ? 'Video' : texto).replace(/"/g, '&quot;');

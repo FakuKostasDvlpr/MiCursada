@@ -18,11 +18,16 @@ import { z } from 'zod';
 import { rutaDatos } from '@/lib/datos-locales';
 import { RE_REF } from '@/lib/moodle/contenido';
 import { leerCredenciales } from '@/lib/moodle/credenciales';
+import { cabeceraContentRange, headerRangoUpstream, parsearRango } from '@/lib/rango';
 import { hayAcceso } from '@/lib/sesion-actual';
 
 export const dynamic = 'force-dynamic';
 
-/** Tope de descarga: más que esto no se previsualiza en el celular igual. */
+/**
+ * Tope de descarga COMPLETA: más que esto no se previsualiza en el celular
+ * igual. No aplica a los pedidos con `Range`, que traen un tramo acotado: así un
+ * video largo se puede mirar aunque el archivo entero pase los 25 MB.
+ */
 const MAX_BYTES = 25 * 1024 * 1024;
 
 const refSchema = z.string().regex(RE_REF);
@@ -32,10 +37,24 @@ const indiceSchema = z.record(
   z.object({ url: z.string(), nombre: z.string().default(''), mime: z.string().default('') })
 );
 
-/** Nombre de archivo seguro para Content-Disposition (ASCII, sin comillas). */
-function nombreSeguro(nombre: string): string {
-  const limpio = nombre.replace(/[\r\n"\\]/g, '').trim();
-  return limpio === '' ? 'archivo' : limpio;
+/**
+ * `Content-Disposition` con el nombre real del archivo.
+ *
+ * Las cabeceras HTTP son ByteString: un solo carácter fuera de latin-1 hace
+ * explotar `new Response` con un 500 (pasaba con "Modularización.mp4" — la
+ * tilde combinante U+0301). Por eso van los dos formatos del RFC 6266: un
+ * `filename` ASCII de respaldo y un `filename*` UTF-8 percent-encoded, que es
+ * el que usan todos los browsers modernos.
+ */
+function contentDisposition(nombre: string): string {
+  const limpio = nombre.replace(/[\r\n"\\]/g, '').trim() || 'archivo';
+  // NFKD + quitar diacríticos: "Modularización" → "Modularizacion".
+  const ascii =
+    limpio
+      .normalize('NFKD')
+      .replace(/[^\x20-\x7E]/g, '')
+      .trim() || 'archivo';
+  return `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(limpio)}`;
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -74,26 +93,53 @@ export async function GET(request: Request): Promise<Response> {
   }
   destino.searchParams.set('token', cred.token);
 
+  // El browser manda `Range: bytes=0-` al abrir un <video>: se traduce a una
+  // ventana acotada (lib/rango.ts) y se le pide ESO a Moodle.
+  const pedido = parsearRango(request.headers.get('range'), null);
+  if (pedido === 'invalido') {
+    return new Response('Rango inválido', { status: 416, headers: { 'Accept-Ranges': 'bytes' } });
+  }
+
   let upstream: Response;
   try {
-    upstream = await fetch(destino, { cache: 'no-store' });
+    upstream = await fetch(destino, {
+      cache: 'no-store',
+      ...(pedido === null ? {} : { headers: { Range: headerRangoUpstream(pedido) } }),
+    });
   } catch {
     // Ojo: el mensaje del error de red incluiría la URL (con el token).
     return new Response('No pudimos conectarnos al aula virtual', { status: 502 });
+  }
+  // Moodle sí puede saber que el tramo no existe (nosotros no sabíamos el
+  // tamaño antes de pedirlo): su 416 se pasa tal cual.
+  if (upstream.status === 416) {
+    return new Response('Rango inválido', {
+      status: 416,
+      headers: {
+        'Accept-Ranges': 'bytes',
+        ...(upstream.headers.get('content-range') === null
+          ? {}
+          : { 'Content-Range': upstream.headers.get('content-range') as string }),
+      },
+    });
   }
   if (!upstream.ok || upstream.body === null) {
     return new Response('El aula virtual no devolvió el archivo', { status: 502 });
   }
 
+  const contentRangeUpstream = upstream.headers.get('content-range');
+  // Un 206 sin Content-Range no es usable: se trata como respuesta completa.
+  const parcial = upstream.status === 206 && contentRangeUpstream !== null;
+  // El tope de 25 MB es para la descarga entera; un tramo ya viene acotado.
   const declarado = Number(upstream.headers.get('content-length') ?? '0');
-  if (Number.isFinite(declarado) && declarado > MAX_BYTES) {
+  if (!parcial && Number.isFinite(declarado) && declarado > MAX_BYTES) {
     return new Response('El archivo es muy grande para verlo acá (más de 25 MB).', {
       status: 413,
     });
   }
 
   const datos = new Uint8Array(await upstream.arrayBuffer());
-  if (datos.byteLength > MAX_BYTES) {
+  if (!parcial && datos.byteLength > MAX_BYTES) {
     return new Response('El archivo es muy grande para verlo acá (más de 25 MB).', {
       status: 413,
     });
@@ -101,14 +147,52 @@ export async function GET(request: Request): Promise<Response> {
 
   const tipo =
     upstream.headers.get('content-type') ?? (entrada.mime || 'application/octet-stream');
+  const comunes = {
+    'Content-Type': tipo,
+    // inline para que el PDF se pueda previsualizar en un <iframe>.
+    'Content-Disposition': contentDisposition(entrada.nombre),
+    'Cache-Control': 'private, max-age=3600',
+    'X-Content-Type-Options': 'nosniff',
+    // Se anuncia SIEMPRE: sin esto Safari ni intenta pedir tramos.
+    'Accept-Ranges': 'bytes',
+  };
+
+  if (parcial) {
+    // Moodle entendió el Range: se pasa su Content-Range tal cual (es la única
+    // fuente confiable del total del archivo).
+    return new Response(datos, {
+      status: 206,
+      headers: {
+        ...comunes,
+        'Content-Range': contentRangeUpstream,
+        'Content-Length': String(datos.byteLength),
+      },
+    });
+  }
+
+  if (pedido !== null) {
+    // Moodle ignoró el Range y mandó todo: recortamos nosotros, así el <video>
+    // igual puede adelantar.
+    const total = datos.byteLength;
+    const rango = parsearRango(request.headers.get('range'), total);
+    if (rango === 'invalido' || rango === null) {
+      return new Response('Rango inválido', {
+        status: 416,
+        headers: { 'Accept-Ranges': 'bytes', 'Content-Range': `bytes */${total}` },
+      });
+    }
+    const tramo = datos.slice(rango.inicio, rango.fin + 1);
+    return new Response(tramo, {
+      status: 206,
+      headers: {
+        ...comunes,
+        'Content-Range': cabeceraContentRange(rango, total),
+        'Content-Length': String(tramo.byteLength),
+      },
+    });
+  }
+
   return new Response(datos, {
-    headers: {
-      'Content-Type': tipo,
-      // inline para que el PDF se pueda previsualizar en un <iframe>.
-      'Content-Disposition': `inline; filename="${nombreSeguro(entrada.nombre)}"`,
-      'Content-Length': String(datos.byteLength),
-      'Cache-Control': 'private, max-age=3600',
-      'X-Content-Type-Options': 'nosniff',
-    },
+    headers: { ...comunes, 'Content-Length': String(datos.byteLength) },
   });
 }

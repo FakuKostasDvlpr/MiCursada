@@ -120,16 +120,21 @@ export function LoginEntrada() {
 
   return (
     <div
-      className={`mx-auto flex min-h-[calc(100dvh-160px)] w-full flex-col items-stretch justify-center max-[640px]:max-w-[440px] min-[641px]:max-w-[840px] min-[641px]:flex-row min-[641px]:items-center ${
+      // items-stretch y NADA de min-height acá: las dos cards tienen que medir
+      // lo mismo, y el alto de la escena lo pone el <main> de /login. Con el
+      // min-height en esta fila, las cards se estiraban a todo el viewport.
+      className={`mx-auto flex w-full flex-col items-stretch justify-center max-[640px]:max-w-[440px] min-[641px]:max-w-[840px] min-[641px]:flex-row ${
         colapsado ? 'gap-0' : 'gap-[14px]'
       } transicion-card`}
     >
       {/* --- Card A: identidad. Nunca se desmonta; su cuerpo releva tres capas. --- */}
       <div
-        className="card-in transicion-card mx-auto w-full basis-0 rounded-[20px] border border-bor bg-sup px-[30px] py-[34px]"
-        style={{ flexGrow: colapsado ? 1.05 : 1.05, maxWidth: colapsado ? 620 : undefined }}
+        className={`card-in transicion-card mx-auto flex w-full basis-0 flex-col rounded-[20px] border border-bor bg-sup px-[30px] ${
+          colapsado ? 'justify-center py-[22px]' : 'py-[34px]'
+        }`}
+        style={{ flexGrow: 1.05, maxWidth: colapsado ? 620 : undefined }}
       >
-        <span className="inline-flex items-center rounded-[14px] bg-white px-5 py-4">
+        <span className="inline-flex items-center self-start rounded-[14px] bg-white px-5 py-4">
           <Image
             src={INSTITUTO.logo}
             alt={INSTITUTO.logoAlt}
@@ -141,7 +146,9 @@ export function LoginEntrada() {
         </span>
 
         <div
-          className="transicion-alto relative mt-[34px]"
+          // mt-auto: el bloque de identidad se apoya abajo de la card, así la
+          // card A puede medir lo mismo que la del formulario sin quedar hueca.
+          className={`transicion-alto relative ${colapsado ? 'pt-4' : 'mt-auto pt-6'}`}
           style={{ minHeight: altoCuerpo(fase) }}
         >
           {/* Capa 1 — identidad */}
@@ -189,38 +196,51 @@ export function LoginEntrada() {
             }
           >
             <div className="flex items-center gap-2">
-              <span aria-hidden className="dot-pulso h-[6px] w-[6px] rounded-full bg-acc-bg" />
+              {/* El dot es un acento, no un fondo de botón: va en --acc (que en
+                  claro se oscurece), como el prototipo. */}
+              <span aria-hidden className="dot-pulso h-[6px] w-[6px] rounded-full bg-acc" />
               <span className="kicker">Trayendo tus datos del aula virtual</span>
             </div>
-            <div className="mt-3 text-[26px] leading-[1.15] font-extrabold tracking-[-0.015em]">
+            <div className="mt-2 text-[26px] leading-[1.2] font-extrabold tracking-[-0.02em]">
               {nombre}
             </div>
-            <div className="mt-1 font-mono text-[13px] text-tx2">{SEDE_Y_TURNO}</div>
-            <dl className="mt-5 flex flex-col gap-[10px]">
+            <div className="mt-[7px] font-mono text-[13px] text-tx2">{SEDE_Y_TURNO}</div>
+            {/* Tres chips sobre --bg, no filas subrayadas: el label va a la
+                izquierda con ancho fijo de 74px y el valor pegado a él. */}
+            <dl className="mt-5 flex flex-col gap-2">
               {[
-                { k: 'Carrera', v: INSTITUTO.carrera, verde: false },
+                { k: 'Carrera', v: INSTITUTO.carrera, tipo: 'fuerte' as const },
                 {
                   k: 'Materias',
                   v: materias === null ? 'buscando…' : `${materias} activas`,
-                  verde: false,
+                  tipo: 'mono' as const,
                 },
                 {
                   k: 'Estado',
                   v: materias === null ? 'Sincronizando…' : 'Sincronizado',
-                  verde: materias !== null,
+                  tipo: materias === null ? ('mono' as const) : ('verde' as const),
                 },
               ].map((fila, i) => (
                 <div
                   key={fila.k}
-                  className="fila-in flex items-baseline justify-between gap-3 border-b border-bor pb-[10px] last:border-b-0 last:pb-0"
+                  className="fila-in flex items-center gap-3 rounded-xl border border-bor bg-bg px-[14px] py-[11px]"
                   style={{ animationDelay: `${0.2 + i * 0.2}s` }}
                 >
-                  <dt className="kicker">{fila.k}</dt>
+                  <dt className="w-[74px] shrink-0 font-mono text-[10px] font-semibold tracking-[0.12em] text-tx3 uppercase">
+                    {fila.k}
+                  </dt>
                   <dd
-                    className={`text-right text-[13.5px] font-semibold ${
-                      fila.verde ? 'text-sync-ok' : 'text-tx'
-                    }`}
+                    className={
+                      fila.tipo === 'fuerte'
+                        ? 'text-[14px] font-bold'
+                        : fila.tipo === 'verde'
+                          ? 'inline-flex items-center gap-[7px] font-mono text-[13px] text-sync-ok'
+                          : 'font-mono text-[13px] text-tx2'
+                    }
                   >
+                    {fila.tipo === 'verde' && (
+                      <span aria-hidden className="h-[6px] w-[6px] rounded-full bg-sync-ok" />
+                    )}
                     {fila.v}
                   </dd>
                 </div>
@@ -258,17 +278,24 @@ export function LoginEntrada() {
           transform: verFormulario ? 'none' : 'scale(.96)',
         }}
       >
-        <div className="min-[641px]:hidden">
-          <span className="inline-flex items-center rounded-xl bg-white px-3 py-2">
-            <Image
-              src={INSTITUTO.logo}
-              alt={INSTITUTO.logoAlt}
-              width={INSTITUTO.logoAncho}
-              height={INSTITUTO.logoAlto}
-              className="h-[34px] w-auto"
-            />
-          </span>
-        </div>
+        {/* Piso de ancho para el contenido: al colapsar, la card se va a ancho
+            ~0 pero sigue contando para el ALTO de la fila. Sin este piso el
+            formulario se reacomoda en una columna larguísima y la card A, que
+            está en items-stretch, se estira hasta el alto del viewport. Con el
+            piso el contenido no se reacomoda: se recorta (overflow-hidden) y la
+            card A no cambia de tamaño, que es lo que pide el handoff. */}
+        <div className="min-w-[300px]">
+          <div className="min-[641px]:hidden">
+            <span className="inline-flex items-center rounded-xl bg-white px-3 py-2">
+              <Image
+                src={INSTITUTO.logo}
+                alt={INSTITUTO.logoAlt}
+                width={INSTITUTO.logoAncho}
+                height={INSTITUTO.logoAlto}
+                className="h-[34px] w-auto"
+              />
+            </span>
+          </div>
 
         <div className="mt-4 min-[641px]:mt-0">
           <div className="kicker">Mi cursada</div>
@@ -356,7 +383,8 @@ export function LoginEntrada() {
           <p className="text-center font-mono text-[11px] leading-[1.5] text-tx4">
             entrá con el usuario y la contraseña del aula virtual — tu contraseña no se guarda
           </p>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   );

@@ -3,16 +3,18 @@
 import { Bell, BookOpen, Calendar, Moon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { IconoGrafo } from '@/components/icono-grafo';
 
 const ITEMS = [
   { href: '/', label: 'Hoy', Icono: Moon },
   { href: '/semana', label: 'Semana', Icono: Calendar },
   { href: '/materias', label: 'Materias', Icono: BookOpen },
   { href: '/avisos', label: 'Avisos', Icono: Bell },
+  { href: '/grafo', label: 'Grafo', Icono: IconoGrafo },
 ] as const;
 
 /**
- * Bottom nav fija de 4 pestañas (móvil ≤640px; arriba de eso manda Sidebar).
+ * Bottom nav fija de 5 pestañas (móvil ≤640px; arriba de eso manda Sidebar).
  * No se muestra en /login ni /perfil.
  */
 export function BottomNav() {
@@ -21,7 +23,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-bor bg-navbg pb-[env(safe-area-inset-bottom)] backdrop-blur-[14px] min-[641px]:hidden">
-      <div className="mx-auto grid max-w-[720px] grid-cols-4">
+      <div className="mx-auto grid max-w-[720px] grid-cols-5">
         {ITEMS.map(({ href, label, Icono }) => {
           const activa = href === '/' ? pathname === '/' : pathname.startsWith(href);
           return (

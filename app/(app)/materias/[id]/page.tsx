@@ -4,8 +4,8 @@ import { notFound } from 'next/navigation';
 import { AsistenciaMateria } from '@/components/asistencia';
 import { EditarMateria } from '@/components/editar-materia';
 import { MateriaDetalle } from '@/components/materia-detalle';
-import { nombreDia } from '@/lib/cursada';
-import { getAvisos, getMateria } from '@/lib/queries';
+import { hoyISO, nombreDia } from '@/lib/cursada';
+import { getAvisos, getMateria, getMaterias } from '@/lib/queries';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,10 +15,23 @@ export default async function PaginaDetalleMateria({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [materia, todosLosAvisos] = await Promise.all([getMateria(id), getAvisos()]);
+  const [materia, todosLosAvisos, todasLasMaterias] = await Promise.all([
+    getMateria(id),
+    getAvisos(),
+    getMaterias(),
+  ]);
   if (!materia) notFound();
 
   const avisos = todosLosAvisos.filter((a) => a.materiaId === materia.id);
+
+  // Lo citable con `@` desde una nota: además del curso, las OTRAS materias y
+  // los avisos de toda la cursada. El filtrado de "otras" y de "pendientes" lo
+  // hace `catalogoRefs`.
+  const materiasRef = todasLasMaterias.map((m) => ({
+    id: m.id,
+    nombre: m.nombre,
+    color: m.color as string,
+  }));
 
   return (
     <main>
@@ -79,7 +92,13 @@ export default async function PaginaDetalleMateria({
 
       <AsistenciaMateria materia={materia} />
 
-      <MateriaDetalle materia={materia} avisos={avisos} />
+      <MateriaDetalle
+        materia={materia}
+        avisos={avisos}
+        materiasRef={materiasRef}
+        avisosRef={todosLosAvisos}
+        hoyIso={hoyISO(new Date())}
+      />
     </main>
   );
 }

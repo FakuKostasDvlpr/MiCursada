@@ -66,10 +66,16 @@ docker compose up --build      # mismo puerto 3000, datos montados desde ./datos
 
 ## 4. Arquitectura y decisiones que conviene no revertir
 
-**Sin base de datos.** El usuario descartó Supabase. Todo vive en archivos JSON en `datos/`.
-El código igual conserva el camino Supabase completo (`lib/queries.ts`, `app/actions.ts`,
-`supabase/migrations/`) y elige según haya variables de entorno. Eso hace barata la migración
-futura a Vercel.
+**Sin base de datos.** El usuario descartó Supabase. Todo sale de la API del aula virtual y
+vive en archivos JSON en `datos/`. El **16/08/2026 se borró el camino Supabase entero**
+(`lib/supabase/`, `supabase/migrations/`, los mappers de `lib/queries.ts`, la rama Supabase de
+cada action y las deps `@supabase/supabase-js` + `@supabase/ssr`): era código inalcanzable
+—las env vars nunca estuvieron puestas— y duplicaba cada action. Está en el historial de git
+si alguna vez hace falta. **No volver a agregar un cliente de base "por las dudas".**
+
+`lib/queries.ts` quedó como la única puerta de lectura (las páginas importan de ahí, no de
+`datos-locales`), y `getDatosLocales()` cachea en memoria invalidando por `mtime`: el snapshot
+de 156 KB no se re-parsea en cada request.
 
 **Snapshot + overlays.** `datos/aula-virtual.json` es lo que viene de Moodle (se regenera en
 cada sync). Todo lo que edita el usuario vive en overlays separados que **el sync nunca pisa**.
@@ -170,8 +176,13 @@ estándar si el key se deriva de la URL; si no, dejarlo como link. Baja priorida
 - **Otra sesión trabajó en paralelo** en este repo (commits `d9efe10`, `93ee06c`, `f1aa65c`,
   `73eae30`, `7f0bd78`, `5b5318c`, `5990782`): login, logout, logo y "handoff v3". Si aparecen
   cambios inesperados en el árbol, puede ser eso.
-- **Quizzes sin descripción**: `mod_quiz_get_quizzes_by_courses` falla para el lote entero por
-  un quiz con Safe Exam Browser (`noconfigfilefound`). Habría que pedir curso por curso.
+- ~~**Quizzes sin descripción**~~: resuelto el 16/08/2026. Cuando una función `*_by_courses`
+  falla para el lote, `obtenerContenidoModulos` reintenta **curso por curso**, así que el quiz
+  con Safe Exam Browser (`noconfigfilefound`) ya no se lleva puestos a los otros 6 cursos.
+  Además `construirPlan` tolera que falle un curso entero (lo anota en `cursosFallados` y
+  sigue), y las entregas/el calendario degradan sin voltear el sync. Si **ningún** curso
+  responde, tira a propósito: no se pisa el snapshot bueno con uno vacío. Ver
+  `lib/moodle/plan-red.test.ts`.
 - **Drag & drop y vista Tablero (kanban)** de las notas: nunca se hicieron. El editor anda bien sin eso.
 - **Fase 7 del plan original**: PWA (manifest, íconos, instalable), README propio y build final.
 - URLs sueltas en el HTML de un profe quedan como texto no clickeable (módulo "Actividad" de

@@ -3,6 +3,8 @@
 import { Check, Trash2 } from 'lucide-react';
 import { useOptimistic, useState, useTransition } from 'react';
 import { eliminarAviso, toggleAviso } from '@/app/actions';
+import { NotaAviso } from '@/components/nota-aviso';
+import type { ResumenNota } from '@/lib/aviso-nota';
 import { estadoAviso } from '@/lib/cursada';
 import { esManual, type Aviso } from '@/lib/types';
 
@@ -15,12 +17,14 @@ type Props = {
   /** Avisos ordenados por fecha ascendente (como los devuelve la query). */
   avisos: Aviso[];
   materias: MateriaChip[];
+  /** Resumen de la nota que originó cada aviso, por id de aviso. */
+  notas?: Record<string, ResumenNota>;
   /** Instante del render en el server (evita desajuste de hidratación). */
   ahoraIso: string;
 };
 
 /** Lista de avisos con toggle optimista: pendientes por fecha asc + sección Hechos. */
-export function AvisosLista({ avisos, materias, ahoraIso }: Props) {
+export function AvisosLista({ avisos, materias, notas = {}, ahoraIso }: Props) {
   const [error, setError] = useState('');
   const [, startTransition] = useTransition();
   const [optimistas, aplicar] = useOptimistic(
@@ -61,6 +65,21 @@ export function AvisosLista({ avisos, materias, ahoraIso }: Props) {
       </button>
     ) : null;
 
+  /**
+   * El snippet de la nota vinculada. Va FUERA del botón de la fila: el
+   * prototipo lo mete adentro y eso es un interactivo dentro de otro.
+   */
+  const snippet = (a: Aviso) => {
+    const nota = notas[a.id];
+    if (!nota) return null;
+    const materia = materias.find((m) => m.id === a.materiaId) ?? null;
+    return (
+      <div className="px-[14px] pb-[10px]">
+        <NotaAviso {...nota} color={materia?.color ?? '#64748b'} />
+      </div>
+    );
+  };
+
   const subfila = (a: Aviso) => {
     const materia = materias.find((m) => m.id === a.materiaId) ?? null;
     return (
@@ -86,10 +105,8 @@ export function AvisosLista({ avisos, materias, ahoraIso }: Props) {
           {pendientes.map((a) => {
             const estado = estadoAviso(a, ahora);
             return (
-              <div
-                key={a.id}
-                className="flex min-h-[58px] items-center rounded-[13px] border border-bor bg-sup"
-              >
+              <div key={a.id} className="rounded-[13px] border border-bor bg-sup">
+              <div className="flex min-h-[58px] items-center">
               <button
                 type="button"
                 onClick={() => alternar(a)}
@@ -118,6 +135,8 @@ export function AvisosLista({ avisos, materias, ahoraIso }: Props) {
               </button>
                 {botonBorrar(a)}
               </div>
+                {snippet(a)}
+              </div>
             );
           })}
         </div>
@@ -128,10 +147,8 @@ export function AvisosLista({ avisos, materias, ahoraIso }: Props) {
           <div className="kicker mb-[10px] tracking-[0.16em]">Hechos</div>
           <div className="flex flex-col gap-2">
             {hechos.map((a) => (
-              <div
-                key={a.id}
-                className="flex min-h-[54px] items-center rounded-[13px] border border-bor bg-sup opacity-50"
-              >
+              <div key={a.id} className="rounded-[13px] border border-bor bg-sup opacity-50">
+              <div className="flex min-h-[54px] items-center">
               <button
                 type="button"
                 onClick={() => alternar(a)}
@@ -151,6 +168,8 @@ export function AvisosLista({ avisos, materias, ahoraIso }: Props) {
                 </span>
               </button>
                 {botonBorrar(a)}
+              </div>
+                {snippet(a)}
               </div>
             ))}
           </div>

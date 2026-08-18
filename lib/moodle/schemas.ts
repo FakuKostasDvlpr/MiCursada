@@ -77,6 +77,39 @@ export const moduloSchema = loose({
   uservisible: z.boolean().optional(),
   description: z.string().optional(), // HTML: sanitizar / pasar por aTextoPlano
   contents: z.array(contenidoArchivoSchema).optional(),
+  /**
+   * Seguimiento de finalización del módulo, PARA ESTE USUARIO.
+   *
+   * `state`: 0 = pendiente, 1 = completo, 2 = completo-aprobado, 3 = completo-desaprobado.
+   * `hascompletion` false = el profe no le puso seguimiento a ese módulo, así
+   * que "pendiente" no significaría nada y no hay que mostrarlo.
+   *
+   * Viaja GRATIS dentro de core_course_get_contents, que el sync ya llama: no
+   * agrega ni una llamada.
+   */
+  completiondata: loose({
+    state: z.number(),
+    timecompleted: z.number().optional(),
+    hascompletion: z.boolean().optional(),
+    isautomatic: z.boolean().optional(),
+    istrackeduser: z.boolean().optional(),
+    /**
+     * Las CONDICIONES para darlo por hecho, ya redactadas en castellano por el
+     * propio Moodle ("Ver", "Hacer un envío", "Completa la actividad hasta el
+     * final") y con el estado de cada una. Un módulo puede pedir varias.
+     */
+    details: z
+      .array(
+        loose({
+          rulename: z.string().optional(),
+          rulevalue: loose({
+            status: z.number().optional(),
+            description: z.string().optional(),
+          }).optional(),
+        })
+      )
+      .optional(),
+  }).optional(),
 });
 export const seccionSchema = loose({
   id: z.number(),

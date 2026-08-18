@@ -49,11 +49,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es-AR" suppressHydrationWarning>
+    // Las variables de next/font van en <html> (y no en <body>): globals.css
+    // arma --fuente-sans/--fuente-mono en :root, y una variable definida en
+    // <body> no existiría todavía a esa altura del árbol.
+    <html
+      lang="es-AR"
+      className={`${jakarta.variable} ${jetbrains.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: temaInicial }} />
       </head>
-      <body className={`${jakarta.variable} ${jetbrains.variable} antialiased`}>{children}</body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

@@ -12,6 +12,7 @@ import {
   esPluginfile,
   segundosDesdeT,
   nombreDesdeUrl,
+  keySlideShare,
   sanitizar,
   tieneContenido,
   urlSinTokenQuery,
@@ -443,5 +444,61 @@ describe('embeberLinksDeVideo (dentro de sanitizar)', () => {
   it('sin links no toca nada', () => {
     expect(embeberLinksDeVideo('<p>hola</p>')).toBe('<p>hola</p>');
     expect(embeberLinksDeVideo('')).toBe('');
+  });
+});
+
+describe('SlideShare', () => {
+  // El caso REAL del aula: módulo "Clasificación de Números" (Matemáticas).
+  // Moodle devuelve el código de embed tal cual lo pegó el profe: un iframe
+  // protocol-relative con la key + un div con el link al autor.
+  const CRUDO =
+    '<iframe src="//www.slideshare.net/slideshow/embed_code/key/D4Lx71futWdQ4D" width="595" ' +
+    'height="485" frameborder="0" scrolling="no" allowfullscreen=""> </iframe> ' +
+    '<div style="margin-bottom:5px"> <strong> ' +
+    '<a href="//www.slideshare.net/Matiaskb16/clasificacion-de-los-numeros" ' +
+    'title="Clasificacion de los numeros" target="_blank">Clasificacion de los numeros</a> ' +
+    '</strong> de <strong><a href="https://www.slideshare.net/Matiaskb16" ' +
+    'target="_blank">Matiaskb16</a></strong> </div>';
+
+  it('keySlideShare saca la key del código de embed (aunque venga sin protocolo)', () => {
+    expect(keySlideShare('//www.slideshare.net/slideshow/embed_code/key/D4Lx71futWdQ4D')).toBe(
+      'D4Lx71futWdQ4D'
+    );
+    expect(
+      keySlideShare('https://www.slideshare.net/slideshow/embed_code/key/D4Lx71futWdQ4D')
+    ).toBe('D4Lx71futWdQ4D');
+  });
+
+  it('el link público de la presentación NO da key (no se inventa el embed)', () => {
+    // Del slug no se saca la key sin llamar a la API de SlideShare.
+    expect(keySlideShare('https://www.slideshare.net/Matiaskb16/clasificacion-de-los-numeros')).toBe(
+      null
+    );
+    expect(keySlideShare('https://www.slideshare.net/Matiaskb16')).toBe(null);
+    expect(keySlideShare('https://slidesharecdn.com/slideshow/embed_code/key/abc123')).toBe(null);
+  });
+
+  it('el caso real: la presentación se embebe y los links quedan como links', () => {
+    const salida = sanitizar(CRUDO);
+    expect(salida).toContain(
+      'src="https://www.slideshare.net/slideshow/embed_code/key/D4Lx71futWdQ4D"'
+    );
+    // Protocol-relative normalizado a https (si no, el sanitizador lo mataba).
+    expect(salida).not.toContain('src="//www.slideshare.net');
+    expect(salida).toContain('class="slides"');
+    // Los <a> de SlideShare siguen siendo links: no hay nada que embeber en ellos.
+    expect(salida).toContain('Clasificacion de los numeros');
+    expect(salida).toContain('href="https://www.slideshare.net/Matiaskb16"');
+    // Y no se convirtieron en un player de video.
+    expect(salida).not.toContain('<figure class="video">');
+  });
+
+  it('un iframe a otra ruta de slideshare.net se elimina igual', () => {
+    const salida = sanitizar('<iframe src="https://www.slideshare.net/Matiaskb16"></iframe>');
+    expect(salida).not.toContain('<iframe');
+  });
+
+  it('no rompe el registro de video del módulo', () => {
+    expect(videoDesdeHtml(sanitizar(CRUDO))).toBe(null);
   });
 });

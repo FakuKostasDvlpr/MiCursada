@@ -3,8 +3,11 @@ import {
   dominio,
   esLista,
   esPdf,
+  miniaturaYoutube,
+  playerEnHtml,
   tamanoLegible,
   tipoArchivo,
+  tipoVisor,
   urlArchivo,
   urlEmbed,
   urlYoutube,
@@ -77,5 +80,67 @@ describe('tamanoLegible', () => {
 describe('dominio', () => {
   it('saca el www', () => {
     expect(dominio('https://www.youtube.com/playlist?list=PL')).toBe('youtube.com');
+  });
+});
+
+describe('tipoVisor', () => {
+  it('elige el visor por mimetype', () => {
+    expect(tipoVisor('application/pdf', 'tp1.pdf')).toBe('pdf');
+    expect(tipoVisor('image/png', 'captura.png')).toBe('imagen');
+    expect(tipoVisor('image/jpeg', 'foto.jpg')).toBe('imagen');
+    expect(tipoVisor('image/gif', 'anim.gif')).toBe('imagen');
+    expect(tipoVisor('video/mp4', 'clase.mp4')).toBe('video');
+    expect(tipoVisor('application/zip', 'guias.zip')).toBe('ninguno');
+    expect(tipoVisor('application/vnd.ms-excel', 'notas.xls')).toBe('ninguno');
+  });
+
+  it('el mime puede traer charset y no rompe', () => {
+    expect(tipoVisor('image/png; charset=binary', 'x.png')).toBe('imagen');
+  });
+
+  it('cae a la extensión cuando Moodle informa octet-stream (14 casos reales)', () => {
+    // Estos son nombres textuales del snapshot: Moodle los da como
+    // application/octet-stream y sin el fallback quedarían "solo descargar".
+    expect(tipoVisor('application/octet-stream', 'U1-Enunciado_y_consignas.pdf')).toBe('pdf');
+    expect(tipoVisor('application/octet-stream', 'linkers.png')).toBe('imagen');
+    expect(tipoVisor('application/octet-stream', 'a82ddf86-e39b-4205-9dd.jpg')).toBe('imagen');
+    expect(tipoVisor('application/octet-stream', 'Unidad 6 - 2018.mp4')).toBe('video');
+  });
+
+  it('sin mime ni extensión conocida no inventa visor', () => {
+    expect(tipoVisor('', 'sin-extension')).toBe('ninguno');
+    expect(tipoVisor('application/octet-stream', 'programa.py')).toBe('ninguno');
+  });
+});
+
+describe('playerEnHtml', () => {
+  it('detecta el player de un video ya embebido en el html del profe', () => {
+    const html = '<figure class="video"><iframe src="https://www.youtube-nocookie.com/embed/abc123?rel=0"></iframe></figure>';
+    expect(playerEnHtml('abc123', html)).toBe(true);
+    expect(playerEnHtml('otro99', html)).toBe(false);
+  });
+
+  it('detecta una playlist por su list=', () => {
+    const html = '<iframe src="https://www.youtube-nocookie.com/embed/videoseries?list=PL123&rel=0"></iframe>';
+    expect(playerEnHtml('lista:PL123', html)).toBe(true);
+    expect(playerEnHtml('lista:PL999', html)).toBe(false);
+  });
+
+  it('con html vacío nunca hay player', () => {
+    expect(playerEnHtml('abc123', '')).toBe(false);
+  });
+});
+
+describe('miniaturaYoutube', () => {
+  it('usa hqdefault, que existe siempre (maxresdefault da 404 en videos viejos)', () => {
+    expect(miniaturaYoutube('abc123')).toBe('https://i.ytimg.com/vi/abc123/hqdefault.jpg');
+  });
+
+  it('una playlist no tiene miniatura propia derivable del id', () => {
+    expect(miniaturaYoutube('lista:PL123')).toBeNull();
+  });
+
+  it('escapa el id en la URL', () => {
+    expect(miniaturaYoutube('a/b')).toBe('https://i.ytimg.com/vi/a%2Fb/hqdefault.jpg');
   });
 });
