@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { guardarAvatarLocal } from '@/app/actions';
 import { borrarMiCuenta } from '@/app/actions-sesion';
-import { AvatarPicker, crearAvatarPredefinido } from '@/components/kokonutui/avatar-picker';
+import { type Avatar, AvatarPicker, crearAvatarBlob } from '@/components/kokonutui/avatar-picker';
 import { CerrarSesion } from '@/components/cerrar-sesion';
 import { Modal } from '@/components/modal';
 import { iniciales } from '@/lib/cursada';
@@ -32,8 +32,7 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
   const [fotoUrl, setFotoUrl] = useState(perfil?.avatarUrl ?? null);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState('');
-  // Color del predefinido elegido en esta sesión (null si subió una foto propia o todavía no tocó nada).
-  const [colorActivo, setColorActivo] = useState<string | null>(null);
+  const [abiertoAvatar, setAbiertoAvatar] = useState(false);
 
   const [abiertoBorrar, setAbiertoBorrar] = useState(false);
   const [borrando, setBorrando] = useState(false);
@@ -72,31 +71,38 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
     }
   };
 
+  /** Subida de foto propia (dentro del modal de avatar). Cierra el modal al éxito. */
   const subirFoto = async (file: File) => {
-    setColorActivo(null);
-    await subirArchivo(file);
+    const ok = await subirArchivo(file);
+    if (ok) setAbiertoAvatar(false);
   };
 
-  const elegirPredefinido = async (color: string) => {
-    // Guard: si ya hay una subida en curso (predefinido o foto propia), no
-    // arrancar otra — sin esto, un doble-click dispara dos generaciones/
-    // subidas en paralelo mientras `crearAvatarPredefinido` todavía corre y
-    // `subiendo` sigue en false.
+  /** Confirmar un predefinido del picker (dentro del modal). Cierra el modal al éxito. */
+  const elegirAvatar = async (avatar: Avatar) => {
+    // Guard: si ya hay una subida en curso, no arrancar otra — sin esto, un
+    // doble-click en "Usar este avatar" dispara dos generaciones/subidas en
+    // paralelo mientras `crearAvatarBlob` todavía corre y `subiendo` sigue en
+    // false.
     if (subiendo) return;
     setSubiendo(true);
-    setColorActivo(null);
     setError('');
     let blob: Blob;
     try {
-      blob = await crearAvatarPredefinido(color);
+      blob = await crearAvatarBlob(avatar);
     } catch {
       setError('No se pudo generar el avatar. Probá de nuevo.');
       setSubiendo(false);
       return;
     }
-    const file = new File([blob], `avatar-${color.slice(1)}.png`, { type: 'image/png' });
+    const file = new File([blob], `avatar-${avatar.id}.png`, { type: 'image/png' });
     const ok = await subirArchivo(file);
-    if (ok) setColorActivo(color);
+    if (ok) setAbiertoAvatar(false);
+  };
+
+  const abrirModalAvatar = () => {
+    if (subiendo) return;
+    setError('');
+    setAbiertoAvatar(true);
   };
 
   // Nombre y carrera son de solo lectura acá: el nombre lo trae el aula
@@ -110,8 +116,13 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
 
   return (
     <>
-      {/* Avatar 104px */}
-      <div className="relative mx-auto mt-[26px] w-[104px]">
+      {/* Avatar 104px: única personalización de esta pantalla — se abre el picker al tocarlo */}
+      <button
+        type="button"
+        onClick={abrirModalAvatar}
+        aria-label="Cambiar tu avatar"
+        className="relative mx-auto mt-[26px] block w-[104px] cursor-pointer"
+      >
         {fotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -129,19 +140,26 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
             <Check size={13} strokeWidth={3} aria-hidden />
           </span>
         )}
-      </div>
-
-      {/* Avatar: única personalización de esta pantalla — un predefinido o una foto propia */}
-      <div className="mt-4">
-        <div className="kicker mb-[7px] text-center">Elegí tu avatar</div>
-        <AvatarPicker
-          colorActivo={colorActivo}
-          deshabilitado={subiendo}
-          onElegir={(color) => void elegirPredefinido(color)}
-        />
-      </div>
+      </button>
 
       <div className="mt-3 flex justify-center">
+        <button
+          type="button"
+          onClick={abrirModalAvatar}
+          className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-bor2 bg-sup px-4 text-[13.5px] font-bold text-tx"
+        >
+          <Camera size={16} strokeWidth={2} aria-hidden />
+          Cambiar avatar
+        </button>
+      </div>
+
+      <Modal
+        abierto={abiertoAvatar}
+        titulo="Elegir tu avatar"
+        onCerrar={() => {
+          if (!subiendo) setAbiertoAvatar(false);
+        }}
+      >
         <input
           ref={inputFoto}
           type="file"
@@ -154,18 +172,13 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
             e.target.value = '';
           }}
         />
-        <button
-          type="button"
-          onClick={() => inputFoto.current?.click()}
-          disabled={subiendo}
-          className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-bor2 bg-sup px-4 text-[13.5px] font-bold text-tx disabled:opacity-60"
-        >
-          <Camera size={16} strokeWidth={2} aria-hidden />
-          {subiendo ? 'Subiendo…' : fotoUrl ? 'Subir otra foto' : 'Subí tu propia foto'}
-        </button>
-      </div>
-
-      {error && <div className="mt-[10px] text-center text-[13px] text-vencido">{error}</div>}
+        <AvatarPicker
+          subiendo={subiendo}
+          error={error}
+          onElegir={(avatar) => void elegirAvatar(avatar)}
+          onSubirPropia={() => inputFoto.current?.click()}
+        />
+      </Modal>
 
       <dl className="mt-[14px] flex flex-col gap-[10px]">
         {filas.map((f) => (
