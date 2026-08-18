@@ -176,7 +176,7 @@ export async function actualizarMateria(
   const { data: datos } = parsed;
 
   const { error } = await supabase.rpc('editar_materia', {
-    p_materia_id: id,
+    p_curso_id: id,
     p_profe: datos.profe,
     p_aula: datos.aula,
     p_color: datos.color,
@@ -234,8 +234,8 @@ export async function crearArchivo(
     return { ok: false, error: 'Poné un nombre y un link.' };
   }
 
-  const { error } = await supabase.from('archivos').insert({
-    materia_id: materiaId,
+  const { error } = await supabase.from('archivos_manuales').insert({
+    curso_id: materiaId,
     nombre: parsed.data.nombre,
     url: normalizarUrl(parsed.data.url),
   });
@@ -264,11 +264,17 @@ export async function eliminarArchivo(id: string): Promise<ResultadoAction> {
     return { ok: true };
   }
 
+  if (!esManual(id)) return { ok: false, error: ERROR_ARCHIVO_MOODLE };
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;
 
-  const { data, error } = await supabase.from('archivos').delete().eq('id', id).select('id');
+  const { data, error } = await supabase
+    .from('archivos_manuales')
+    .delete()
+    .eq('id', id)
+    .select('id');
 
   if (error) {
     console.error('eliminarArchivo:', error);
@@ -343,9 +349,9 @@ export async function crearAviso(input: {
     };
   }
 
-  const { error } = await supabase.from('avisos').insert({
+  const { error } = await supabase.from('avisos_manuales').insert({
     titulo: parsed.data.titulo,
-    materia_id: parsed.data.materiaId,
+    curso_id: parsed.data.materiaId,
     fecha: parsed.data.fecha,
   });
 
@@ -376,17 +382,24 @@ export async function toggleAviso(id: string, hecho: boolean): Promise<Resultado
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;
 
-  const { data, error } = await supabase
-    .from('avisos')
-    .update({ hecho })
-    .eq('id', id)
-    .select('id');
-
-  if (error) {
-    console.error('toggleAviso:', error);
-    return { ok: false, error: ERROR_GUARDAR };
+  if (esManual(id)) {
+    const { error } = await supabase
+      .from('avisos_manuales')
+      .update({ hecho })
+      .eq('id', id);
+    if (error) {
+      console.error('toggleAviso:', error);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
+  } else {
+    const { error } = await supabase
+      .from('avisos_estado')
+      .upsert({ aviso_id: id, hecho }, { onConflict: 'user_id,aviso_id' });
+    if (error) {
+      console.error('toggleAviso:', error);
+      return { ok: false, error: ERROR_GUARDAR };
+    }
   }
-  if (!data || data.length === 0) return { ok: false, error: ERROR_NO_EXISTE };
   revalidarTodo();
   return { ok: true };
 }
@@ -407,11 +420,17 @@ export async function eliminarAviso(id: string): Promise<ResultadoAction> {
     return { ok: true };
   }
 
+  if (!esManual(id)) return { ok: false, error: ERROR_AVISO_MOODLE };
+
   const sesion = await conUsuario();
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase } = sesion;
 
-  const { data, error } = await supabase.from('avisos').delete().eq('id', id).select('id');
+  const { data, error } = await supabase
+    .from('avisos_manuales')
+    .delete()
+    .eq('id', id)
+    .select('id');
 
   if (error) {
     console.error('eliminarAviso:', error);
@@ -431,6 +450,8 @@ const perfilSchema = z.object({
   instituto: z.string().trim(),
   // undefined = no tocar la foto; string = nueva URL del avatar en Storage.
   avatarUrl: z.string().trim().min(1).optional(),
+  // undefined = no tocar la carrera (constante para el modo local; editable en Supabase).
+  carrera: z.string().trim().max(80).optional(),
 });
 
 /** Máximo de la foto de perfil en modo local (sin Storage, va al disco). */
@@ -456,20 +477,57 @@ export async function guardarAvatarLocal(formData: FormData): Promise<ResultadoF
   if (!file.type.startsWith('image/') || !ext) return { ok: false, error: ERROR_FOTO_TIPO };
   if (file.size > MAX_AVATAR) return { ok: false, error: ERROR_FOTO_PESO };
 
-  try {
-    await escribirAvatarLocal(new Uint8Array(await file.arrayBuffer()), ext);
-  } catch (e) {
-    console.error('guardarAvatarLocal:', e);
+  if (!supabaseConfigurado()) {
+    try {
+      await escribirAvatarLocal(new Uint8Array(await file.arrayBuffer()), ext);
+    } catch (e) {
+      console.error('guardarAvatarLocal:', e);
+      return { ok: false, error: ERROR_FOTO };
+    }
+    revalidarTodo();
+    return { ok: true, url: `/api/avatar?v=${Date.now()}` };
+  }
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase, user } = sesion;
+
+  const { error: errorSubida } = await supabase.storage
+    .from('avatares')
+    .upload(`${user.id}.${ext}`, await file.arrayBuffer(), {
+      contentType: file.type,
+      upsert: true,
+    });
+
+  if (errorSubida) {
+    console.error('guardarAvatarLocal:', errorSubida);
     return { ok: false, error: ERROR_FOTO };
   }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('avatares').getPublicUrl(`${user.id}.${ext}`);
+  const url = `${publicUrl}?v=${Date.now()}`;
+
+  const { error } = await supabase
+    .from('perfiles')
+    .update({ avatar_url: url })
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('guardarAvatarLocal:', error);
+    return { ok: false, error: ERROR_FOTO };
+  }
+
   revalidarTodo();
-  return { ok: true, url: `/api/avatar?v=${Date.now()}` };
+  return { ok: true, url };
 }
 
 export async function guardarPerfil(input: {
   nombre: string;
   instituto: string;
   avatarUrl?: string;
+  carrera?: string;
 }): Promise<ResultadoAction> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
@@ -501,15 +559,13 @@ export async function guardarPerfil(input: {
     return { ok: false, error: 'Poné tu nombre así te saludamos.' };
   }
 
-  const { error } = await supabase.from('perfil').upsert(
-    {
-      user_id: sesion.user.id,
+  const { error } = await supabase
+    .from('perfiles')
+    .update({
       nombre: parsed.data.nombre,
-      instituto: parsed.data.instituto || null,
-      ...(parsed.data.avatarUrl !== undefined ? { avatar_url: parsed.data.avatarUrl } : {}),
-    },
-    { onConflict: 'user_id' }
-  );
+      ...(parsed.data.carrera !== undefined ? { carrera: parsed.data.carrera } : {}),
+    })
+    .eq('user_id', sesion.user.id);
 
   if (error) {
     console.error('guardarPerfil:', error);
@@ -566,7 +622,7 @@ export async function crearBloque(
   const { data: ultimo, error: errorOrden } = await supabase
     .from('bloques')
     .select('orden')
-    .eq('materia_id', materiaId)
+    .eq('curso_id', materiaId)
     .order('orden', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -579,7 +635,7 @@ export async function crearBloque(
   const orden = ((ultimo as { orden: number } | null)?.orden ?? 0) + 1000;
 
   const { error } = await supabase.from('bloques').insert({
-    materia_id: materiaId,
+    curso_id: materiaId,
     tipo: parsed.data.tipo,
     texto: parsed.data.texto ?? '',
     url: parsed.data.url ? normalizarUrl(parsed.data.url) : '',
