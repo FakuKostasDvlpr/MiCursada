@@ -268,6 +268,7 @@ describe('perfil.json', () => {
     await escribirPerfilLocal({ nombre: 'Facundo Costas', instituto: '' });
     expect(await leerPerfilLocal()).toEqual({
       nombre: 'Facundo Costas',
+      carrera: null,
       instituto: null,
       avatarUrl: null,
     });
@@ -285,6 +286,7 @@ describe('perfil.json', () => {
     await escribirPerfilLocal({ nombre: 'Facu Costas', instituto: 'ORT' });
     expect(await leerPerfilLocal()).toEqual({
       nombre: 'Facu Costas',
+      carrera: null,
       instituto: 'ORT',
       avatarUrl: '/api/avatar?v=1',
     });

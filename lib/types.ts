@@ -165,6 +165,8 @@ export function esManual(id: string): boolean {
 
 export type Perfil = {
   nombre: string;
+  /** Constante de lib/instituto.ts (la API del aula virtual no la expone); null en modo local. */
+  carrera: string | null;
   instituto: string | null;
   avatarUrl: string | null;
 };

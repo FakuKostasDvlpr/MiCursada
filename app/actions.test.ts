@@ -296,6 +296,7 @@ describe('perfil (local)', () => {
     });
     expect(await leerPerfilLocal()).toEqual({
       nombre: 'Facundo Costas',
+      carrera: null,
       instituto: 'ORT',
       avatarUrl: null,
     });
@@ -314,6 +315,7 @@ describe('perfil (local)', () => {
     await guardarPerfil({ nombre: 'Facu Costas', instituto: 'ORT' });
     expect(await leerPerfilLocal()).toEqual({
       nombre: 'Facu Costas',
+      carrera: null,
       instituto: 'ORT',
       avatarUrl: '/api/avatar?v=1',
     });

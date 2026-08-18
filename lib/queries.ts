@@ -1,84 +1,24 @@
 // Fase 3 — Lecturas para Server Components.
-// Mapean filas snake_case de Supabase a los tipos de dominio (camelCase) de lib/types.ts.
-// Sin cache: lecturas directas, las páginas son dynamic.
+// Arma los tipos de dominio (camelCase) a partir de las tablas compartidas
+// (ver lib/armar-materias.ts) o cae al snapshot local si Supabase no está
+// configurado.
 
+import { armarAvisos, armarMaterias } from '@/lib/armar-materias';
+import type {
+  ArchivoManualRow,
+  AvisoCursoRow,
+  AvisoEstadoRow,
+  AvisoManualRow,
+  BloqueRow,
+  CursoRow,
+  ExtraRow,
+  HorarioRow,
+} from '@/lib/armar-materias';
 import { getDatosLocales, leerPerfilLocal } from '@/lib/datos-locales';
+import { adminClient, adminConfigurado } from '@/lib/supabase/admin';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { createClient } from '@/lib/supabase/server';
-import type {
-  Archivo,
-  Aviso,
-  Bloque,
-  ColorMateria,
-  Dia,
-  EstadoBloque,
-  Horario,
-  Materia,
-  Perfil,
-  TipoBloque,
-} from '@/lib/types';
-
-// --- Tipos de fila (snake_case, como los devuelve PostgREST) ---
-
-type HorarioRow = {
-  id: string;
-  materia_id: string;
-  dia: number;
-  inicio: string; // 'HH:MM:SS'
-  fin: string; // 'HH:MM:SS'
-};
-
-type BloqueRow = {
-  id: string;
-  materia_id: string;
-  tipo: string;
-  texto: string;
-  url: string;
-  estado: string;
-  hecho: boolean;
-  orden: number;
-  created_at: string;
-};
-
-type ArchivoRow = {
-  id: string;
-  materia_id: string;
-  nombre: string;
-  url: string;
-};
-
-type MateriaRow = {
-  id: string;
-  nombre: string;
-  profe: string;
-  aula: string;
-  color: string;
-  source: string;
-  horarios: HorarioRow[];
-  bloques: BloqueRow[];
-  archivos: ArchivoRow[];
-};
-
-type AvisoRow = {
-  id: string;
-  materia_id: string | null;
-  titulo: string;
-  fecha: string;
-  hecho: boolean;
-};
-
-type PerfilRow = {
-  nombre: string;
-  instituto: string | null;
-  avatar_url: string | null;
-};
-
-type SyncLogRow = {
-  id: string;
-  corrida_at: string;
-  resultado: string;
-  detalle: string;
-};
+import type { Aviso, Materia, Perfil } from '@/lib/types';
 
 export type UltimaSync = {
   id: string;
@@ -87,75 +27,6 @@ export type UltimaSync = {
   resultado: string;
   detalle: string;
 };
-
-// --- Mappers ---
-
-/** PostgREST devuelve time como 'HH:MM:SS' → normalizamos a 'HH:MM'. */
-const aHHMM = (t: string) => t.slice(0, 5);
-
-function mapHorario(row: HorarioRow): Horario {
-  return {
-    id: row.id,
-    materiaId: row.materia_id,
-    dia: row.dia as Dia,
-    inicio: aHHMM(row.inicio),
-    fin: aHHMM(row.fin),
-  };
-}
-
-function mapBloque(row: BloqueRow): Bloque {
-  return {
-    id: row.id,
-    materiaId: row.materia_id,
-    tipo: row.tipo as TipoBloque,
-    texto: row.texto,
-    url: row.url,
-    estado: row.estado as EstadoBloque,
-    hecho: row.hecho,
-    orden: row.orden,
-    createdAt: row.created_at,
-  };
-}
-
-function mapArchivo(row: ArchivoRow): Archivo {
-  return {
-    id: row.id,
-    materiaId: row.materia_id,
-    nombre: row.nombre,
-    url: row.url,
-  };
-}
-
-function mapMateria(row: MateriaRow): Materia {
-  return {
-    id: row.id,
-    nombre: row.nombre,
-    profe: row.profe,
-    aula: row.aula,
-    color: row.color as ColorMateria,
-    source: row.source === 'moodle' ? 'moodle' : 'manual',
-    horarios: (row.horarios ?? []).map(mapHorario),
-    bloques: (row.bloques ?? []).map(mapBloque),
-    archivos: (row.archivos ?? []).map(mapArchivo),
-  };
-}
-
-function mapAviso(row: AvisoRow): Aviso {
-  return {
-    id: row.id,
-    materiaId: row.materia_id,
-    titulo: row.titulo,
-    fecha: row.fecha,
-    hecho: row.hecho,
-  };
-}
-
-const SELECT_MATERIA = `
-  id, nombre, profe, aula, color, source,
-  horarios ( id, materia_id, dia, inicio, fin ),
-  bloques ( id, materia_id, tipo, texto, url, estado, hecho, orden, created_at ),
-  archivos ( id, materia_id, nombre, url )
-`;
 
 // --- Queries ---
 
@@ -174,69 +45,102 @@ function conSupabase(): boolean {
   return false;
 }
 
+/** El id de curso trae ':' ("curso:2756") — válido en un segmento de URL, pero
+ * si el navegador (o un Link) lo mandó percent-encoded, lo aceptamos igual. */
+function decodificarId(id: string): string {
+  try {
+    return decodeURIComponent(id);
+  } catch {
+    return id;
+  }
+}
+
 /** Materias del usuario con horarios, bloques (por orden) y archivos anidados. */
 export async function getMaterias(): Promise<Materia[]> {
   if (!conSupabase()) return (await getDatosLocales()).materias;
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('materias')
-    .select(SELECT_MATERIA)
-    .order('nombre')
-    .order('orden', { referencedTable: 'bloques' })
-    .order('nombre', { referencedTable: 'archivos' });
-
-  if (error) {
-    console.error('getMaterias:', error);
-    throw error;
+  const [cursos, extras, horarios, bloques, archivos] = await Promise.all([
+    supabase.from('inscripciones').select('curso:cursos ( id, nombre, datos )'),
+    supabase.from('materias_extra').select('curso_id, profe, aula, color'),
+    supabase.from('horarios').select('id, curso_id, dia, inicio, fin'),
+    supabase.from('bloques').select('id, curso_id, tipo, texto, url, estado, hecho, orden, created_at'),
+    supabase.from('archivos_manuales').select('id, curso_id, nombre, url'),
+  ]);
+  const conError = [cursos, extras, horarios, bloques, archivos].find((r) => r.error);
+  if (conError?.error) {
+    console.error('getMaterias:', conError.error);
+    throw conError.error;
   }
-  return (data as MateriaRow[]).map(mapMateria);
+  const filasCursos = (cursos.data ?? [])
+    .map((i) => (i as unknown as { curso: CursoRow | null }).curso)
+    .filter((c): c is CursoRow => c !== null);
+  return armarMaterias(
+    filasCursos,
+    (extras.data ?? []) as ExtraRow[],
+    (horarios.data ?? []) as HorarioRow[],
+    (bloques.data ?? []) as BloqueRow[],
+    (archivos.data ?? []) as ArchivoManualRow[]
+  );
 }
 
 /** Una materia con todo anidado, o null si no existe. */
 export async function getMateria(id: string): Promise<Materia | null> {
+  const decodificado = decodificarId(id);
   if (!conSupabase()) {
     const { materias } = await getDatosLocales();
-    // El id trae ':' ("curso:2756"): es válido en un segmento de URL, pero si el
-    // navegador (o un Link) lo mandó percent-encoded, lo aceptamos igual.
-    const decodificado = (() => {
-      try {
-        return decodeURIComponent(id);
-      } catch {
-        return id;
-      }
-    })();
     return materias.find((m) => m.id === id || m.id === decodificado) ?? null;
   }
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('materias')
-    .select(SELECT_MATERIA)
-    .eq('id', id)
-    .order('orden', { referencedTable: 'bloques' })
-    .order('nombre', { referencedTable: 'archivos' })
-    .maybeSingle();
-
-  if (error) {
-    console.error('getMateria:', error);
-    throw error;
+  const [cursos, extras, horarios, bloques, archivos] = await Promise.all([
+    supabase
+      .from('inscripciones')
+      .select('curso:cursos ( id, nombre, datos )')
+      .eq('curso_id', decodificado),
+    supabase.from('materias_extra').select('curso_id, profe, aula, color').eq('curso_id', decodificado),
+    supabase.from('horarios').select('id, curso_id, dia, inicio, fin').eq('curso_id', decodificado),
+    supabase
+      .from('bloques')
+      .select('id, curso_id, tipo, texto, url, estado, hecho, orden, created_at')
+      .eq('curso_id', decodificado),
+    supabase.from('archivos_manuales').select('id, curso_id, nombre, url').eq('curso_id', decodificado),
+  ]);
+  const conError = [cursos, extras, horarios, bloques, archivos].find((r) => r.error);
+  if (conError?.error) {
+    console.error('getMateria:', conError.error);
+    throw conError.error;
   }
-  return data ? mapMateria(data as MateriaRow) : null;
+  const filasCursos = (cursos.data ?? [])
+    .map((i) => (i as unknown as { curso: CursoRow | null }).curso)
+    .filter((c): c is CursoRow => c !== null);
+  const materias = armarMaterias(
+    filasCursos,
+    (extras.data ?? []) as ExtraRow[],
+    (horarios.data ?? []) as HorarioRow[],
+    (bloques.data ?? []) as BloqueRow[],
+    (archivos.data ?? []) as ArchivoManualRow[]
+  );
+  return materias[0] ?? null;
 }
 
 /** Todos los avisos del usuario, ordenados por fecha ascendente. */
 export async function getAvisos(): Promise<Aviso[]> {
   if (!conSupabase()) return (await getDatosLocales()).avisos;
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('avisos')
-    .select('id, materia_id, titulo, fecha, hecho')
-    .order('fecha', { ascending: true });
-
-  if (error) {
-    console.error('getAvisos:', error);
-    throw error;
+  const [deCurso, estados, manuales] = await Promise.all([
+    supabase.from('avisos_curso').select('id, curso_id, titulo, fecha'),
+    supabase.from('avisos_estado').select('aviso_id, hecho'),
+    supabase.from('avisos_manuales').select('id, curso_id, titulo, fecha, hecho'),
+  ]);
+  const conError = [deCurso, estados, manuales].find((r) => r.error);
+  if (conError?.error) {
+    console.error('getAvisos:', conError.error);
+    throw conError.error;
   }
-  return (data as AvisoRow[]).map(mapAviso);
+  return armarAvisos(
+    (deCurso.data ?? []) as AvisoCursoRow[],
+    (estados.data ?? []) as AvisoEstadoRow[],
+    (manuales.data ?? []) as AvisoManualRow[]
+  );
 }
 
 /** Perfil del usuario o null si todavía no lo creó. */
@@ -245,8 +149,8 @@ export async function getPerfil(): Promise<Perfil | null> {
   if (!conSupabase()) return leerPerfilLocal();
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from('perfil')
-    .select('nombre, instituto, avatar_url')
+    .from('perfiles')
+    .select('nombre, carrera, instituto, avatar_url')
     .maybeSingle();
 
   if (error) {
@@ -254,13 +158,18 @@ export async function getPerfil(): Promise<Perfil | null> {
     throw error;
   }
   if (!data) return null;
-  const row = data as PerfilRow;
-  return { nombre: row.nombre, instituto: row.instituto, avatarUrl: row.avatar_url };
+  const row = data as { nombre: string; carrera: string | null; instituto: string | null; avatar_url: string | null };
+  return {
+    nombre: row.nombre,
+    carrera: row.carrera,
+    instituto: row.instituto,
+    avatarUrl: row.avatar_url,
+  };
 }
 
 /** Última corrida del scraper o null si nunca corrió. */
 export async function getUltimaSync(): Promise<UltimaSync | null> {
-  if (!conSupabase()) {
+  if (!adminConfigurado()) {
     // Sin base, la "última sync" es el momento en que se generó el snapshot.
     const { generado, materias, avisos } = await getDatosLocales();
     if (!generado) return null;
@@ -272,7 +181,7 @@ export async function getUltimaSync(): Promise<UltimaSync | null> {
       detalle: `${materias.length} materias · ${archivos} archivos · ${avisos.length} avisos`,
     };
   }
-  const supabase = await createClient();
+  const supabase = adminClient();
   const { data, error } = await supabase
     .from('sync_log')
     .select('id, corrida_at, resultado, detalle')
@@ -285,7 +194,7 @@ export async function getUltimaSync(): Promise<UltimaSync | null> {
     throw error;
   }
   if (!data) return null;
-  const row = data as SyncLogRow;
+  const row = data as { id: string; corrida_at: string; resultado: string; detalle: string };
   return {
     id: row.id,
     corridaAt: row.corrida_at,
