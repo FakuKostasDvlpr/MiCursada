@@ -12,6 +12,8 @@ import { z } from 'zod';
 import { sincronizarInstitutoLocal } from '@/lib/datos-locales';
 import { MoodleError, SinToken, TokenInvalido, sanitizar } from '@/lib/moodle/cliente';
 import {
+  type Credencial,
+  type Verificacion,
   URL_MOODLE_DEFAULT,
   USERID_DEFAULT,
   guardarCredenciales,
@@ -19,10 +21,38 @@ import {
   leerCredenciales,
   olvidarCredenciales,
 } from '@/lib/moodle/credenciales';
+import { guardarCredencialDb, leerCredencialDb, olvidarCredencialDb } from '@/lib/moodle/credenciales-db';
 import { pedirToken } from '@/lib/moodle/login';
 import { obtenerSiteInfo, sincronizarSnapshot } from '@/lib/moodle/plan';
-import { hayAcceso } from '@/lib/sesion-actual';
+import { hayAcceso, usuarioActual } from '@/lib/sesion-actual';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
+
+/** Credencial del usuario del request: de la base (multiusuario) o del archivo (local). */
+async function credencialDelUsuario(): Promise<Credencial | null> {
+  if (supabaseConfigurado()) {
+    const u = await usuarioActual();
+    if (!u) return null;
+    return leerCredencialDb(u.userId);
+  }
+  return leerCredenciales();
+}
+
+/**
+ * Guarda `ultimaVerificacion`: en modo Supabase relee + reescribe la
+ * credencial en la base; en modo local usa el `guardarVerificacion` de
+ * siempre (reescribe datos/moodle.json).
+ */
+async function guardarVerificacionDual(v: Verificacion): Promise<void> {
+  if (supabaseConfigurado()) {
+    const u = await usuarioActual();
+    if (!u) return;
+    const cred = await leerCredencialDb(u.userId);
+    if (cred === null) return;
+    await guardarCredencialDb(u.userId, { ...cred, ultimaVerificacion: v });
+    return;
+  }
+  await guardarVerificacion(v);
+}
 
 /** Motivo por el que falló la verificación del token. */
 export type MotivoError = 'vencido' | 'red' | 'desconocido';
@@ -78,13 +108,13 @@ export async function estadoToken(): Promise<EstadoToken> {
   // Sin sesión no se cuenta nada del aula virtual, ni siquiera si hay token.
   if (!(await hayAcceso())) return { configurado: false };
 
-  const cred = await leerCredenciales();
+  const cred = await credencialDelUsuario();
   if (cred === null) return { configurado: false };
 
   const verificadoEn = new Date().toISOString();
   try {
     const site = await obtenerSiteInfo(cred);
-    await guardarVerificacion({ ok: true, cuando: verificadoEn, nombre: site.fullname });
+    await guardarVerificacionDual({ ok: true, cuando: verificadoEn, nombre: site.fullname });
     // Ya tenemos el site info en la mano: es el momento barato para dejar el
     // instituto del perfil igual al `sitename` del aula virtual (escribe solo
     // si cambió), sin esperar a que vuelvas a entrar.
@@ -102,7 +132,7 @@ export async function estadoToken(): Promise<EstadoToken> {
   } catch (e) {
     loguear('estadoToken', e);
     const error = motivo(e);
-    await guardarVerificacion({ ok: false, cuando: verificadoEn, error });
+    await guardarVerificacionDual({ ok: false, cuando: verificadoEn, error });
     return {
       configurado: true,
       activo: false,
@@ -131,7 +161,7 @@ export async function generarToken(usuario: string, password: string): Promise<R
   const parsed = loginSchema.safeParse({ usuario, password });
   if (!parsed.success) return { ok: false, error: 'Poné tu usuario y tu contraseña.' };
 
-  const previa = await leerCredenciales();
+  const previa = await credencialDelUsuario();
   const url = previa?.url ?? URL_MOODLE_DEFAULT;
 
   try {
@@ -150,11 +180,18 @@ export async function generarToken(usuario: string, password: string): Promise<R
     // Verificar el token recién generado (y de paso levantar el userid real).
     try {
       const site = await obtenerSiteInfo(cred);
-      await guardarCredenciales({
+      const credFinal = {
         ...cred,
         userid: site.userid,
-        ultimaVerificacion: { ok: true, cuando: new Date().toISOString(), nombre: site.fullname },
-      });
+        ultimaVerificacion: { ok: true as const, cuando: new Date().toISOString(), nombre: site.fullname },
+      };
+      if (supabaseConfigurado()) {
+        const u = await usuarioActual();
+        if (!u) return { ok: false, error: ERROR_SESION };
+        await guardarCredencialDb(u.userId, credFinal);
+      } else {
+        await guardarCredenciales(credFinal);
+      }
       return { ok: true, nombre: site.fullname };
     } catch (e) {
       loguear('generarToken (verificación)', e);
@@ -217,7 +254,13 @@ export async function olvidarToken(): Promise<{ ok: true } | { ok: false; error:
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
   try {
-    await olvidarCredenciales();
+    if (supabaseConfigurado()) {
+      const u = await usuarioActual();
+      if (!u) return { ok: false, error: ERROR_SESION };
+      await olvidarCredencialDb(u.userId);
+    } else {
+      await olvidarCredenciales();
+    }
   } catch (e) {
     loguear('olvidarToken', e);
     return { ok: false, error: ERROR_GENERICO };
