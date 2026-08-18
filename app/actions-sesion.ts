@@ -260,9 +260,18 @@ export async function cerrarSesion(): Promise<void> {
  * Guarda el consentimiento del primer ingreso (solo modo Supabase — en modo
  * local no hay pantalla de consentimiento, así que esta action no se llama).
  *
+ * Dispara acá mismo la carga inicial (`montarCursada`): antes de aceptar,
+ * `sincronizarAhora` rechazaba todo por falta de consentimiento, así que la
+ * cursada de una cuenta nueva nunca se llegó a bajar — sin este paso, la
+ * primera pantalla después de aceptar se vería vacía. Un error de
+ * `montarCursada` NO bloquea la entrada (mismo criterio que documenta esa
+ * función): el panel del aula virtual ya cuenta el problema.
+ *
  * El `redirect` va acá adentro por la misma razón que en `cerrarSesion`: sin
  * él, el re-render de (app) se encuentra sin consentimiento otra vez y el
- * redirect del layout sale como error de la action.
+ * redirect del layout sale como error de la action. Por eso queda fuera del
+ * try/catch — que redirect() tire su excepción de control sin que nada de
+ * acá la atrape.
  */
 export async function aceptarConsentimiento(): Promise<void> {
   const u = await usuarioActual();
@@ -277,6 +286,12 @@ export async function aceptarConsentimiento(): Promise<void> {
     throw new Error('No se pudo guardar. Probá de nuevo.');
   }
   await registrarEvento('consentimiento_aceptado', u.userId);
+
+  const montaje = await montarCursada();
+  if (!montaje.ok) loguear('aceptarConsentimiento (montarCursada)', new Error(montaje.error));
+
+  // Después de la sincronización: así el árbol que revalida ya tiene los
+  // datos recién bajados, no el estado vacío de antes de aceptar.
   revalidatePath('/', 'layout');
   redirect('/');
 }
