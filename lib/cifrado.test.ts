@@ -20,7 +20,7 @@ describe('cifrado', () => {
 
   it('un cifrado manoseado no descifra (GCM autentica)', () => {
     const { cifrado, nonce } = cifrar('token');
-    cifrado[0] ^= 0xff;
+    cifrado.writeUInt8(cifrado.readUInt8(0) ^ 0xff, 0);
     expect(() => descifrar(cifrado, nonce)).toThrow();
   });
 
