@@ -1,14 +1,16 @@
 'use client';
 
-// Perfil (handoff v3 §0b). La mayoría de los datos vienen del aula virtual y no
-// se escriben a mano; lo editable es la foto (de la app, no de Moodle) y la
-// carrera (de la persona, no del aula virtual — ver lib/instituto.ts).
+// Perfil (handoff v3 §0b). Todo el perfil es de solo lectura salvo el avatar:
+// nombre y carrera vienen fijos (ver comentario junto a `filas` más abajo).
+// Lo único editable es el avatar (de la app, no de Moodle): un predefinido o
+// una foto propia, ambos vía guardarAvatarLocal.
 
 import { Camera, Check, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
-import { guardarAvatarLocal, guardarPerfil } from '@/app/actions';
+import { guardarAvatarLocal } from '@/app/actions';
 import { borrarMiCuenta } from '@/app/actions-sesion';
+import { AvatarPicker, crearAvatarPredefinido } from '@/components/kokonutui/avatar-picker';
 import { CerrarSesion } from '@/components/cerrar-sesion';
 import { Modal } from '@/components/modal';
 import { iniciales } from '@/lib/cursada';
@@ -30,13 +32,12 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
   const [fotoUrl, setFotoUrl] = useState(perfil?.avatarUrl ?? null);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState('');
+  // Color del predefinido elegido en esta sesión (null si subió una foto propia o todavía no tocó nada).
+  const [colorActivo, setColorActivo] = useState<string | null>(null);
 
   const [abiertoBorrar, setAbiertoBorrar] = useState(false);
   const [borrando, setBorrando] = useState(false);
   const [errorBorrar, setErrorBorrar] = useState('');
-
-  const [carrera, setCarrera] = useState(perfil?.carrera ?? INSTITUTO.carrera);
-  const [errorCarrera, setErrorCarrera] = useState('');
 
   const confirmarBorrado = async () => {
     setBorrando(true);
@@ -51,7 +52,8 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
   const nombre = perfil?.nombre ?? '';
   const inis = iniciales(nombre);
 
-  const subirFoto = async (file: File) => {
+  /** Sube un archivo (propio o generado a partir de un predefinido) por la misma action. */
+  const subirArchivo = async (file: File): Promise<boolean> => {
     setSubiendo(true);
     setError('');
     try {
@@ -60,32 +62,41 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
       const resultado = await guardarAvatarLocal(formData);
       if (!resultado.ok) {
         setError(resultado.error);
-        return;
+        return false;
       }
       setFotoUrl(resultado.url);
       router.refresh();
+      return true;
     } finally {
       setSubiendo(false);
     }
   };
 
-  const guardarCarrera = async () => {
-    const valor = carrera.trim();
-    setErrorCarrera('');
-    const resultado = await guardarPerfil({
-      nombre,
-      instituto: perfil?.instituto ?? INSTITUTO.nombre,
-      carrera: valor,
-    });
-    if (!resultado.ok) {
-      setErrorCarrera(resultado.error);
-      return;
-    }
-    router.refresh();
+  const subirFoto = async (file: File) => {
+    setColorActivo(null);
+    await subirArchivo(file);
   };
 
+  const elegirPredefinido = async (color: string) => {
+    setColorActivo(null);
+    setError('');
+    let blob: Blob;
+    try {
+      blob = await crearAvatarPredefinido(color);
+    } catch {
+      setError('No se pudo generar el avatar. Probá de nuevo.');
+      return;
+    }
+    const file = new File([blob], `avatar-${color.slice(1)}.png`, { type: 'image/png' });
+    const ok = await subirArchivo(file);
+    if (ok) setColorActivo(color);
+  };
+
+  // Nombre y carrera son de solo lectura acá: el nombre lo trae el aula
+  // virtual y la carrera quedó fija por decisión de producto (2026-08-18).
   const filas = [
     { label: 'Nombre', valor: nombre || 'Sin nombre', mono: false },
+    { label: 'Carrera', valor: perfil?.carrera ?? INSTITUTO.carrera, mono: false },
     { label: 'Usuario', valor: usuario || '—', mono: true },
     { label: 'Instituto', valor: `${perfil?.instituto ?? INSTITUTO.nombre} · ${SEDE_Y_TURNO}`, mono: false },
   ];
@@ -113,8 +124,17 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
         )}
       </div>
 
-      {/* Captura de foto: lo único editable de esta pantalla */}
-      <div className="mt-4 flex justify-center">
+      {/* Avatar: única personalización de esta pantalla — un predefinido o una foto propia */}
+      <div className="mt-4">
+        <div className="kicker mb-[7px] text-center">Elegí tu avatar</div>
+        <AvatarPicker
+          colorActivo={colorActivo}
+          deshabilitado={subiendo}
+          onElegir={(color) => void elegirPredefinido(color)}
+        />
+      </div>
+
+      <div className="mt-3 flex justify-center">
         <input
           ref={inputFoto}
           type="file"
@@ -134,29 +154,11 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
           className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-bor2 bg-sup px-4 text-[13.5px] font-bold text-tx disabled:opacity-60"
         >
           <Camera size={16} strokeWidth={2} aria-hidden />
-          {subiendo ? 'Subiendo…' : fotoUrl ? 'Sacar otra foto' : 'Sacate una foto'}
+          {subiendo ? 'Subiendo…' : fotoUrl ? 'Subir otra foto' : 'Subí tu propia foto'}
         </button>
       </div>
 
       {error && <div className="mt-[10px] text-center text-[13px] text-vencido">{error}</div>}
-
-      <div className="mt-[22px]">
-        <label htmlFor="carrera" className="kicker mb-[7px] block">
-          Carrera
-        </label>
-        <input
-          id="carrera"
-          type="text"
-          value={carrera}
-          onChange={(e) => setCarrera(e.target.value)}
-          onBlur={guardarCarrera}
-          maxLength={80}
-          className="min-h-12 w-full rounded-xl border border-bor bg-bg px-[14px] text-[15px] text-tx"
-        />
-        {errorCarrera && (
-          <div className="mt-[6px] text-[13px] text-vencido">{errorCarrera}</div>
-        )}
-      </div>
 
       <dl className="mt-[14px] flex flex-col gap-[10px]">
         {filas.map((f) => (
