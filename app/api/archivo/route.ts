@@ -6,9 +6,11 @@
 // abriera la app podría hacer que el server pida cualquier host (metadata de la
 // nube, servicios internos…) y, peor, con el token de Moodle pegado. Por eso el
 // único parámetro es `ref` ("{cmid}:{indice}"), que se resuelve contra el
-// índice que escribió el sync (datos/aula-virtual-archivos.json). La URL sale
-// SIEMPRE de ahí, nunca del request, y encima se valida que el host sea
-// exactamente el de la credencial de Moodle.
+// índice que escribió el sync: en modo local, el archivo de refs
+// (datos/aula-virtual-archivos.json); en modo Supabase (multiusuario), la
+// tabla `archivo_refs` (la llena el sync compartido). La URL sale SIEMPRE de
+// ahí, nunca del request, y encima se valida que el host sea exactamente el
+// de la credencial de Moodle.
 //
 // El token se agrega recién acá, al hacer el fetch, y no aparece en ninguna
 // cabecera ni en el body de la respuesta al cliente.
@@ -17,8 +19,11 @@ import fs from 'node:fs/promises';
 import { z } from 'zod';
 import { rutaDatos } from '@/lib/datos-locales';
 import { RE_REF } from '@/lib/moodle/contenido';
+import { credencialDelUsuario } from '@/lib/moodle/credencial-actual';
 import { leerCredenciales } from '@/lib/moodle/credenciales';
 import { hayAcceso } from '@/lib/sesion-actual';
+import { adminClient } from '@/lib/supabase/admin';
+import { supabaseConfigurado } from '@/lib/supabase/configurado';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,10 +32,13 @@ const MAX_BYTES = 25 * 1024 * 1024;
 
 const refSchema = z.string().regex(RE_REF);
 
-const indiceSchema = z.record(
-  z.string(),
-  z.object({ url: z.string(), nombre: z.string().default(''), mime: z.string().default('') })
-);
+const refArchivoSchema = z.object({
+  url: z.string(),
+  nombre: z.string().default(''),
+  mime: z.string().default(''),
+});
+
+const indiceSchema = z.record(z.string(), refArchivoSchema);
 
 /** Nombre de archivo seguro para Content-Disposition (ASCII, sin comillas). */
 function nombreSeguro(nombre: string): string {
@@ -46,17 +54,39 @@ export async function GET(request: Request): Promise<Response> {
   const ref = refSchema.safeParse(new URL(request.url).searchParams.get('ref') ?? '');
   if (!ref.success) return new Response('Ref inválida', { status: 400 });
 
-  let indice: z.infer<typeof indiceSchema>;
-  try {
-    indice = indiceSchema.parse(JSON.parse(await fs.readFile(rutaDatos('archivosCurso'), 'utf8')));
-  } catch {
-    return new Response('No hay índice de archivos. Sincronizá el aula virtual.', { status: 404 });
+  let entrada: z.infer<typeof refArchivoSchema>;
+  let cred: Awaited<ReturnType<typeof leerCredenciales>>;
+
+  if (supabaseConfigurado()) {
+    // Multiusuario: la ref sale de la base (la llenó el sync compartido) y el
+    // token es el DEL USUARIO logueado — así solo ve el archivo quien está
+    // inscripto a esa materia.
+    const { data, error } = await adminClient()
+      .from('archivo_refs')
+      .select('datos')
+      .eq('ref', ref.data)
+      .maybeSingle();
+    if (error) return new Response('Error consultando el índice de archivos', { status: 500 });
+    if (!data) return new Response('No encontramos ese archivo', { status: 404 });
+    try {
+      entrada = refArchivoSchema.parse(data.datos);
+    } catch {
+      return new Response('Archivo inválido', { status: 500 });
+    }
+    cred = await credencialDelUsuario();
+  } else {
+    let indice: z.infer<typeof indiceSchema>;
+    try {
+      indice = indiceSchema.parse(JSON.parse(await fs.readFile(rutaDatos('archivosCurso'), 'utf8')));
+    } catch {
+      return new Response('No hay índice de archivos. Sincronizá el aula virtual.', { status: 404 });
+    }
+    const encontrada = indice[ref.data];
+    if (encontrada === undefined) return new Response('No encontramos ese archivo', { status: 404 });
+    entrada = encontrada;
+    cred = await leerCredenciales();
   }
 
-  const entrada = indice[ref.data];
-  if (entrada === undefined) return new Response('No encontramos ese archivo', { status: 404 });
-
-  const cred = await leerCredenciales();
   if (cred === null) return new Response('Sin token del aula virtual', { status: 503 });
 
   let destino: URL;

@@ -11,14 +11,13 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { sincronizarInstitutoLocal } from '@/lib/datos-locales';
 import { MoodleError, SinToken, TokenInvalido, sanitizar } from '@/lib/moodle/cliente';
+import { credencialDelUsuario } from '@/lib/moodle/credencial-actual';
 import {
-  type Credencial,
   type Verificacion,
   URL_MOODLE_DEFAULT,
   USERID_DEFAULT,
   guardarCredenciales,
   guardarVerificacion,
-  leerCredenciales,
   olvidarCredenciales,
 } from '@/lib/moodle/credenciales';
 import { guardarCredencialDb, leerCredencialDb, olvidarCredencialDb } from '@/lib/moodle/credenciales-db';
@@ -27,16 +26,6 @@ import { obtenerSiteInfo, sincronizarSnapshot } from '@/lib/moodle/plan';
 import { hayAcceso, usuarioActual } from '@/lib/sesion-actual';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { sincronizarCompartido } from '@/lib/sync-compartido';
-
-/** Credencial del usuario del request: de la base (multiusuario) o del archivo (local). */
-async function credencialDelUsuario(): Promise<Credencial | null> {
-  if (supabaseConfigurado()) {
-    const u = await usuarioActual();
-    if (!u) return null;
-    return leerCredencialDb(u.userId);
-  }
-  return leerCredenciales();
-}
 
 /**
  * Guarda `ultimaVerificacion`: en modo Supabase relee + reescribe la
