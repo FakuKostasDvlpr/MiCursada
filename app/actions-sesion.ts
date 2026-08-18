@@ -30,10 +30,12 @@ import {
 import { guardarCredencialDb } from '@/lib/moodle/credenciales-db';
 import { pedirToken } from '@/lib/moodle/login';
 import { obtenerSiteInfo } from '@/lib/moodle/plan';
-import { abrirSesion, cerrarSesionActual, hayAcceso } from '@/lib/sesion-actual';
+import { getAvisos, getMaterias } from '@/lib/queries';
+import { abrirSesion, cerrarSesionActual, hayAcceso, usuarioActual } from '@/lib/sesion-actual';
 import { adminClient } from '@/lib/supabase/admin';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { acunarSesion, asegurarUsuarioSombra } from '@/lib/supabase/puente';
+import { cursadaFresca } from '@/lib/sync-compartido';
 
 export type ResultadoLogin = { ok: true; nombre: string } | { ok: false; error: string };
 
@@ -201,6 +203,18 @@ export type ResultadoMontaje =
  */
 export async function montarCursada(): Promise<ResultadoMontaje> {
   if (!(await hayAcceso())) return { ok: false, error: 'No pudimos verificar tu sesión.' };
+
+  if (supabaseConfigurado()) {
+    const u = await usuarioActual();
+    if (!u) return { ok: false, error: 'No pudimos verificar tu sesión.' };
+    if (await cursadaFresca(u.userId)) {
+      const [materias, avisos] = await Promise.all([getMaterias(), getAvisos()]);
+      return { ok: true, sincronizado: false, materias: materias.length, avisos: avisos.length };
+    }
+    const r = await sincronizarAhora();
+    if (!r.ok) return { ok: false, error: r.error };
+    return { ok: true, sincronizado: true, materias: r.materias, avisos: r.avisos };
+  }
 
   const datos = await getDatosLocales();
   const generado = datos.generado ? new Date(datos.generado).getTime() : 0;

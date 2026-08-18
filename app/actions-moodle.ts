@@ -26,6 +26,7 @@ import { pedirToken } from '@/lib/moodle/login';
 import { obtenerSiteInfo, sincronizarSnapshot } from '@/lib/moodle/plan';
 import { hayAcceso, usuarioActual } from '@/lib/sesion-actual';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
+import { sincronizarCompartido } from '@/lib/sync-compartido';
 
 /** Credencial del usuario del request: de la base (multiusuario) o del archivo (local). */
 async function credencialDelUsuario(): Promise<Credencial | null> {
@@ -212,18 +213,25 @@ export async function generarToken(usuario: string, password: string): Promise<R
 export async function sincronizarAhora(): Promise<ResultadoSync> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
 
-  const cred = await leerCredenciales();
+  const cred = await credencialDelUsuario();
   if (cred === null) {
     return { ok: false, error: 'Todavía no configuraste el aula virtual.' };
   }
 
-  let r: Awaited<ReturnType<typeof sincronizarSnapshot>>;
+  type Resultado = { materias: number; archivos: number; avisos: number; generado: string; nombre: string };
+  let r: Resultado;
   try {
-    r = await sincronizarSnapshot(cred);
+    if (supabaseConfigurado()) {
+      const u = await usuarioActual();
+      if (!u) return { ok: false, error: ERROR_SESION };
+      r = await sincronizarCompartido(cred, u.userId, 'boton');
+    } else {
+      r = await sincronizarSnapshot(cred);
+    }
   } catch (e) {
     loguear('sincronizarAhora', e);
     if (e instanceof TokenInvalido || e instanceof SinToken) {
-      await guardarVerificacion({
+      await guardarVerificacionDual({
         ok: false,
         cuando: new Date().toISOString(),
         error: 'vencido',
@@ -238,7 +246,7 @@ export async function sincronizarAhora(): Promise<ResultadoSync> {
 
   // Fuera del try: el snapshot ya se escribió, y un problema al guardar la
   // verificación o al revalidar no tiene que reportarse como "no se sincronizó".
-  await guardarVerificacion({ ok: true, cuando: r.generado, nombre: r.nombre });
+  await guardarVerificacionDual({ ok: true, cuando: r.generado, nombre: r.nombre });
   revalidatePath('/', 'layout');
   return {
     ok: true,
