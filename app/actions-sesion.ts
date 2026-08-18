@@ -208,8 +208,13 @@ export async function montarCursada(): Promise<ResultadoMontaje> {
     const u = await usuarioActual();
     if (!u) return { ok: false, error: 'No pudimos verificar tu sesión.' };
     if (await cursadaFresca(u.userId)) {
-      const [materias, avisos] = await Promise.all([getMaterias(), getAvisos()]);
-      return { ok: true, sincronizado: false, materias: materias.length, avisos: avisos.length };
+      try {
+        const [materias, avisos] = await Promise.all([getMaterias(), getAvisos()]);
+        return { ok: true, sincronizado: false, materias: materias.length, avisos: avisos.length };
+      } catch (e) {
+        loguear('montarCursada (fresca)', e);
+        return { ok: false, error: ERROR_GENERICO };
+      }
     }
     const r = await sincronizarAhora();
     if (!r.ok) return { ok: false, error: r.error };
