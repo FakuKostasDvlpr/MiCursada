@@ -265,18 +265,26 @@ export async function cerrarSesion(): Promise<void> {
 export async function borrarMiCuenta(): Promise<{ ok: false; error: string } | never> {
   const u = await usuarioActual();
   if (!u) redirect('/login');
+  const admin = adminClient();
+  // El deleteUser va primero y solo: es lo irreversible. Si falla acá, no se
+  // tocó nada más — la cuenta sigue intacta con su foto y sin evento espurio.
+  // Lo que sigue (avatar, evento) es limpieza best-effort de algo que YA
+  // pasó: si eso falla no hay que devolver error ni dejar la cuenta viva.
   try {
-    const admin = adminClient();
-    const { data: lista } = await admin.storage.from('avatares').list('', { search: u.userId });
-    const nombres = (lista ?? []).map((f) => f.name).filter((n) => n.startsWith(u.userId));
-    if (nombres.length > 0) await admin.storage.from('avatares').remove(nombres);
-    await registrarEvento('cuenta_borrada', u.userId);
     const { error } = await admin.auth.admin.deleteUser(u.userId);
     if (error) throw error;
   } catch (e) {
     loguear('borrarMiCuenta', e);
     return { ok: false, error: 'No se pudo borrar la cuenta. Probá de nuevo.' };
   }
+  try {
+    const { data: lista } = await admin.storage.from('avatares').list('', { search: u.userId });
+    const nombres = (lista ?? []).map((f) => f.name).filter((n) => n.startsWith(u.userId));
+    if (nombres.length > 0) await admin.storage.from('avatares').remove(nombres);
+  } catch (e) {
+    loguear('borrarMiCuenta (avatar)', e); // huérfano en el bucket, no es motivo para fallar
+  }
+  await registrarEvento('cuenta_borrada', u.userId);
   await cerrarSesionActual();
   revalidatePath('/', 'layout');
   redirect('/login');
