@@ -60,3 +60,4 @@ support.js
 /graphify-out/
 /.agents/
 /skills-lock.json
+supabase/.temp/
