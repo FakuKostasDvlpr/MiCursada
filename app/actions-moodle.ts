@@ -23,7 +23,7 @@ import {
 import { guardarCredencialDb, leerCredencialDb, olvidarCredencialDb } from '@/lib/moodle/credenciales-db';
 import { pedirToken } from '@/lib/moodle/login';
 import { obtenerSiteInfo, sincronizarSnapshot } from '@/lib/moodle/plan';
-import { hayAcceso, usuarioActual } from '@/lib/sesion-actual';
+import { consintio, hayAcceso, usuarioActual } from '@/lib/sesion-actual';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { sincronizarCompartido } from '@/lib/sync-compartido';
 
@@ -74,6 +74,7 @@ export type ResultadoToken = { ok: true; nombre: string } | { ok: false; error: 
 const ERROR_GENERICO = 'Algo falló. Probá de nuevo.';
 const ERROR_VENCIDO = 'Tu token venció. Generá uno nuevo.';
 const ERROR_SESION = 'No pudimos verificar tu sesión. Entrá de nuevo.';
+const ERROR_CONSENTIMIENTO = 'Primero tenés que aceptar cómo se guardan tus datos.';
 
 /** Clasifica un error del cliente de Moodle sin filtrar nada sensible. */
 function motivo(e: unknown): MotivoError {
@@ -201,6 +202,7 @@ export async function generarToken(usuario: string, password: string): Promise<R
  */
 export async function sincronizarAhora(): Promise<ResultadoSync> {
   if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+  if (!(await consintio())) return { ok: false, error: ERROR_CONSENTIMIENTO };
 
   const cred = await credencialDelUsuario();
   if (cred === null) {

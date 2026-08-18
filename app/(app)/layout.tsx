@@ -6,7 +6,6 @@ import { iniciales } from '@/lib/cursada';
 import { getPerfil } from '@/lib/queries';
 import { exigirSesion } from '@/lib/sesion-actual';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
-import { createClient } from '@/lib/supabase/server';
 
 /**
  * Layout de todo lo que requiere estar adentro: acá se exige la sesión (una
@@ -19,17 +18,16 @@ import { createClient } from '@/lib/supabase/server';
  *
  * `/consentimiento` vive FUERA de este grupo a propósito: si estuviera
  * adentro, este mismo redirect la alcanzaría a ella y armaría un loop.
+ *
+ * El chequeo de consentimiento reusa el `perfil` que ya trae `getPerfil()`
+ * (agregado a su select) en vez de una query aparte: una sola consulta a
+ * `perfiles` por página, no dos.
  */
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   await exigirSesion();
-
-  if (supabaseConfigurado()) {
-    const supabase = await createClient();
-    const { data } = await supabase.from('perfiles').select('consentimiento_en').maybeSingle();
-    if (!data?.consentimiento_en) redirect('/consentimiento');
-  }
-
   const perfil = await getPerfil();
+
+  if (supabaseConfigurado() && !perfil?.consentimientoEn) redirect('/consentimiento');
 
   return (
     <>

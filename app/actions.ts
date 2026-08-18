@@ -37,6 +37,7 @@ export type ResultadoAction = { ok: true } | { ok: false; error: string };
 
 const ERROR_SESION = 'No pudimos verificar tu sesión. Entrá de nuevo.';
 const ERROR_SIN_CONFIG = 'Falta configurar Supabase (.env.local).';
+const ERROR_CONSENTIMIENTO = 'Primero tenés que aceptar cómo se guardan tus datos.';
 const ERROR_GUARDAR = 'No se pudo guardar. Probá de nuevo.';
 const ERROR_NO_EXISTE = 'Eso ya no existe.';
 const ERROR_DATOS = 'Datos inválidos.';
@@ -52,7 +53,10 @@ type ConUsuario =
   | { supabase: null; user: null; error: string };
 
 /**
- * Crea el server client y verifica que haya usuario autenticado.
+ * Crea el server client y verifica que haya usuario autenticado con el
+ * consentimiento del primer ingreso ya aceptado (una Server Action es un
+ * POST que no pasa por el layout de (app), así que su redirect no alcanza
+ * para cerrar esta puerta — hay que chequearla acá).
  * Si Supabase no está configurado (sin .env.local), corta antes del auth check.
  */
 async function conUsuario(): Promise<ConUsuario> {
@@ -62,6 +66,14 @@ async function conUsuario(): Promise<ConUsuario> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { supabase: null, user: null, error: ERROR_SESION };
+  const { data: perfil } = await supabase
+    .from('perfiles')
+    .select('consentimiento_en')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (!perfil?.consentimiento_en) {
+    return { supabase: null, user: null, error: ERROR_CONSENTIMIENTO };
+  }
   return { supabase, user };
 }
 

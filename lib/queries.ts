@@ -150,7 +150,7 @@ export async function getPerfil(): Promise<Perfil | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('perfiles')
-    .select('nombre, carrera, instituto, avatar_url')
+    .select('nombre, carrera, instituto, avatar_url, consentimiento_en')
     .maybeSingle();
 
   if (error) {
@@ -158,12 +158,19 @@ export async function getPerfil(): Promise<Perfil | null> {
     throw error;
   }
   if (!data) return null;
-  const row = data as { nombre: string; carrera: string | null; instituto: string | null; avatar_url: string | null };
+  const row = data as {
+    nombre: string;
+    carrera: string | null;
+    instituto: string | null;
+    avatar_url: string | null;
+    consentimiento_en: string | null;
+  };
   return {
     nombre: row.nombre,
     carrera: row.carrera,
     instituto: row.instituto,
     avatarUrl: row.avatar_url,
+    consentimientoEn: row.consentimiento_en,
   };
 }
 

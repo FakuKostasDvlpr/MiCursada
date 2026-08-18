@@ -169,4 +169,6 @@ export type Perfil = {
   carrera: string | null;
   instituto: string | null;
   avatarUrl: string | null;
+  /** ISO de cuándo aceptó el consentimiento del primer ingreso; null en modo local (no aplica). */
+  consentimientoEn: string | null;
 };

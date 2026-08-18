@@ -50,6 +50,20 @@ export async function hayAcceso(): Promise<boolean> {
   return (await sesionActual()) !== null;
 }
 
+/**
+ * ¿Ya aceptó el consentimiento del primer ingreso? En modo local siempre
+ * true (no hay pantalla de consentimiento ahí, ver app/consentimiento). Para
+ * usar en Server Actions que traen o escriben datos del usuario — el layout
+ * de (app) ya corta la navegación, pero una action es un POST que no pasa
+ * por ahí.
+ */
+export async function consintio(): Promise<boolean> {
+  if (!supabaseConfigurado()) return true;
+  const supabase = await createClient();
+  const { data } = await supabase.from('perfiles').select('consentimiento_en').maybeSingle();
+  return Boolean(data?.consentimiento_en);
+}
+
 /** Corta el render y manda a /login si no hay sesión. Para layouts y páginas. */
 export async function exigirSesion(): Promise<void> {
   if (!(await hayAcceso())) redirect('/login');

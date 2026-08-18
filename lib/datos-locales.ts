@@ -684,6 +684,7 @@ export async function leerPerfilLocal(): Promise<Perfil | null> {
     carrera: null,
     instituto: parsed.data.instituto,
     avatarUrl: parsed.data.avatarUrl,
+    consentimientoEn: null,
   };
 }
 

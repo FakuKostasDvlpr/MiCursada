@@ -271,6 +271,7 @@ describe('perfil.json', () => {
       carrera: null,
       instituto: null,
       avatarUrl: null,
+      consentimientoEn: null,
     });
 
     await escribirPerfilLocal({ nombre: 'Facu', instituto: 'ORT' });
@@ -289,6 +290,7 @@ describe('perfil.json', () => {
       carrera: null,
       instituto: 'ORT',
       avatarUrl: '/api/avatar?v=1',
+      consentimientoEn: null,
     });
   });
 });
