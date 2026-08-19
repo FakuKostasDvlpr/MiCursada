@@ -275,7 +275,7 @@ function FilaUsuario({ u, seleccionado, onAbrir }: { u: UsuarioPanel; selecciona
 function DetalleUsuario({ det, onCerrar }: { det: UsuarioPanel; onCerrar: () => void }) {
   const col = COLOR_ESTADO[det.estado];
   return (
-    <aside className="aside-entra sticky top-[86px] max-h-[calc(100dvh-106px)] overflow-y-auto rounded-2xl border border-bor bg-sup p-5">
+    <aside className="aside-entra sticky top-[86px] overflow-y-auto rounded-2xl border border-bor bg-sup p-5">
       <div className="flex items-center gap-3">
         <AvatarUsuario u={det} tam={44} />
         <span className="block min-w-0">
