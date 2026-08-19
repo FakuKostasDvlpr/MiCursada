@@ -8,7 +8,7 @@
 // componente cliente puede dispararlo con `lanzarToast()` sin pasar props ni
 // context por medio árbol.
 
-import { Check, Trash } from 'lucide-react';
+import { AlertTriangle, Check, Trash } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { EVENTO_TOAST, MS_TOAST, type Toast as DatosToast } from '@/lib/toast';
 
@@ -37,7 +37,14 @@ export function Toast() {
 
   if (!toast) return null;
 
-  const borrado = toast.variante === 'delete';
+  // Un color y un icono por variante: verde confirma, rojo borra, ámbar avisa
+  // que no se pudo. El ámbar es el mismo acento de la app.
+  const PINTA = {
+    ok: { borde: 'rgba(52,211,153,.5)', fondo: 'rgba(52,211,153,.15)', color: '#34d399' },
+    delete: { borde: 'rgba(251,113,133,.5)', fondo: 'rgba(251,113,133,.15)', color: '#fb7185' },
+    error: { borde: 'rgba(251,191,36,.5)', fondo: 'rgba(251,191,36,.15)', color: '#fbbf24' },
+  } as const;
+  const pinta = PINTA[toast.variante];
 
   return (
     <div
@@ -45,22 +52,28 @@ export function Toast() {
       // anuncia sin interrumpir lo que el lector de pantalla esté leyendo.
       role="status"
       aria-live="polite"
-      className="toast-cont pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4"
+      // Arriba a la derecha, por encima de los modales (z-50): varios toasts
+      // se disparan con el modal del avatar abierto y abajo quedaban tapados.
+      // El safe-area es por la muesca en iOS.
+      className="pointer-events-none fixed right-4 z-[60] flex max-w-[calc(100vw-32px)] justify-end"
+      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}
     >
       <div
         key={turno}
         className="toast-in flex items-center gap-[10px] rounded-full border bg-sup py-[10px] pr-[18px] pl-[12px]"
-        style={{ borderColor: borrado ? 'rgba(251,113,133,.5)' : 'rgba(52,211,153,.5)' }}
+        style={{ borderColor: pinta.borde }}
       >
         <span
           aria-hidden
           className="grid h-[28px] w-[28px] shrink-0 place-items-center rounded-full"
-          style={{ background: borrado ? 'rgba(251,113,133,.15)' : 'rgba(52,211,153,.15)' }}
+          style={{ background: pinta.fondo }}
         >
-          {borrado ? (
-            <Trash size={14} strokeWidth={2} className="text-[#fb7185]" />
+          {toast.variante === 'delete' ? (
+            <Trash size={14} strokeWidth={2} style={{ color: pinta.color }} />
+          ) : toast.variante === 'error' ? (
+            <AlertTriangle size={14} strokeWidth={2.2} style={{ color: pinta.color }} />
           ) : (
-            <Check size={14} strokeWidth={2.5} className="text-[#34d399]" />
+            <Check size={14} strokeWidth={2.5} style={{ color: pinta.color }} />
           )}
         </span>
         <span className="text-[13.5px] font-bold text-tx">{toast.mensaje}</span>

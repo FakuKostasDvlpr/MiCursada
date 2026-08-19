@@ -10,10 +10,15 @@ export const MS_TOAST = 2600;
 export const EVENTO_TOAST = 'cursada:toast';
 
 /**
- * `ok` es la confirmación verde; `delete` la roja de "esto se borró". La
- * variante la decide quién dispara, nunca una heurística sobre el mensaje.
+ * `ok` es la confirmación verde; `delete` la roja de "esto se borró"; `error`
+ * la ámbar de "no se pudo". La variante la decide quién dispara, nunca una
+ * heurística sobre el mensaje.
+ *
+ * `error` es para el rechazo que la persona puede resolver (llegaste al máximo
+ * de fotos, el archivo pesa de más). Un fallo de red o del server sigue yendo
+ * inline donde estaba la acción, que es donde se lo puede reintentar.
  */
-export type VarianteToast = 'ok' | 'delete';
+export type VarianteToast = 'ok' | 'delete' | 'error';
 
 export type Toast = { mensaje: string; variante: VarianteToast };
 

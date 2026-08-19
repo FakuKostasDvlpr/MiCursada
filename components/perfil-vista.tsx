@@ -5,13 +5,12 @@
 // Lo único editable es el avatar (de la app, no de Moodle): un predefinido o
 // una foto propia, ambos vía guardarAvatarLocal.
 
-import { Camera, Check, User } from 'lucide-react';
+import { Camera, Check, CircleHelp, User } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
-import { guardarAvatarLocal } from '@/app/actions';
+import { useState } from 'react';
 import { borrarMiCuenta } from '@/app/actions-sesion';
 import { Rueda } from '@/components/cargando';
-import { type Avatar, AvatarPicker, crearAvatarBlob } from '@/components/kokonutui/avatar-picker';
 import { CerrarSesion } from '@/components/cerrar-sesion';
 import { Modal } from '@/components/modal';
 import { iniciales } from '@/lib/cursada';
@@ -31,16 +30,20 @@ type Props = {
   alCerrar?: () => void;
   /** Turno derivado de los horarios reales (lib/cursada.ts turnoDesdeMaterias). */
   turno?: string | null;
+  /** Abre la vista "Elegir tu avatar" DENTRO del mismo modal. */
+  onAbrirAvatar: () => void;
 };
 
-export function PerfilVista({ perfil, usuario, conCuenta, alCerrar, turno = null }: Props) {
+export function PerfilVista({
+  perfil,
+  usuario,
+  conCuenta,
+  alCerrar,
+  turno = null,
+  onAbrirAvatar,
+}: Props) {
   const router = useRouter();
-  const inputFoto = useRef<HTMLInputElement>(null);
 
-  const [fotoUrl, setFotoUrl] = useState(perfil?.avatarUrl ?? null);
-  const [subiendo, setSubiendo] = useState(false);
-  const [error, setError] = useState('');
-  const [abiertoAvatar, setAbiertoAvatar] = useState(false);
 
   const [abiertoBorrar, setAbiertoBorrar] = useState(false);
   const [borrando, setBorrando] = useState(false);
@@ -56,62 +59,11 @@ export function PerfilVista({ perfil, usuario, conCuenta, alCerrar, turno = null
     }
   };
 
+  const fotoUrl = perfil?.avatarUrl ?? null;
   const nombre = perfil?.nombre ?? '';
   const inis = iniciales(nombre);
 
-  /** Sube un archivo (propio o generado a partir de un predefinido) por la misma action. */
-  const subirArchivo = async (file: File): Promise<boolean> => {
-    setSubiendo(true);
-    setError('');
-    try {
-      const formData = new FormData();
-      formData.append('foto', file);
-      const resultado = await guardarAvatarLocal(formData);
-      if (!resultado.ok) {
-        setError(resultado.error);
-        return false;
-      }
-      setFotoUrl(resultado.url);
-      router.refresh();
-      return true;
-    } finally {
-      setSubiendo(false);
-    }
-  };
-
-  /** Subida de foto propia (dentro del modal de avatar). Cierra el modal al éxito. */
-  const subirFoto = async (file: File) => {
-    const ok = await subirArchivo(file);
-    if (ok) setAbiertoAvatar(false);
-  };
-
-  /** Confirmar un predefinido del picker (dentro del modal). Cierra el modal al éxito. */
-  const elegirAvatar = async (avatar: Avatar) => {
-    // Guard: si ya hay una subida en curso, no arrancar otra — sin esto, un
-    // doble-click en "Usar este avatar" dispara dos generaciones/subidas en
-    // paralelo mientras `crearAvatarBlob` todavía corre y `subiendo` sigue en
-    // false.
-    if (subiendo) return;
-    setSubiendo(true);
-    setError('');
-    let blob: Blob;
-    try {
-      blob = await crearAvatarBlob(avatar);
-    } catch {
-      setError('No se pudo generar el avatar. Probá de nuevo.');
-      setSubiendo(false);
-      return;
-    }
-    const file = new File([blob], `avatar-${avatar.id}.png`, { type: 'image/png' });
-    const ok = await subirArchivo(file);
-    if (ok) setAbiertoAvatar(false);
-  };
-
-  const abrirModalAvatar = () => {
-    if (subiendo) return;
-    setError('');
-    setAbiertoAvatar(true);
-  };
+  const abrirAvatar = () => onAbrirAvatar();
 
   // Nombre y carrera son de solo lectura acá: el nombre lo trae el aula
   // virtual y la carrera quedó fija por decisión de producto (2026-08-18).
@@ -135,7 +87,7 @@ export function PerfilVista({ perfil, usuario, conCuenta, alCerrar, turno = null
       {/* Avatar 104px: única personalización de esta pantalla — se abre el picker al tocarlo */}
       <button
         type="button"
-        onClick={abrirModalAvatar}
+        onClick={abrirAvatar}
         aria-label="Cambiar tu avatar"
         className="relative mx-auto mt-[26px] block w-[104px] cursor-pointer"
       >
@@ -161,7 +113,7 @@ export function PerfilVista({ perfil, usuario, conCuenta, alCerrar, turno = null
       <div className="mt-3 flex justify-center">
         <button
           type="button"
-          onClick={abrirModalAvatar}
+          onClick={abrirAvatar}
           className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-bor2 bg-sup px-4 text-[13.5px] font-bold text-tx"
         >
           <Camera size={16} strokeWidth={2} aria-hidden />
@@ -169,32 +121,6 @@ export function PerfilVista({ perfil, usuario, conCuenta, alCerrar, turno = null
         </button>
       </div>
 
-      <Modal
-        abierto={abiertoAvatar}
-        titulo="Elegir tu avatar"
-        onCerrar={() => {
-          if (!subiendo) setAbiertoAvatar(false);
-        }}
-      >
-        <input
-          ref={inputFoto}
-          type="file"
-          accept="image/*"
-          capture="user"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void subirFoto(file);
-            e.target.value = '';
-          }}
-        />
-        <AvatarPicker
-          subiendo={subiendo}
-          error={error}
-          onElegir={(avatar) => void elegirAvatar(avatar)}
-          onSubirPropia={() => inputFoto.current?.click()}
-        />
-      </Modal>
 
       <dl className="mt-[14px] flex flex-col gap-[10px]">
         {filas.map((f) => (
@@ -217,6 +143,17 @@ export function PerfilVista({ perfil, usuario, conCuenta, alCerrar, turno = null
       <p className="mt-3 text-center font-mono text-[11px] leading-[1.5] text-tx4">
         datos sincronizados del aula virtual — no se editan acá
       </p>
+
+      {/* La entrada al manual en móvil: la bottom nav son cinco pestañas fijas
+          del handoff y no se toca, así que el acceso vive acá. */}
+      <Link
+        href="/manual"
+        onClick={alCerrar}
+        className="mt-4 flex min-h-11 items-center justify-center gap-2 rounded-xl border border-bor2 bg-sup text-[13.5px] font-bold !text-tx"
+      >
+        <CircleHelp size={16} strokeWidth={2} aria-hidden />
+        Cómo usar Mi Cursada
+      </Link>
 
       <button
         type="button"
