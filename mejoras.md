@@ -38,3 +38,14 @@ eliminar subir como y poner un ovalo con signo mas para seleccionar imagen y que
 ## Loader 
 - [URL] > [https://kokonutui.com/docs/inputs/loader]  
 - [Instalacion] > [bunx --bun shadcn@latest add @kokonutui/loader]
+
+## Users
+- Banner, estamos trabajando en algunas mejoras para todos ustedes.Pronto verán sus materias cargadas.
+- Generar página de total de users con countdown, como YouTube con suscriptores
+
+## Interfaz 
+- Aplicar /impeccable en toda la web 
+
+## Manual de uso
+- Página de /manual de uso.
+Donde explique funcionalidades y capacidades del sistema
