@@ -1,14 +1,22 @@
 'use client';
 
-// Panel de administración (specs/panel-admin). Todo el dataset llega armado
-// del servidor (lib/admin-metricas o el seed demo); acá solo viven filtro,
-// búsqueda y selección — estado de UI puro, sin fetches.
+// Panel de administración (specs/panel-admin + specs/admin-vivo).
+//
+// El primer dataset llega armado del servidor; a partir de ahí el panel se
+// refresca solo contra /api/admin/metricas cada 30 s (polling, no Realtime:
+// ver specs/admin-vivo §2.1). Filtro, búsqueda y selección son estado de UI
+// que sobrevive a cada refresco.
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { COLOR_ESTADO, type EstadoUsuario, type UsuarioPanel } from '@/lib/admin-calculos';
+import type { ContenidoUsuario } from '@/lib/admin-contenido';
 import type { PanelAdmin } from '@/lib/admin-metricas';
+import { Rueda } from '@/components/cargando';
 import { iniciales } from '@/lib/cursada';
+
+/** Cada cuánto repregunta el panel cuando está "en vivo". */
+const INTERVALO_MS = 30_000;
 
 const FILTROS: { clave: 'todos' | EstadoUsuario; nombre: string }[] = [
   { clave: 'todos', nombre: 'Todos' },
@@ -24,10 +32,58 @@ type Props = {
   demo: boolean;
 };
 
-export function AdminPanel({ panel, actualizado, demo }: Props) {
+export function AdminPanel({ panel: inicial, actualizado: actualizadoInicial, demo }: Props) {
+  const [panel, setPanel] = useState(inicial);
+  const [actualizado, setActualizado] = useState(actualizadoInicial);
+  const [vivo, setVivo] = useState(true);
+  const [falla, setFalla] = useState(false);
+
   const [filtro, setFiltro] = useState<'todos' | EstadoUsuario>('todos');
   const [busca, setBusca] = useState('');
-  const [selId, setSelId] = useState<string | null>(panel.usuarios[0]?.id ?? null);
+  const [selId, setSelId] = useState<string | null>(inicial.usuarios[0]?.id ?? null);
+
+  // El fetch en vuelo, para poder cancelarlo al desmontar o al apagar el vivo.
+  const enVuelo = useRef<AbortController | null>(null);
+
+  const traer = useCallback(async () => {
+    enVuelo.current?.abort();
+    const ctrl = new AbortController();
+    enVuelo.current = ctrl;
+    try {
+      const res = await fetch('/api/admin/metricas', { signal: ctrl.signal, cache: 'no-store' });
+      if (!res.ok) throw new Error(String(res.status));
+      const datos = (await res.json()) as PanelAdmin & { actualizado: string };
+      setPanel({ generado: datos.generado, stats: datos.stats, usuarios: datos.usuarios });
+      setActualizado(datos.actualizado);
+      setFalla(false);
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return;
+      // Un refresco fallido no rompe la vista: se queda con lo último bueno.
+      setFalla(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!vivo) {
+      enVuelo.current?.abort();
+      return;
+    }
+    // Con la pestaña de fondo no tiene sentido gastar requests; al volver,
+    // refresca de una para no mostrar una foto vieja.
+    const tick = () => {
+      if (!document.hidden) void traer();
+    };
+    const id = setInterval(tick, INTERVALO_MS);
+    const alVolver = () => {
+      if (!document.hidden) void traer();
+    };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', alVolver);
+      enVuelo.current?.abort();
+    };
+  }, [vivo, traer]);
 
   const q = busca.trim().toLowerCase();
   const lista = panel.usuarios.filter(
@@ -35,7 +91,10 @@ export function AdminPanel({ panel, actualizado, demo }: Props) {
       (filtro === 'todos' || u.estado === filtro) &&
       (!q || `${u.nombre} ${u.usuario} ${u.carrera}`.toLowerCase().includes(q))
   );
+  // Si la persona abierta ya no está en el dataset, el aside se cierra solo.
   const det = panel.usuarios.find((u) => u.id === selId) ?? null;
+
+  const colorDot = !vivo ? '#64748b' : falla ? '#fbbf24' : '#34d399';
 
   return (
     <div className="min-h-dvh bg-bg text-tx">
@@ -56,9 +115,25 @@ export function AdminPanel({ panel, actualizado, demo }: Props) {
               demo · datos sintéticos
             </span>
           ) : null}
-          <span className="ml-auto inline-flex items-center gap-2 font-mono text-[11px] text-tx3">
-            <span className="dot-pulso h-[7px] w-[7px] rounded-full bg-[#34d399]" aria-hidden />
-            actualizado {actualizado}
+          <span className="ml-auto inline-flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setVivo((v) => !v)}
+              aria-pressed={vivo}
+              className={`kicker min-h-8 cursor-pointer rounded-full border px-3 text-[9.5px] ${
+                vivo ? 'border-bor2 text-tx2' : 'border-bor text-tx4'
+              }`}
+            >
+              {vivo ? 'En vivo' : 'Pausado'}
+            </button>
+            <span className="inline-flex items-center gap-2 font-mono text-[11px] text-tx3">
+              <span
+                className={`h-[7px] w-[7px] rounded-full ${vivo && !falla ? 'dot-pulso' : ''}`}
+                style={{ background: colorDot }}
+                aria-hidden
+              />
+              {falla ? 'sin conexión ·' : ''} actualizado {actualizado}
+            </span>
           </span>
         </div>
       </header>
@@ -132,7 +207,7 @@ export function AdminPanel({ panel, actualizado, demo }: Props) {
             </div>
           </section>
 
-          {det ? <DetalleUsuario det={det} onCerrar={() => setSelId(null)} /> : null}
+          {det ? <DetalleUsuario key={det.id} det={det} onCerrar={() => setSelId(null)} /> : null}
         </div>
       </main>
     </div>
@@ -147,6 +222,7 @@ function AvatarUsuario({ u, tam }: { u: UsuarioPanel; tam: number }) {
         alt=""
         width={tam}
         height={tam}
+        unoptimized={true} 
         className="flex-shrink-0 rounded-full object-cover"
         style={{ width: tam, height: tam }}
       />
@@ -199,7 +275,7 @@ function FilaUsuario({ u, seleccionado, onAbrir }: { u: UsuarioPanel; selecciona
 function DetalleUsuario({ det, onCerrar }: { det: UsuarioPanel; onCerrar: () => void }) {
   const col = COLOR_ESTADO[det.estado];
   return (
-    <aside className="aside-entra sticky top-[86px] rounded-2xl border border-bor bg-sup p-5">
+    <aside className="aside-entra sticky top-[86px] max-h-[calc(100dvh-106px)] overflow-y-auto rounded-2xl border border-bor bg-sup p-5">
       <div className="flex items-center gap-3">
         <AvatarUsuario u={det} tam={44} />
         <span className="block min-w-0">
@@ -271,6 +347,8 @@ function DetalleUsuario({ det, onCerrar }: { det: UsuarioPanel; onCerrar: () => 
         </div>
       </div>
 
+      <VisorDatos id={det.id} nombre={det.nombre} />
+
       <div className="mt-3.5 flex items-center gap-2">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M21 12a9 9 0 1 1-3-6.7" />
@@ -279,5 +357,148 @@ function DetalleUsuario({ det, onCerrar }: { det: UsuarioPanel; onCerrar: () => 
         <span className="font-mono text-[10.5px] text-tx3">Aula virtual: {det.sync}</span>
       </div>
     </aside>
+  );
+}
+
+/**
+ * "Ver datos cargados" (specs/admin-vivo R9). El contenido NO viaja con el
+ * panel: se pide solo cuando el admin lo abre, y esa lectura queda registrada.
+ */
+function VisorDatos({ id, nombre }: { id: string; nombre: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const [datos, setDatos] = useState<ContenidoUsuario | null>(null);
+  const [error, setError] = useState('');
+  const [cargando, setCargando] = useState(false);
+
+  async function alternar() {
+    if (abierto) {
+      setAbierto(false);
+      return;
+    }
+    setAbierto(true);
+    if (datos || cargando) return;
+    setCargando(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/admin/usuario/${id}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(String(res.status));
+      setDatos((await res.json()) as ContenidoUsuario);
+    } catch {
+      setError('No pudimos traer sus datos. Probá de nuevo.');
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  return (
+    <div className="mt-[18px] border-t border-bor pt-3.5">
+      <button
+        type="button"
+        onClick={alternar}
+        aria-expanded={abierto}
+        className="kicker flex min-h-[38px] w-full cursor-pointer items-center justify-center gap-2 rounded-[11px] border border-bor2 bg-transparent text-[10px] text-tx2"
+      >
+        {cargando ? <Rueda /> : null}
+        {abierto ? 'Ocultar datos cargados' : 'Ver datos cargados'}
+      </button>
+
+      {abierto ? (
+        <div className="mt-3.5 flex flex-col gap-3.5">
+          {error ? <p className="text-[12.5px] text-[#fb7185]">{error}</p> : null}
+          {!error && !datos && cargando ? (
+            <p className="text-[12.5px] text-tx3">Trayendo lo que cargó {nombre}…</p>
+          ) : null}
+
+          {datos?.materias.map((m) => (
+            <div key={m.id} className="rounded-[11px] border border-bor bg-bg p-3">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="text-[13px] font-bold text-tx">{m.nombre}</span>
+                {m.profe || m.aula ? (
+                  <span className="font-mono text-[10px] text-tx3">
+                    {[m.profe, m.aula].filter(Boolean).join(' · ')}
+                  </span>
+                ) : null}
+              </div>
+              {m.horarios.length > 0 ? (
+                <div className="mt-1 font-mono text-[10px] text-tx4">{m.horarios.join(' · ')}</div>
+              ) : null}
+
+              {m.notas.length > 0 ? (
+                <ul className="mt-2.5 flex flex-col gap-2">
+                  {m.notas.map((n) => (
+                    <li key={n.id} className="border-l-2 border-bor2 pl-2.5">
+                      <div className="flex items-baseline gap-2">
+                        <span className="kicker text-[9px] text-tx4">{n.tipo}</span>
+                        <span className="font-mono text-[9.5px] text-tx4">{n.creada}</span>
+                        {n.hecho ? (
+                          <span className="font-mono text-[9.5px] text-[#34d399]">hecho</span>
+                        ) : null}
+                      </div>
+                      <p className="mt-0.5 text-[12.5px] leading-[1.45] text-tx2">
+                        {n.texto || <span className="text-tx4">(sin texto)</span>}
+                      </p>
+                      {n.url ? (
+                        <span className="block truncate font-mono text-[10px] text-tx3">{n.url}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-[12px] text-tx4">Sin notas en esta materia.</p>
+              )}
+
+              {m.archivos.length > 0 ? (
+                <ul className="mt-2.5 flex flex-col gap-1">
+                  {m.archivos.map((a) => (
+                    <li key={a.id} className="truncate font-mono text-[10.5px] text-tx3">
+                      📎 {a.nombre} — {a.url}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ))}
+
+          {datos && datos.materias.length === 0 ? (
+            <p className="text-[12.5px] text-tx3">Todavía no cargó ninguna materia.</p>
+          ) : null}
+
+          {datos && datos.avisos.length > 0 ? (
+            <div className="rounded-[11px] border border-bor bg-bg p-3">
+              <div className="kicker mb-2 text-[10px] text-tx3">Avisos propios</div>
+              <ul className="flex flex-col gap-1.5">
+                {datos.avisos.map((a) => (
+                  <li key={a.id} className="flex items-baseline gap-2 text-[12.5px] text-tx2">
+                    <span className="font-mono text-[10px] text-tx4">{a.fecha}</span>
+                    <span className="min-w-0 flex-1 truncate">{a.titulo}</span>
+                    {a.materia ? (
+                      <span className="font-mono text-[10px] text-tx4">{a.materia}</span>
+                    ) : null}
+                    {a.hecho ? (
+                      <span className="font-mono text-[10px] text-[#34d399]">hecho</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {datos && datos.sueltas.length > 0 ? (
+            <div className="rounded-[11px] border border-bor bg-bg p-3">
+              <div className="kicker mb-2 text-[10px] text-tx3">
+                Notas de materias que ya no cursa
+              </div>
+              <ul className="flex flex-col gap-1.5">
+                {datos.sueltas.map((n) => (
+                  <li key={n.id} className="text-[12.5px] text-tx2">
+                    {n.texto || <span className="text-tx4">(sin texto)</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   );
 }
