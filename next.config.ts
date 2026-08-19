@@ -8,6 +8,19 @@ const nextConfig: NextConfig = {
   // dev server queda sirviendo server actions que ya no existen. Con
   // NEXT_DIST_DIR=.next-build el build va aparte y no molesta a nadie.
   distDir: process.env.NEXT_DIST_DIR || '.next',
+  
+  // ✅ Agregá esta sección para permitir imágenes de Supabase
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'bhjachrwvujqfkgrscei.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/avatares/**',
+        search: '',
+      },
+    ],
+  },
 };
 
 export default nextConfig;
