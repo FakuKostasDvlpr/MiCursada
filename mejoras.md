@@ -34,3 +34,7 @@ eliminar subir como y poner un ovalo con signo mas para seleccionar imagen y que
 
 ## Crear apartado de mejoras. Ayudas para la web
 - Caja de comentarios [C:\Users\facun\Documents\Cursada\MiCursada.excalidraw] 
+
+## Loader 
+- [URL] > [https://kokonutui.com/docs/inputs/loader]  
+- [Instalacion] > [bunx --bun shadcn@latest add @kokonutui/loader]
