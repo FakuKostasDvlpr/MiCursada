@@ -239,10 +239,30 @@ export function armarGrafo(
       );
     }
     for (const f of m.archivos) {
-      item(`f${f.id}`, 'archivo', f.nombre, 4.5, dominio(f.url));
+      // Los archivos del aula virtual llevan id `mod:{cmid}` (o
+      // `mod:{cmid}:{filename}` si vienen de una carpeta): el click abre ESE
+      // módulo en la tab Curso. Los manuales (id de la base) van a su tab.
+      const cmid = f.id.startsWith('mod:') ? f.id.split(':')[1] : null;
+      item(
+        `f${f.id}`,
+        'archivo',
+        f.nombre,
+        4.5,
+        dominio(f.url),
+        cmid
+          ? `/materias/${encodeURIComponent(m.id)}?modulo=${encodeURIComponent(`mod:${cmid}`)}`
+          : `/materias/${encodeURIComponent(m.id)}?tab=archivos`
+      );
     }
     for (const a of avisosMateria) {
-      item(`a${a.id}`, 'aviso', a.titulo, 5, `${ddmm(a.fecha)} · pendiente`);
+      item(
+        `a${a.id}`,
+        'aviso',
+        a.titulo,
+        5,
+        `${ddmm(a.fecha)} · pendiente`,
+        `/materias/${encodeURIComponent(m.id)}?tab=avisos`
+      );
     }
   });
 

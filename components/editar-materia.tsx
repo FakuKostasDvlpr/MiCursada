@@ -1,13 +1,15 @@
 'use client';
 
-import { Pencil, Plus, X } from 'lucide-react';
+import { Pencil, Plus, Trash2, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { actualizarMateria } from '@/app/actions';
+import { actualizarMateria, eliminarMateriaManual } from '@/app/actions';
 import { Rueda } from '@/components/cargando';
 import { CampoHora } from '@/components/campo-hora';
 import { Modal } from '@/components/modal';
 import { nombreDia } from '@/lib/cursada';
-import { COLORES_MATERIA, type ColorMateria, type Dia, type Materia } from '@/lib/types';
+import { lanzarToast } from '@/lib/toast';
+import { COLORES_MATERIA, type ColorMateria, type Dia, esManual, type Materia } from '@/lib/types';
 
 type HorarioForm = { dia: Dia; inicio: string; fin: string };
 
@@ -40,6 +42,10 @@ export function EditarMateria({ materia }: { materia: Materia }) {
   const [fin, setFin] = useState('19:40');
   const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
+  // Borrado en dos pasos: el primer click arma el botón, el segundo borra.
+  const [confirmaBorrar, setConfirmaBorrar] = useState(false);
+  const [borrando, setBorrando] = useState(false);
+  const router = useRouter();
 
   const abrir = () => {
     setProfe(materia.profe);
@@ -50,7 +56,25 @@ export function EditarMateria({ materia }: { materia: Materia }) {
     setIni('18:10');
     setFin('19:40');
     setError('');
+    setConfirmaBorrar(false);
     setAbierto(true);
+  };
+
+  const borrar = async () => {
+    if (!confirmaBorrar) {
+      setConfirmaBorrar(true);
+      return;
+    }
+    setBorrando(true);
+    setError('');
+    const r = await eliminarMateriaManual(materia.id);
+    setBorrando(false);
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+    lanzarToast('Materia eliminada', 'delete');
+    router.push('/materias');
   };
 
   const agregarHorario = () => {
@@ -205,6 +229,34 @@ export function EditarMateria({ materia }: { materia: Materia }) {
               </button>
             </div>
           </div>
+
+          {/* Borrar: solo las materias cargadas a mano. Las del aula virtual
+              volverían enteras en la próxima sincronización, así que ni se
+              ofrece. */}
+          {esManual(materia.id) ? (
+            <button
+              type="button"
+              onClick={borrar}
+              disabled={borrando}
+              className={`inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border text-sm font-bold disabled:opacity-60 ${
+                confirmaBorrar
+                  ? 'border-[#fb7185] bg-[#fb7185]/10 text-[#fb7185]'
+                  : 'border-bor2 text-tx2'
+              }`}
+            >
+              <Trash2 size={15} strokeWidth={2} aria-hidden />
+              {borrando
+                ? 'Eliminando…'
+                : confirmaBorrar
+                  ? '¿Seguro? Se van sus notas y horarios'
+                  : 'Eliminar materia'}
+            </button>
+          ) : (
+            <p className="font-mono text-[11px] leading-[1.5] text-tx4">
+              Esta materia viene del aula virtual: no se puede borrar, volvería
+              con la próxima sincronización.
+            </p>
+          )}
 
           {error && <div className="text-[13px] text-vencido">{error}</div>}
 

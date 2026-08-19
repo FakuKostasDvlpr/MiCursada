@@ -18,6 +18,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useRef, useState, useTransition } from 'react';
 import { actualizarMateria } from '@/app/actions';
 import { CampoHora } from '@/components/campo-hora';
+import { Modal } from '@/components/modal';
 import { lanzarToast } from '@/lib/toast';
 import {
   DIAS_HABILES,
@@ -114,12 +115,19 @@ export function ArmarSemana({ materias }: { materias: Materia[] }) {
         className="tactil flex w-full cursor-pointer items-center gap-2 bg-transparent text-left"
       >
         <span className="flex-1 text-[15px] font-extrabold tracking-[-0.01em]">Armá tu semana</span>
-        <span className="kicker text-[10px] text-tx3">{abierto ? 'Ocultar' : 'Editar'}</span>
+        <span className="kicker text-[10px] text-tx3">Editar</span>
       </button>
 
-      {abierto ? (
+      {/* El editor vive en un modal: la grilla de abajo queda visible al cerrar
+          y en móvil el sheet no empuja toda la página. */}
+      <Modal
+        abierto={abierto}
+        titulo="Armá tu semana"
+        onCerrar={() => setAbierto(false)}
+        ancho="card"
+      >
         <>
-          <p className="mt-1.5 mb-3 text-[13px] leading-[1.45] text-tx3">
+          <p className="-mt-2 mb-3 text-[13px] leading-[1.45] text-tx3">
             Tocá los días de cada materia para marcarlos de {FRANJA_DEFECTO.inicio} a{' '}
             {FRANJA_DEFECTO.fin}, y cambiá las horas abajo si esa clase va en otro rango.
           </p>
@@ -248,7 +256,7 @@ export function ArmarSemana({ materias }: { materias: Materia[] }) {
 
           {error ? <p className="mt-2.5 text-[12.5px] text-[#fb7185]">{error}</p> : null}
         </>
-      ) : null}
+      </Modal>
     </section>
   );
 }

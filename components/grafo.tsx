@@ -3,12 +3,12 @@
 // Pantalla Grafo (handoff §5): toda la cursada como red de fuerzas, estilo
 // graph view de Obsidian — sobre el fondo de la página, sin card.
 //
-// La simulación vive en un ref (no en el estado): en cada frame se muta el
-// grafo y se pide un re-render con un contador. Mientras el grafo está caliente
-// corre un requestAnimationFrame; cuando se asienta, se corta solo.
+// SIN animación: la simulación se asienta entera de una (unos cientos de ticks
+// son baratos) y el grafo se dibuja ya quieto. El baile de fuerzas mareaba y
+// no aportaba información.
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ALFA_QUIETA,
   ALTO,
@@ -36,52 +36,18 @@ export function GrafoCursada({ materias, avisos, iniciales }: Props) {
   const firma = firmaGrafo(materias, avisos);
   const grafoRef = useRef<Grafo | null>(null);
   const firmaRef = useRef<string | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const [, redibujar] = useState(0);
   const [hover, setHover] = useState<string | null>(null);
 
   // Se rearma solo si cambiaron los datos: si no, las posiciones ya calculadas
-  // se conservan entre renders.
+  // se conservan entre renders. Se asienta acá mismo, en el render: el grafo
+  // aparece quieto desde el primer frame.
   if (firmaRef.current !== firma) {
     firmaRef.current = firma;
-    grafoRef.current = armarGrafo(materias, avisos, iniciales);
+    const nuevo = armarGrafo(materias, avisos, iniciales);
+    for (let i = 0; i < PASOS_ASENTAR && nuevo.alfa > ALFA_QUIETA; i++) tickGrafo(nuevo);
+    grafoRef.current = nuevo;
   }
   const g = grafoRef.current as Grafo;
-
-  const animar = useCallback(() => {
-    const paso = () => {
-      const grafo = grafoRef.current;
-      if (!grafo || grafo.alfa <= ALFA_QUIETA) {
-        rafRef.current = null;
-        return;
-      }
-      tickGrafo(grafo);
-      redibujar((n) => n + 1);
-      rafRef.current = requestAnimationFrame(paso);
-    };
-    if (rafRef.current === null) rafRef.current = requestAnimationFrame(paso);
-  }, []);
-
-  useEffect(() => {
-    const grafo = grafoRef.current;
-    if (!grafo) return;
-
-    // Con reduced-motion no hay baile: se asienta de una y se dibuja quieto.
-    const quieto =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (quieto) {
-      for (let i = 0; i < PASOS_ASENTAR && grafo.alfa > ALFA_QUIETA; i++) tickGrafo(grafo);
-      redibujar((n) => n + 1);
-      return;
-    }
-
-    animar();
-    return () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    };
-  }, [animar, firma]);
 
   const encendidos = useMemo(() => cadenaEncendida(g, hover), [g, hover]);
   const nodoHover = hover ? g.nodos.find((n) => n.id === hover) ?? null : null;
@@ -89,7 +55,10 @@ export function GrafoCursada({ materias, avisos, iniciales }: Props) {
   const toca = (n: NodoGrafo) => encendidos.has(n.id);
 
   return (
-    <div className="relative mt-[6px]">
+    // En pantallas angostas el lienzo mantiene un mínimo legible y se panea a
+    // lo ancho, en vez de encogerse hasta que los rótulos no se leen.
+    <div className="mt-[6px] overflow-x-auto">
+      <div className="relative min-w-[560px]">
       <svg
         viewBox={`0 0 ${ANCHO} ${ALTO}`}
         role="img"
@@ -198,6 +167,7 @@ export function GrafoCursada({ materias, avisos, iniciales }: Props) {
       </svg>
 
       {nodoHover && nodoHover.tipo !== 'yo' && <Tooltip nodo={nodoHover} />}
+      </div>
     </div>
   );
 }

@@ -29,7 +29,7 @@ import {
   eliminarAviso,
   toggleAviso,
 } from '@/app/actions';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Cargando } from '@/components/cargando';
 import { NotasEditor } from '@/components/notas-editor';
 import { estadoAviso, hoyISO } from '@/lib/cursada';
@@ -92,9 +92,20 @@ export function MateriaDetalle({
   hoyIso,
 }: Props) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('curso');
-  /** Módulo que hay que abrir al entrar a la tab Curso (viene de una nota). */
-  const [irAModulo, setIrAModulo] = useState<string | null>(null);
+  // Deep-links de la URL (los usa el grafo, entre otros): `?nota=` cae en la
+  // tab Notas (el resalte lo hace NotasEditor), `?modulo=` abre ese módulo en
+  // Curso y `?tab=` elige una tab directamente.
+  const paramsUrl = useSearchParams();
+  const moduloUrl = paramsUrl.get('modulo');
+  const tabUrl = paramsUrl.get('tab');
+  const [tab, setTab] = useState<Tab>(() => {
+    if (paramsUrl.get('nota')) return 'notas';
+    if (moduloUrl) return 'curso';
+    if (tabUrl === 'notas' || tabUrl === 'archivos' || tabUrl === 'avisos') return tabUrl;
+    return 'curso';
+  });
+  /** Módulo que hay que abrir al entrar a la tab Curso (de una nota o la URL). */
+  const [irAModulo, setIrAModulo] = useState<string | null>(moduloUrl);
 
   const secciones = materia.secciones ?? [];
   const modulos = secciones.reduce((n, s) => n + s.modulos.length, 0);
@@ -173,12 +184,6 @@ const ICONO_MODULO: Record<string, LucideIcon> = {
   lesson: BookOpen,
   folder: Folder,
 };
-
-/**
- * Con pocas unidades se ven todas de una; a partir de acá se abre solo la
- * primera, para que la pantalla no arranque con una lista interminable.
- */
-const MAX_TODAS_ABIERTAS = 3;
 
 /**
  * Chip "Hecho" al lado del nombre del material.
@@ -271,11 +276,9 @@ function TabCurso({
   onAtendido?: () => void;
 }) {
   const idBase = useId();
-  const [abiertas, setAbiertas] = useState<ReadonlySet<number>>(() =>
-    secciones.length <= MAX_TODAS_ABIERTAS
-      ? new Set(secciones.map((_, i) => i))
-      : new Set(secciones.length > 0 ? [0] : [])
-  );
+  // Todo plegado al entrar: las unidades cerradas son el índice del curso, y
+  // el deep-link (?modulo= o una referencia de nota) abre la suya solo.
+  const [abiertas, setAbiertas] = useState<ReadonlySet<number>>(() => new Set());
   const [moduloAbierto, setModuloAbierto] = useState<string | null>(null);
   const refModulo = useRef<HTMLDivElement>(null);
 

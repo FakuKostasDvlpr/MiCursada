@@ -1,8 +1,9 @@
 'use client';
 
-// Avatar del header de Hoy con su menú (prototipo, header de Hoy): 40px ámbar
-// con iniciales; al TOCARLO baja una card con el nombre, la segunda línea,
-// "Ver mi perfil" y "Cerrar sesión".
+// Avatar del header de Hoy con su menú: 48px, con la foto del usuario (sin
+// fondo detrás: una imagen con transparencia no tiene que verse sobre un
+// círculo ámbar) o ámbar con iniciales si no subió ninguna; al TOCARLO baja
+// una card con el nombre, la segunda línea, "Ver mi perfil" y "Cerrar sesión".
 //
 // Se abre con CLICK, no con hover: apuntarle a un avatar de 40px para que no se
 // cierre en el camino a la card es impreciso, y en touch el hover directamente
@@ -64,7 +65,9 @@ export function MenuPerfil({ nombre, iniciales, avatarUrl = null, segunda = null
         aria-haspopup="menu"
         aria-expanded={abierto}
         aria-label="Tu perfil"
-        className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full bg-acc-bg text-[13px] font-extrabold text-acc-fg"
+        className={`grid h-12 w-12 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full text-[14px] font-extrabold ${
+          avatarUrl ? '' : 'bg-acc-bg text-acc-fg'
+        }`}
       >
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -79,7 +82,7 @@ export function MenuPerfil({ nombre, iniciales, avatarUrl = null, segunda = null
           role="menu"
           // cardIn a .22s: la card baja, no aparece de golpe.
           style={{ animationDuration: '0.22s' }}
-          className="card-in absolute top-10 right-0 z-45 min-w-[186px] rounded-[14px] border border-bor2 bg-sup p-[6px] pt-[6px]"
+          className="card-in absolute top-[52px] right-0 z-45 min-w-[186px] rounded-[14px] border border-bor2 bg-sup p-[6px] pt-[6px]"
         >
           <div className="px-[10px] pt-2 pb-[6px]">
             <div className="truncate text-[13px] font-bold">{nombre || 'Sin nombre'}</div>
