@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="display:flex;align-items:flex-start;gap:8px;background:var(--bg, #020617);border:1px solid var(--bor, #1e293b);border-left:2px solid {{ color }};border-radius:9px;padding:7px 10px;margin-top:7px;">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="{{ color }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><rect x="4" y="3" width="16" height="18" rx="2.5"></rect><path d="M8 8h8"></path><path d="M8 12h8"></path><path d="M8 16h4"></path></svg>
+  <span style="flex:1;min-width:0;display:block;">
+    <span style="display:block;font-size:12px;line-height:1.45;color:var(--tx2, #94a3b8);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ texto }}</span>
+    <span style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx4, #475569);">{{ tipo }}</span>
+      <span style="width:5px;height:5px;border-radius:99px;background:{{ estadoColor }};"></span>
+      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9.5px;color:{{ estadoColor }};">{{ estadoNombre }}</span>
+    </span>
+  </span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:340,&quot;height&quot;:70},&quot;texto&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Hacer los 5 ejercicios de la guía&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;tipo&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;nota&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;estadoNombre&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;en proceso&quot;,&quot;options&quot;:[&quot;por hacer&quot;,&quot;en proceso&quot;,&quot;listo&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;estadoColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#38bdf8&quot;,&quot;options&quot;:[&quot;#64748b&quot;,&quot;#38bdf8&quot;,&quot;#34d399&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;color&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#38bdf8&quot;,&quot;options&quot;:[&quot;#38bdf8&quot;,&quot;#a78bfa&quot;,&quot;#34d399&quot;,&quot;#fb7185&quot;,&quot;#f97316&quot;,&quot;#e2e8f0&quot;],&quot;tsType&quot;:&quot;string&quot;}}"></script>
+</body>
+</html>

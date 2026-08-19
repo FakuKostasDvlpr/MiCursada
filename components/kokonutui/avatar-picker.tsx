@@ -37,163 +37,118 @@ export interface Avatar {
 }
 
 // RGB del anillo/glow animado del stage, por avatar (igual que el original).
-const AVATAR_RGB: Record<number, string> = {
-  1: '255, 0, 91',
-  2: '255, 125, 16',
-  3: '255, 0, 91',
-  4: '137, 252, 179',
+// --- Generador de avatares estilo "beam" -----------------------------------
+//
+// Los cuatro avatares originales del componente eran SVGs escritos a mano con
+// la misma anatomía: fondo pleno, una mancha rotada con esquinas redondeadas y
+// una carita (dos ojos + boca) flotando encima. Acá esa anatomía es UNA función
+// y el set sale de combinar la paleta de materias de la app — más variedad sin
+// más markup, y todos quedan a tono con el diseño.
+
+type Beam = {
+  /** Color de fondo del círculo. */
+  fondo: string;
+  /** Color de la mancha rotada que cubre la mayor parte. */
+  mancha: string;
+  /** Color de los ojos y la boca (contraste contra la mancha). */
+  cara: string;
+  /** Rotación de la mancha, en grados. */
+  rot: number;
+  /** Corrimiento de la mancha. */
+  tx: number;
+  ty: number;
+  /** Escala de la mancha. */
+  escala: number;
+  /** Rotación de la carita. */
+  rotCara: number;
+  /** true = sonríe; false = boca seria (línea recta). */
+  sonrie: boolean;
+  /** Separación de los ojos (x del ojo izquierdo; el derecho va espejado). */
+  ojoX: number;
 };
 
-export const AVATARES_PREDEFINIDOS: Avatar[] = [
-  {
-    id: 1,
-    svg: (
-      <svg
-        aria-label="Avatar 1"
-        fill="none"
-        height="40"
-        role="img"
-        viewBox="0 0 36 36"
-        width="40"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <title>Avatar 1</title>
-        <mask height="36" id=":r111:" maskUnits="userSpaceOnUse" width="36" x="0" y="0">
-          <rect fill="#FFFFFF" height="36" rx="72" width="36" />
-        </mask>
-        <g mask="url(#:r111:)">
-          <rect fill="#ff005b" height="36" width="36" />
+function BeamAvatar({ n, beam }: { n: number; beam: Beam }) {
+  const idMask = `beam-${n}`;
+  return (
+    <svg
+      aria-label={`Avatar ${n}`}
+      fill="none"
+      height="40"
+      role="img"
+      viewBox="0 0 36 36"
+      width="40"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <title>{`Avatar ${n}`}</title>
+      <mask height="36" id={idMask} maskUnits="userSpaceOnUse" width="36" x="0" y="0">
+        <rect fill="#FFFFFF" height="36" rx="72" width="36" />
+      </mask>
+      <g mask={`url(#${idMask})`}>
+        <rect fill={beam.fondo} height="36" width="36" />
+        <rect
+          fill={beam.mancha}
+          height="36"
+          rx="6"
+          transform={`translate(${beam.tx} ${beam.ty}) rotate(${beam.rot} 18 18) scale(${beam.escala})`}
+          width="36"
+          x="0"
+          y="0"
+        />
+        <g transform={`translate(4.5 -4) rotate(${beam.rotCara} 18 18)`}>
+          {beam.sonrie ? (
+            <path d="M15 19c2 1 4 1 6 0" fill="none" stroke={beam.cara} strokeLinecap="round" />
+          ) : (
+            <path d="M15 19h6" fill="none" stroke={beam.cara} strokeLinecap="round" />
+          )}
+          <rect fill={beam.cara} height="2" rx="1" stroke="none" width="1.5" x={beam.ojoX} y="14" />
           <rect
-            fill="#ffb238"
-            height="36"
-            rx="6"
-            transform="translate(9 -5) rotate(219 18 18) scale(1)"
-            width="36"
-            x="0"
-            y="0"
+            fill={beam.cara}
+            height="2"
+            rx="1"
+            stroke="none"
+            width="1.5"
+            x={36 - beam.ojoX - 3.5}
+            y="14"
           />
-          <g transform="translate(4.5 -4) rotate(9 18 18)">
-            <path d="M15 19c2 1 4 1 6 0" fill="none" stroke="#000000" strokeLinecap="round" />
-            <rect fill="#000000" height="2" rx="1" stroke="none" width="1.5" x="10" y="14" />
-            <rect fill="#000000" height="2" rx="1" stroke="none" width="1.5" x="24" y="14" />
-          </g>
         </g>
-      </svg>
-    ),
-    alt: 'Avatar 1',
-  },
-  {
-    id: 2,
-    svg: (
-      <svg
-        aria-label="Avatar 2"
-        fill="none"
-        height="40"
-        role="img"
-        viewBox="0 0 36 36"
-        width="40"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <title>Avatar 2</title>
-        <mask height="36" id=":R4mrttb:" maskUnits="userSpaceOnUse" width="36" x="0" y="0">
-          <rect fill="#FFFFFF" height="36" rx="72" width="36" />
-        </mask>
-        <g mask="url(#:R4mrttb:)">
-          <rect fill="#ff7d10" height="36" width="36" />
-          <rect
-            fill="#0a0310"
-            height="36"
-            rx="6"
-            transform="translate(5 -1) rotate(55 18 18) scale(1.1)"
-            width="36"
-            x="0"
-            y="0"
-          />
-          <g transform="translate(7 -6) rotate(-5 18 18)">
-            <path d="M15 20c2 1 4 1 6 0" fill="none" stroke="#FFFFFF" strokeLinecap="round" />
-            <rect fill="#FFFFFF" height="2" rx="1" stroke="none" width="1.5" x="14" y="14" />
-            <rect fill="#FFFFFF" height="2" rx="1" stroke="none" width="1.5" x="20" y="14" />
-          </g>
-        </g>
-      </svg>
-    ),
-    alt: 'Avatar 2',
-  },
-  {
-    id: 3,
-    svg: (
-      <svg
-        aria-label="Avatar 3"
-        fill="none"
-        height="40"
-        role="img"
-        viewBox="0 0 36 36"
-        width="40"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <title>Avatar 3</title>
-        <mask height="36" id=":r11c:" maskUnits="userSpaceOnUse" width="36" x="0" y="0">
-          <rect fill="#FFFFFF" height="36" rx="72" width="36" />
-        </mask>
-        <g mask="url(#:r11c:)">
-          <rect fill="#0a0310" height="36" width="36" />
-          <rect
-            fill="#ff005b"
-            height="36"
-            rx="36"
-            transform="translate(-3 7) rotate(227 18 18) scale(1.2)"
-            width="36"
-            x="0"
-            y="0"
-          />
-          <g transform="translate(-3 3.5) rotate(7 18 18)">
-            <path d="M13,21 a1,0.75 0 0,0 10,0" fill="#FFFFFF" />
-            <rect fill="#FFFFFF" height="2" rx="1" stroke="none" width="1.5" x="12" y="14" />
-            <rect fill="#FFFFFF" height="2" rx="1" stroke="none" width="1.5" x="22" y="14" />
-          </g>
-        </g>
-      </svg>
-    ),
-    alt: 'Avatar 3',
-  },
-  {
-    id: 4,
-    svg: (
-      <svg
-        aria-label="Avatar 4"
-        fill="none"
-        height="40"
-        role="img"
-        viewBox="0 0 36 36"
-        width="40"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <title>Avatar 4</title>
-        <mask height="36" id=":r1gg:" maskUnits="userSpaceOnUse" width="36" x="0" y="0">
-          <rect fill="#FFFFFF" height="36" rx="72" width="36" />
-        </mask>
-        <g mask="url(#:r1gg:)">
-          <rect fill="#d8fcb3" height="36" width="36" />
-          <rect
-            fill="#89fcb3"
-            height="36"
-            rx="6"
-            transform="translate(9 -5) rotate(219 18 18) scale(1)"
-            width="36"
-            x="0"
-            y="0"
-          />
-          <g transform="translate(4.5 -4) rotate(9 18 18)">
-            <path d="M15 19c2 1 4 1 6 0" fill="none" stroke="#000000" strokeLinecap="round" />
-            <rect fill="#000000" height="2" rx="1" stroke="none" width="1.5" x="10" y="14" />
-            <rect fill="#000000" height="2" rx="1" stroke="none" width="1.5" x="24" y="14" />
-          </g>
-        </g>
-      </svg>
-    ),
-    alt: 'Avatar 4',
-  },
+      </g>
+    </svg>
+  );
+}
+
+/**
+ * El set: los dos primeros son los clásicos del componente original; el resto
+ * combina la paleta de materias (celeste, violeta, verde, rosa, naranja, tiza)
+ * con el ámbar de la app. Caras oscuras sobre manchas claras y al revés.
+ */
+const COMBOS: Beam[] = [
+  { fondo: '#ff005b', mancha: '#ffb238', cara: '#000000', rot: 219, tx: 9, ty: -5, escala: 1, rotCara: 9, sonrie: true, ojoX: 10 },
+  { fondo: '#ff7d10', mancha: '#0a0310', cara: '#FFFFFF', rot: 55, tx: 5, ty: -1, escala: 1.1, rotCara: -5, sonrie: true, ojoX: 14 },
+  { fondo: '#0a0310', mancha: '#38bdf8', cara: '#03131f', rot: 145, tx: -4, ty: 6, escala: 1.05, rotCara: 4, sonrie: true, ojoX: 12 },
+  { fondo: '#38bdf8', mancha: '#a78bfa', cara: '#160a2e', rot: 300, tx: 7, ty: -3, escala: 1.15, rotCara: -7, sonrie: false, ojoX: 11 },
+  { fondo: '#fbbf24', mancha: '#221a00', cara: '#fbbf24', rot: 30, tx: -6, ty: 4, escala: 1, rotCara: 6, sonrie: true, ojoX: 13 },
+  { fondo: '#a78bfa', mancha: '#34d399', cara: '#04271a', rot: 200, tx: 8, ty: 2, escala: 1.08, rotCara: -3, sonrie: true, ojoX: 10 },
+  { fondo: '#34d399', mancha: '#0a0310', cara: '#34d399', rot: 80, tx: -3, ty: -6, escala: 1.12, rotCara: 8, sonrie: false, ojoX: 12 },
+  { fondo: '#fb7185', mancha: '#fbbf24', cara: '#221a00', rot: 250, tx: 4, ty: 7, escala: 1, rotCara: -8, sonrie: true, ojoX: 14 },
+  { fondo: '#f97316', mancha: '#e2e8f0', cara: '#1e293b', rot: 120, tx: -7, ty: -2, escala: 1.1, rotCara: 3, sonrie: true, ojoX: 11 },
+  { fondo: '#e2e8f0', mancha: '#fb7185', cara: '#20060b', rot: 340, tx: 6, ty: 5, escala: 1.05, rotCara: -4, sonrie: false, ojoX: 13 },
+  { fondo: '#0a0310', mancha: '#f97316', cara: '#20060b', rot: 15, tx: -5, ty: -4, escala: 1.18, rotCara: 7, sonrie: true, ojoX: 10 },
+  { fondo: '#38bdf8', mancha: '#fbbf24', cara: '#221a00', rot: 165, tx: 3, ty: -7, escala: 1, rotCara: -6, sonrie: true, ojoX: 12 },
 ];
+
+/** '#rrggbb' → 'r, g, b' para el glow del escenario. */
+const hexARgb = (hex: string) =>
+  [hex.slice(1, 3), hex.slice(3, 5), hex.slice(5, 7)].map((p) => parseInt(p, 16)).join(', ');
+
+const AVATAR_RGB: Record<number, string> = Object.fromEntries(
+  COMBOS.map((c, i) => [i + 1, hexARgb(c.mancha)])
+);
+
+export const AVATARES_PREDEFINIDOS: Avatar[] = COMBOS.map((beam, i) => ({
+  id: i + 1,
+  svg: <BeamAvatar beam={beam} n={i + 1} />,
+  alt: `Avatar ${i + 1}`,
+}));
 
 const containerVariants: Variants = {
   initial: { opacity: 0 },
@@ -310,7 +265,12 @@ export function AvatarPicker({ subiendo, error, onElegir, onSubirPropia }: Props
           </motion.span>
         </AnimatePresence>
 
-        <motion.div animate="animate" className="flex gap-3" initial="initial" variants={containerVariants}>
+        <motion.div
+          animate="animate"
+          className="flex max-w-[300px] flex-wrap justify-center gap-3"
+          initial="initial"
+          variants={containerVariants}
+        >
           {AVATARES_PREDEFINIDOS.map((avatar) => {
             const isSelected = selectedAvatar.id === avatar.id;
             return (

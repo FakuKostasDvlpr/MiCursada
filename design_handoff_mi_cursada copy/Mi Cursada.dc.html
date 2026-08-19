@@ -1,0 +1,2033 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#020617;--sup:#0f172a;--bor:#1e293b;--bor2:#334155;--tx:#e2e8f0;--tx2:#94a3b8;--tx3:#64748b;--tx4:#475569;--acc:#fbbf24;--scrim:rgba(2,6,23,.72);--navbg:rgba(2,6,23,.93);}
+html[data-tema="claro"]{--bg:#f1f5f9;--sup:#ffffff;--bor:#e2e8f0;--bor2:#cbd5e1;--tx:#0f172a;--tx2:#475569;--tx3:#64748b;--tx4:#94a3b8;--acc:#b45309;--scrim:rgba(15,23,42,.4);--navbg:rgba(241,245,249,.93);}
+html[data-tema="claro"] body{color-scheme:light;}
+html{background:var(--bg);}
+    html,body{overflow-x:hidden !important;overflow-y:auto !important;height:auto !important;min-height:100% !important;}
+    #root{overflow:visible;height:auto;min-height:100%;}
+    body{margin:0;background:var(--bg);color:var(--tx);display:block;color-scheme:dark;font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+    *{box-sizing:border-box;}
+    a{color:var(--acc);}a:hover{color:#fde68a;}
+    :focus-visible{outline:2px solid #fbbf24;outline-offset:2px;border-radius:8px;}
+    input,textarea,select,button{font-family:inherit;}
+    ::placeholder{color:var(--tx4);opacity:1;}
+    @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+    @keyframes sheetUp{from{transform:translateY(26px);opacity:.4;}to{transform:none;opacity:1;}}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    @keyframes popCheck{0%{transform:scale(.3);opacity:0;}60%{transform:scale(1.18);opacity:1;}100%{transform:scale(1);}}
+    @keyframes cardIn{from{transform:translateY(22px) scale(.96);opacity:0;}to{transform:none;opacity:1;}}
+    @keyframes rowIn{from{transform:translateX(-14px);opacity:0;}to{transform:none;opacity:1;}}
+    @keyframes welcomeIn{0%{transform:translateY(12px) scale(.94);opacity:0;filter:blur(6px);}100%{transform:none;opacity:1;filter:none;}}
+    @keyframes pulseDot{0%,100%{opacity:.35;}50%{opacity:1;}}
+    @keyframes charRoll{0%{transform:translateY(120%);opacity:0;}100%{transform:none;opacity:1;}}
+    @keyframes logroIn{0%{transform:translateY(26px) scale(.88);opacity:0;}55%{transform:translateY(-4px) scale(1.03);opacity:1;}100%{transform:none;opacity:1;}}
+    @keyframes logroBrillo{0%{transform:translateX(-120%) skewX(-18deg);}100%{transform:translateX(320%) skewX(-18deg);}}
+  </style>
+</helmet>
+<div style="min-height:100dvh;background:var(--bg);color:var(--tx);">
+  <sc-if value="{{ verNavDesk }}" hint-placeholder-val="{{ false }}">
+    <aside style="position:fixed;left:0;top:0;bottom:0;width:232px;z-index:40;background:var(--sup);border-right:1px solid var(--bor);display:flex;flex-direction:column;padding:22px 14px;">
+      <div style="display:flex;align-items:center;gap:10px;padding:0 8px;">
+        <span style="width:36px;height:36px;border-radius:11px;background:#fbbf24;color:#221a00;display:grid;place-items:center;flex-shrink:0;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"></path></svg>
+        </span>
+        <span style="min-width:0;">
+          <span style="display:block;font-size:14px;font-weight:800;letter-spacing:-.01em;">Mi Cursada</span>
+          <span style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-top:1px;">Turno noche</span>
+        </span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-top:26px;">
+        <button onClick="{{ irHoy }}" style="display:flex;align-items:center;gap:11px;min-height:44px;padding:0 12px;border:none;border-radius:11px;cursor:pointer;text-align:left;font-size:13.5px;font-weight:700;color:{{ colHoy }};background:{{ bgNavHoy }};">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"></path></svg>
+          Hoy
+        </button>
+        <button onClick="{{ irSemana }}" style="display:flex;align-items:center;gap:11px;min-height:44px;padding:0 12px;border:none;border-radius:11px;cursor:pointer;text-align:left;font-size:13.5px;font-weight:700;color:{{ colSemana }};background:{{ bgNavSemana }};">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18"></path><path d="M8 3v4"></path><path d="M16 3v4"></path></svg>
+          Semana
+        </button>
+        <button onClick="{{ irMaterias }}" style="display:flex;align-items:center;gap:11px;min-height:44px;padding:0 12px;border:none;border-radius:11px;cursor:pointer;text-align:left;font-size:13.5px;font-weight:700;color:{{ colMaterias }};background:{{ bgNavMaterias }};">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          Materias
+        </button>
+        <button onClick="{{ irAvisos }}" style="display:flex;align-items:center;gap:11px;min-height:44px;padding:0 12px;border:none;border-radius:11px;cursor:pointer;text-align:left;font-size:13.5px;font-weight:700;color:{{ colAvisos }};background:{{ bgNavAvisos }};">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+          Avisos
+        </button>
+        <button onClick="{{ irGrafo }}" style="display:flex;align-items:center;gap:11px;min-height:44px;padding:0 12px;border:none;border-radius:11px;cursor:pointer;text-align:left;font-size:13.5px;font-weight:700;color:{{ colGrafo }};background:{{ bgNavGrafo }};">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.6"></circle><circle cx="19" cy="6" r="2.6"></circle><circle cx="12" cy="18" r="2.6"></circle><path d="M7.2 7.4L10.5 16"></path><path d="M16.8 7.4L13.5 16"></path><path d="M7.6 6h8.8"></path></svg>
+          Grafo
+        </button>
+      </div>
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:4px;">
+        <button onClick="{{ editarPerfil }}" style="display:flex;align-items:center;gap:11px;min-height:48px;padding:0 12px;border:none;border-radius:11px;cursor:pointer;text-align:left;background:none;">
+          <span style="width:30px;height:30px;border-radius:99px;background:#fbbf24;color:#221a00;display:grid;place-items:center;font-weight:800;font-size:11px;flex-shrink:0;">{{ iniciales }}</span>
+          <span style="min-width:0;flex:1;">
+            <span style="display:block;font-size:13px;font-weight:700;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ perfilNombreVista }}</span>
+            <span style="display:block;font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Tu perfil</span>
+          </span>
+        </button>
+      </div>
+    </aside>
+  </sc-if>
+  <main style="{{ mainStyle }}">
+
+    <sc-if value="{{ verLogin }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Login" style="min-height:calc(100dvh - 160px);display:flex;align-items:center;justify-content:center;padding:30px 0;">
+        <div style="{{ wrapEstilo }}">
+          <sc-if value="{{ panelVis }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ panelEstilo }}">
+              <div style="background:#ffffff;border-radius:14px;padding:16px 20px;display:grid;place-items:center;align-self:flex-start;">
+                <img src="https://www.ort.edu.ar/img/LogoOrtArgWeb2017.jpg" alt="ORT Argentina" style="height:44px;width:auto;display:block;">
+              </div>
+              <div style="{{ panelBodyEstilo }}">
+                <div style="{{ capaIntro }}">
+                  <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Instituto ORT Argentina</div>
+                  <div style="margin-top:8px;font-size:19px;font-weight:800;letter-spacing:-.015em;line-height:1.3;">Tu cursada, ordenada.</div>
+                  <div style="margin-top:6px;font-size:13.5px;color:var(--tx2);">Entrá y traemos tu carrera, horarios y materias.</div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:22px;">
+                    <span style="width:6px;height:6px;border-radius:99px;background:#34d399;"></span>
+                    <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">Sincroniza con el aula virtual</span>
+                  </div>
+                </div>
+                <sc-if value="{{ faseDatosVis }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ capaDatos }}">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <span style="width:6px;height:6px;border-radius:99px;background:var(--acc);animation:pulseDot 1s ease infinite;"></span>
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);">Trayendo tus datos del aula virtual</span>
+                    </div>
+                    <div style="margin-top:8px;font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.2;">{{ nombreBienvenida }}</div>
+                    <div style="margin-top:7px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;color:var(--tx2);">Turno noche · Lun a Sáb 18:10–21:30</div>
+                  <div style="display:flex;flex-direction:column;gap:8px;margin-top:20px;">
+                    <div style="display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:11px 14px;animation:rowIn .5s cubic-bezier(.22,.8,.3,1) .2s both;">
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:74px;flex-shrink:0;">Carrera</span>
+                      <span style="font-size:14px;font-weight:700;">Analista de Sistemas</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:11px 14px;animation:rowIn .5s cubic-bezier(.22,.8,.3,1) .4s both;">
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:74px;flex-shrink:0;">Materias</span>
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;color:var(--tx2);">{{ nMateriasTxt }} activas</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:11px 14px;animation:rowIn .5s cubic-bezier(.22,.8,.3,1) .6s both;">
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:74px;flex-shrink:0;">Estado</span>
+                      <span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;color:#34d399;"><span style="width:6px;height:6px;border-radius:99px;background:#34d399;"></span>Sincronizado</span>
+                    </div>
+                  </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ faseAbriendoMontado }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ capaAbriendo }}">
+                    <span style="width:26px;height:26px;border-radius:99px;border:3px solid var(--bor2);border-top-color:var(--acc);animation:spin .75s linear infinite;display:block;"></span>
+                    <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);">Abriendo tu cursada</span>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ faseFormMontado }}" hint-placeholder-val="{{ true }}">
+            <div style="{{ formCardEstilo }}">
+              <sc-if value="{{ esMovil }}" hint-placeholder-val="{{ true }}">
+                <div style="background:#ffffff;border-radius:12px;padding:12px 16px;display:grid;place-items:center;align-self:center;">
+                  <img src="https://www.ort.edu.ar/img/LogoOrtArgWeb2017.jpg" alt="ORT Argentina" style="height:34px;width:auto;display:block;">
+                </div>
+              </sc-if>
+              <div style="margin-top:{{ loginGapTop }};">
+                <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Mi cursada</div>
+                <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Entrá a tu cursada</h1>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px;margin-top:22px;">
+                <div>
+                  <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Correo</label>
+                  <div style="position:relative;">
+                    <input type="text" value="{{ emailTxt }}" onChange="{{ setEmail }}" placeholder="demo" style="width:100%;min-height:48px;background:var(--bg);border:1px solid {{ bordeMail }};border-radius:12px;padding:0 40px 0 14px;font-size:15px;color:var(--tx);transition:border-color .25s ease;">
+                    <sc-if value="{{ mailMal }}" hint-placeholder-val="{{ false }}">
+                      <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;border-radius:99px;background:#fb7185;display:grid;place-items:center;animation:popCheck .4s cubic-bezier(.34,1.56,.64,1) both;">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#20060b" stroke-width="3.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                      </span>
+                    </sc-if>
+                  </div>
+                </div>
+                <div>
+                  <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Contraseña</label>
+                  <div style="position:relative;">
+                    <input type="password" value="{{ passTxt }}" onChange="{{ setPass }}" placeholder="Tu contraseña" style="width:100%;min-height:48px;background:var(--bg);border:1px solid {{ bordePass }};border-radius:12px;padding:0 40px 0 14px;font-size:15px;color:var(--tx);transition:border-color .25s ease;">
+                    <sc-if value="{{ passMal }}" hint-placeholder-val="{{ false }}">
+                      <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;border-radius:99px;background:#fb7185;display:grid;place-items:center;animation:popCheck .4s cubic-bezier(.34,1.56,.64,1) both;">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#20060b" stroke-width="3.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                      </span>
+                    </sc-if>
+                  </div>
+                </div>
+                <sc-if value="{{ esError }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:8px;background:rgba(251,113,133,.1);border:1px solid rgba(251,113,133,.35);border-radius:12px;padding:10px 12px;animation:rowIn .35s cubic-bezier(.22,.8,.3,1) both;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v4.5"></path><path d="M12 16h.01"></path></svg>
+                    <span style="font-size:13px;font-weight:600;color:#fb7185;">{{ msgError }}</span>
+                  </div>
+                </sc-if>
+                <button onClick="{{ entrar }}" style="margin-top:4px;background:{{ btnBg }};color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:15px;min-height:48px;cursor:pointer;display:grid;place-items:center;transition:background .25s ease;">
+                  <sc-if value="{{ btnNormal }}" hint-placeholder-val="{{ true }}">Entrar</sc-if>
+                  <sc-if value="{{ btnReintentar }}" hint-placeholder-val="{{ false }}">Reintentar</sc-if>
+                  <sc-if value="{{ btnCargando }}" hint-placeholder-val="{{ false }}">
+                    <span style="width:20px;height:20px;border-radius:99px;border:3px solid rgba(34,26,0,.25);border-top-color:#221a00;animation:spin .7s linear infinite;display:block;"></span>
+                  </sc-if>
+                  <sc-if value="{{ btnCheck }}" hint-placeholder-val="{{ false }}">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#03170c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="animation:popCheck .45s cubic-bezier(.34,1.56,.64,1) both;"><path d="M20 6L9 17l-5-5"></path></svg>
+                  </sc-if>
+                </button>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;">
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx4);">demo</span>
+                <button onClick="{{ usarDemo }}" style="background:var(--bg);border:1px solid var(--bor);border-radius:99px;padding:6px 12px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;font-weight:600;color:var(--acc);cursor:pointer;min-height:32px;">demo / demo</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verPerfil }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Perfil" style="max-width:400px;margin:0 auto;padding:26px 0;">
+        <div style="text-align:center;">
+          <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Tu perfil</div>
+          <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-.015em;">{{ perfilNombreVista }}</h1>
+        </div>
+        <div style="position:relative;width:104px;margin:26px auto 0;">
+          <div style="width:104px;height:104px;border-radius:99px;display:grid;place-items:center;font-size:34px;font-weight:800;background:{{ avatarBg }};color:{{ avatarCol }};box-shadow:{{ avatarRing }};">
+            <sc-if value="{{ tieneIniciales }}" hint-placeholder-val="{{ false }}">{{ iniciales }}</sc-if>
+            <sc-if value="{{ sinIniciales }}" hint-placeholder-val="{{ true }}">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg>
+            </sc-if>
+          </div>
+          <sc-if value="{{ fotoLista }}" hint-placeholder-val="{{ false }}">
+            <span style="position:absolute;right:-2px;bottom:-2px;width:30px;height:30px;border-radius:99px;background:#34d399;color:var(--bg);border:3px solid var(--bg);display:grid;place-items:center;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+            </span>
+          </sc-if>
+        </div>
+        <div style="display:flex;justify-content:center;margin-top:16px;">
+          <button onClick="{{ tomarFoto }}" style="display:inline-flex;align-items:center;gap:8px;background:var(--sup);border:1px solid var(--bor2);border-radius:12px;color:var(--tx);font-size:13.5px;font-weight:700;min-height:44px;padding:0 16px;cursor:pointer;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            {{ fotoLabel }}
+          </button>
+        </div>
+        <div style="text-align:center;margin-top:8px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx4);">cámara de muestra — solo UI</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:22px;">
+          <div style="display:flex;align-items:center;gap:12px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:12px 14px;min-height:50px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:76px;flex-shrink:0;">Nombre</span>
+            <span style="font-size:14px;font-weight:700;">{{ perfilNombreVista }}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:12px 14px;min-height:50px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:76px;flex-shrink:0;">Correo</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ correoVista }}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:12px 14px;min-height:50px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:76px;flex-shrink:0;">Carrera</span>
+            <span style="font-size:14px;font-weight:700;">Analista de Sistemas</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:12px 14px;min-height:50px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);width:76px;flex-shrink:0;">Instituto</span>
+            <span style="font-size:14px;font-weight:600;color:var(--tx2);">ORT Argentina · Turno noche</span>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:14px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx4);">datos sincronizados del aula virtual — no se editan acá</div>
+        <button onClick="{{ listoPerfil }}" style="width:100%;margin-top:16px;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:15px;min-height:48px;cursor:pointer;">Listo</button>
+        <button onClick="{{ cerrarSesion }}" style="width:100%;margin-top:8px;background:none;border:1px solid rgba(251,113,133,.45);color:#fb7185;border-radius:12px;font-size:13.5px;font-weight:700;cursor:pointer;min-height:46px;">Cerrar sesión</button>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verHoy }}" hint-placeholder-val="{{ true }}">
+      <section data-screen-label="Hoy">
+        <header style="display:flex;align-items:flex-start;gap:10px;">
+          <div style="flex:1;min-width:0;">
+            <div style="overflow:hidden;">
+              <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--acc);display:flex;flex-wrap:wrap;">
+                <sc-for list="{{ saludoChars }}" as="ch" hint-placeholder-count="10">
+                  <span style="display:inline-block;white-space:pre;animation:charRoll .5s cubic-bezier(.22,.8,.3,1) {{ ch.d }} both;">{{ ch.c }}</span>
+                </sc-for>
+              </div>
+            </div>
+            <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-.015em;">{{ fechaLarga }}</h1>
+          </div>
+          <button onClick="{{ toggleTema }}" aria-label="Cambiar tema" role="switch" aria-checked="{{ esOscuro }}" style="position:relative;width:62px;height:34px;border-radius:99px;border:1px solid var(--bor);background:var(--sup);cursor:pointer;flex-shrink:0;padding:0;">
+            <span style="position:absolute;left:0;top:0;bottom:0;width:31px;display:grid;place-items:center;z-index:1;pointer-events:none;color:{{ colIcoLuna }};transition:color .3s ease;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"></path></svg>
+            </span>
+            <span style="position:absolute;right:0;top:0;bottom:0;width:31px;display:grid;place-items:center;z-index:1;pointer-events:none;color:{{ colIcoSol }};transition:color .3s ease;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2"></path><path d="M12 19v2"></path><path d="M5.2 5.2l1.4 1.4"></path><path d="M17.4 17.4l1.4 1.4"></path><path d="M3 12h2"></path><path d="M19 12h2"></path><path d="M5.2 18.8l1.4-1.4"></path><path d="M17.4 6.6l1.4-1.4"></path></svg>
+            </span>
+            <span style="position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:99px;background:#fbbf24;transform:{{ knobX }};transition:transform .34s cubic-bezier(.22,.8,.3,1);"></span>
+          </button>
+          <div onMouseEnter="{{ abrirMenuPerfil }}" onMouseLeave="{{ cerrarMenuPerfil }}" style="position:relative;flex-shrink:0;">
+            <button onClick="{{ editarPerfil }}" aria-label="Tu perfil" style="width:40px;height:40px;border-radius:99px;background:#fbbf24;color:#221a00;border:none;font-weight:800;font-size:13px;cursor:pointer;">{{ iniciales }}</button>
+            <sc-if value="{{ menuPerfil }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;right:0;top:40px;padding-top:6px;z-index:45;min-width:186px;background:var(--sup);border:1px solid var(--bor2);border-radius:14px;padding:6px;animation:cardIn .22s cubic-bezier(.22,.8,.3,1) both;">
+                <div style="padding:8px 10px 6px;">
+                  <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ perfilNombreVista }}</div>
+                  <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--tx3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ correoVista }}</div>
+                </div>
+                <button onClick="{{ editarPerfil }}" style="display:flex;align-items:center;gap:9px;width:100%;min-height:42px;padding:0 10px;background:none;border:none;border-radius:10px;cursor:pointer;text-align:left;font-size:13.5px;font-weight:600;color:var(--tx);" style-hover="background:var(--bor);">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg>
+                  Ver mi perfil
+                </button>
+                <button onClick="{{ cerrarSesion }}" style="display:flex;align-items:center;gap:9px;width:100%;min-height:42px;padding:0 10px;background:none;border:none;border-radius:10px;cursor:pointer;text-align:left;font-size:13.5px;font-weight:700;color:#fb7185;" style-hover="background:rgba(251,113,133,.12);">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5"></path><path d="M20 12H9"></path><path d="M12 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6"></path></svg>
+                  Cerrar sesión
+                </button>
+              </div>
+            </sc-if>
+          </div>
+        </header>
+
+        <sc-if value="{{ sinMaterias }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:22px;background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:26px 20px;text-align:center;">
+            <div style="font-size:16px;font-weight:700;">Cargá tus materias</div>
+            <div style="margin-top:6px;font-size:13.5px;color:var(--tx2);">Armá tu semana con horarios, notas y avisos.</div>
+            <button onClick="{{ abrirModalMateria }}" style="margin-top:16px;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14px;min-height:46px;padding:0 20px;cursor:pointer;">Nueva materia</button>
+          </div>
+        </sc-if>
+
+        <div style="margin-top:20px;display:grid;grid-template-columns:{{ bentoCols }};gap:10px;">
+          <sc-if value="{{ hayHero }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ heroAbrir }}" style="grid-column:{{ gcHero }};width:100%;text-align:left;background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:16px;display:flex;gap:14px;cursor:pointer;color:var(--tx);">
+              <span style="width:4px;border-radius:99px;background:{{ heroColor }};flex-shrink:0;align-self:stretch;"></span>
+              <span style="flex:1;min-width:0;display:block;">
+                <span style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">{{ heroKicker }}</span>
+                <span style="display:block;font-size:21px;font-weight:800;letter-spacing:-.01em;line-height:1.2;margin-top:8px;">{{ heroNombre }}</span>
+                <span style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-top:8px;">
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:17px;font-weight:600;">{{ heroHorario }}</span>
+                  <span style="font-size:13px;color:var(--tx2);">{{ heroAula }}</span>
+                </span>
+                <span style="display:block;margin-top:10px;font-size:13.5px;font-weight:600;color:{{ heroEstadoColor }};">{{ heroEstado }}</span>
+              </span>
+            </button>
+          </sc-if>
+          <button onClick="{{ irSemana }}" style="background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:14px;text-align:left;cursor:pointer;color:var(--tx);display:flex;flex-direction:column;gap:6px;min-height:106px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Clases hoy</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:32px;font-weight:600;line-height:1;margin-top:auto;display:flex;">
+              <sc-for list="{{ statClasesDigits }}" as="d" hint-placeholder-count="1">
+                <span style="display:inline-block;height:1em;overflow:hidden;">
+                  <span style="display:block;transform:translateY({{ d.y }});transition:transform .9s cubic-bezier(.22,.8,.3,1) {{ d.delay }};">
+                    <span style="display:block;height:1em;">0</span><span style="display:block;height:1em;">1</span><span style="display:block;height:1em;">2</span><span style="display:block;height:1em;">3</span><span style="display:block;height:1em;">4</span><span style="display:block;height:1em;">5</span><span style="display:block;height:1em;">6</span><span style="display:block;height:1em;">7</span><span style="display:block;height:1em;">8</span><span style="display:block;height:1em;">9</span>
+                  </span>
+                </span>
+              </sc-for>
+            </span>
+            <span style="font-size:12px;color:var(--tx3);">{{ statClasesSub }}</span>
+          </button>
+          <button onClick="{{ verTodos }}" style="background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:14px;text-align:left;cursor:pointer;color:var(--tx);display:flex;flex-direction:column;gap:6px;min-height:106px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Pendientes</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:32px;font-weight:600;line-height:1;margin-top:auto;color:{{ colStatPend }};display:flex;">
+              <sc-for list="{{ statPendDigits }}" as="d" hint-placeholder-count="1">
+                <span style="display:inline-block;height:1em;overflow:hidden;">
+                  <span style="display:block;transform:translateY({{ d.y }});transition:transform .9s cubic-bezier(.22,.8,.3,1) {{ d.delay }};">
+                    <span style="display:block;height:1em;">0</span><span style="display:block;height:1em;">1</span><span style="display:block;height:1em;">2</span><span style="display:block;height:1em;">3</span><span style="display:block;height:1em;">4</span><span style="display:block;height:1em;">5</span><span style="display:block;height:1em;">6</span><span style="display:block;height:1em;">7</span><span style="display:block;height:1em;">8</span><span style="display:block;height:1em;">9</span>
+                  </span>
+                </span>
+              </sc-for>
+            </span>
+            <span style="font-size:12px;color:var(--tx3);">{{ statPendSub }}</span>
+          </button>
+          <div style="grid-column:{{ gcClases }};background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:14px;">
+            <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);margin-bottom:10px;">Clases de hoy</div>
+            <sc-if value="{{ sinClasesHoy }}" hint-placeholder-val="{{ false }}">
+              <div style="border:1px dashed var(--bor);border-radius:12px;padding:16px;text-align:center;color:var(--tx3);font-size:13.5px;">Hoy no cursás. Aprovechá para ponerte al día.</div>
+            </sc-if>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <sc-for list="{{ hoyClases }}" as="c" hint-placeholder-count="2">
+                <button onClick="{{ c.abrir }}" style="display:flex;align-items:center;gap:12px;width:100%;min-height:50px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left;color:var(--tx);opacity:{{ c.op }};">
+                  <span style="width:8px;height:8px;border-radius:99px;background:{{ c.color }};flex-shrink:0;"></span>
+                  <span style="flex:1;min-width:0;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.nombre }}</span>
+                  <span style="font-size:12px;color:var(--tx3);">{{ c.aula }}</span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;color:{{ c.hColor }};white-space:nowrap;">{{ c.horario }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="grid-column:{{ gcAvisos }};background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);">Próximos avisos</div>
+              <button onClick="{{ verTodos }}" style="background:none;border:none;color:var(--acc);font-size:13px;font-weight:700;cursor:pointer;min-height:44px;padding:0 4px;">Ver todos</button>
+            </div>
+            <sc-if value="{{ sinAvisosHoy }}" hint-placeholder-val="{{ false }}">
+              <div style="border:1px dashed var(--bor);border-radius:12px;padding:16px;text-align:center;color:var(--tx3);font-size:13.5px;">Nada pendiente. Tranquilo.</div>
+            </sc-if>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <sc-for list="{{ avisosHoy }}" as="a" hint-placeholder-count="2">
+                <button onClick="{{ a.toggle }}" style="display:flex;align-items:center;gap:12px;width:100%;min-height:52px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:8px 12px;cursor:pointer;text-align:left;color:var(--tx);">
+                  <span style="width:20px;height:20px;border-radius:99px;border:2px solid var(--bor2);flex-shrink:0;"></span>
+                  <span style="flex:1;min-width:0;display:block;">
+                    <span style="display:block;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.titulo }}</span>
+                    <span style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+                      <span style="width:6px;height:6px;border-radius:99px;background:{{ a.matColor }};"></span>
+                      <span style="font-size:12px;color:var(--tx3);">{{ a.matNombre }}</span>
+                    </span>
+                  </span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:{{ a.fCol }};white-space:nowrap;">{{ a.fechaTxt }} {{ a.suf }}</span>
+                  <span onClick="{{ a.verAviso }}" role="button" aria-label="Ver detalle del aviso" title="Ver detalle" style="width:32px;height:32px;border:1px solid var(--bor);border-radius:9px;display:grid;place-items:center;color:var(--tx3);cursor:pointer;flex-shrink:0;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+                  </span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <sc-if value="{{ mostrarSync }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:34px;display:flex;align-items:center;justify-content:center;gap:8px;">
+            <span style="width:6px;height:6px;border-radius:99px;background:#34d399;"></span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">Sincronizado con el aula virtual · hace 2 h</span>
+          </div>
+        </sc-if>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verSemana }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Semana">
+        <header style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+          <h1 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Semana</h1>
+          <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:var(--tx3);">{{ semanaRango }}</div>
+        </header>
+        <div style="margin-top:20px;display:grid;grid-template-columns:{{ semCols }};gap:10px;align-items:start;">
+          <sc-for list="{{ dias }}" as="d" hint-placeholder-count="6">
+            <div style="background:var(--sup);border:1px solid {{ d.borde }};border-radius:14px;padding:12px 14px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span style="font-size:14px;font-weight:700;">{{ d.nombre }}</span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;color:var(--tx3);">{{ d.fecha }}</span>
+                <sc-if value="{{ d.esHoy }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;background:#fbbf24;color:#221a00;border-radius:99px;padding:3px 9px;">hoy</span>
+                </sc-if>
+              </div>
+              <sc-if value="{{ d.libre }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:8px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;color:var(--tx4);">— libre</div>
+              </sc-if>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
+                <sc-for list="{{ d.clases }}" as="c" hint-placeholder-count="1">
+                  <button onClick="{{ c.abrir }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:44px;background:var(--bg);border:1px solid var(--bor);border-radius:11px;padding:9px 12px;cursor:pointer;text-align:left;color:var(--tx);">
+                    <span style="width:8px;height:8px;border-radius:99px;background:{{ c.color }};flex-shrink:0;"></span>
+                    <span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.nombre }}</span>
+                    <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:var(--tx2);white-space:nowrap;">{{ c.horario }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verMaterias }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Materias">
+        <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <h1 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Materias</h1>
+          <button onClick="{{ abrirModalMateria }}" style="background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14px;min-height:44px;padding:0 16px;cursor:pointer;">+ Nueva</button>
+        </header>
+        <sc-if value="{{ sinMaterias }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:20px;border:1px dashed var(--bor);border-radius:16px;padding:28px 20px;text-align:center;color:var(--tx3);font-size:13.5px;">Todavía no cargaste materias. Empezá por acá arriba.</div>
+        </sc-if>
+        <div style="margin-top:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:12px;">
+          <sc-for list="{{ materias }}" as="m" hint-placeholder-count="4">
+            <button onClick="{{ m.abrir }}" style="background:var(--sup);border:1px solid var(--bor);border-radius:14px;padding:14px;text-align:left;cursor:pointer;color:var(--tx);display:flex;flex-direction:column;gap:10px;min-height:128px;">
+              <span style="display:flex;gap:9px;align-items:flex-start;">
+                <span style="width:8px;height:8px;border-radius:99px;background:{{ m.color }};flex-shrink:0;margin-top:5px;"></span>
+                <span style="font-size:15px;font-weight:700;line-height:1.3;">{{ m.nombre }}</span>
+              </span>
+              <span style="display:flex;flex-direction:column;gap:3px;">
+                <sc-for list="{{ m.horarios }}" as="h" hint-placeholder-count="1">
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;color:var(--tx2);">{{ h.txt }}</span>
+                </sc-for>
+              </span>
+              <span style="margin-top:auto;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">{{ m.tNotas }} · {{ m.tArch }} · <span style="color:{{ m.avCol }};">{{ m.tAvisos }}</span></span>
+            </button>
+          </sc-for>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verAvisos }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Avisos">
+        <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <h1 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Avisos</h1>
+          <button onClick="{{ abrirModalAviso }}" style="background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14px;min-height:44px;padding:0 16px;cursor:pointer;">+ Nuevo</button>
+        </header>
+        <sc-if value="{{ sinPend }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:20px;border:1px dashed var(--bor);border-radius:16px;padding:28px 20px;text-align:center;color:var(--tx3);font-size:13.5px;">Nada pendiente. Tranquilo.</div>
+        </sc-if>
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px;">
+          <sc-for list="{{ pend }}" as="a" hint-placeholder-count="3">
+            <button onClick="{{ a.toggle }}" style="display:flex;align-items:center;gap:12px;width:100%;min-height:58px;background:var(--sup);border:1px solid var(--bor);border-radius:13px;padding:10px 14px;cursor:pointer;text-align:left;color:var(--tx);">
+              <span style="width:20px;height:20px;border-radius:99px;border:2px solid var(--bor2);flex-shrink:0;"></span>
+              <span style="flex:1;min-width:0;display:block;">
+                <span style="display:block;font-size:14.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.titulo }}</span>
+                <span style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+                  <span style="width:6px;height:6px;border-radius:99px;background:{{ a.matColor }};"></span>
+                  <span style="font-size:12px;color:var(--tx3);">{{ a.matNombre }}</span>
+                </span>
+                <sc-if value="{{ a.hayNota }}" hint-placeholder-val="{{ false }}">
+                  <span onClick="{{ a.irNota }}" title="Abrir la nota" style="display:block;cursor:pointer;">
+                    <dc-import name="NotaAviso" texto="{{ a.notaTexto }}" tipo="{{ a.notaTipo }}" estado-nombre="{{ a.notaEstNombre }}" estado-color="{{ a.notaEstColor }}" color="{{ a.matColor }}" hint-size="100%,54px"></dc-import>
+                  </span>
+                </sc-if>
+              </span>
+              <sc-if value="{{ a.hayNota }}" hint-placeholder-val="{{ false }}">
+                <span onClick="{{ a.irNota }}" role="button" aria-label="Ver detalle de la nota" title="Ver detalle" style="width:34px;height:34px;border:1px solid var(--bor);border-radius:10px;display:grid;place-items:center;color:var(--tx3);cursor:pointer;flex-shrink:0;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+                </span>
+              </sc-if>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:{{ a.fCol }};white-space:nowrap;">{{ a.fechaTxt }} {{ a.suf }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <sc-if value="{{ hayHechos }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:28px;">
+            <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3);margin-bottom:10px;">Hechos</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ hechos }}" as="a" hint-placeholder-count="2">
+                <button onClick="{{ a.toggle }}" style="display:flex;align-items:center;gap:12px;width:100%;min-height:54px;background:var(--sup);border:1px solid var(--bor);border-radius:13px;padding:10px 14px;cursor:pointer;text-align:left;color:var(--tx);opacity:.5;">
+                  <span style="width:20px;height:20px;border-radius:99px;background:var(--bor2);border:2px solid var(--bor2);flex-shrink:0;display:grid;place-items:center;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--sup)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+                  </span>
+                  <span style="flex:1;min-width:0;display:block;">
+                    <span style="display:block;font-size:14.5px;font-weight:600;text-decoration:line-through;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.titulo }}</span>
+                    <span style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+                      <span style="width:6px;height:6px;border-radius:99px;background:{{ a.matColor }};"></span>
+                      <span style="font-size:12px;color:var(--tx3);">{{ a.matNombre }}</span>
+                    </span>
+                  </span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:var(--tx3);white-space:nowrap;">{{ a.fechaTxt }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verGrafo }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Grafo">
+        <header style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+          <h1 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.015em;">Grafo</h1>
+          <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">tu cursada como red</div>
+        </header>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;">
+          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">{{ gTotMat }} materias</span>
+          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">{{ gTotNotas }} notas</span>
+          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">{{ gTotArch }} archivos</span>
+          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:{{ gColAv }};">{{ gTotAv }} avisos pendientes</span>
+        </div>
+        <sc-if value="{{ sinMaterias }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:20px;border:1px dashed var(--bor);border-radius:16px;padding:28px 20px;text-align:center;color:var(--tx3);font-size:13.5px;">Sin datos para graficar todavía. Cargá tus materias primero.</div>
+        </sc-if>
+        <sc-if value="{{ hayGrafo }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:6px;position:relative;">
+            <svg viewBox="0 0 760 560" ref="{{ gSvgRef }}" style="width:100%;height:auto;display:block;user-select:none;">
+              <sc-for list="{{ gLinks }}" as="e" hint-placeholder-count="6">
+                <line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.col }}" stroke-opacity="{{ e.op }}" stroke-width="{{ e.w }}" style="transition:stroke-opacity .22s ease, stroke .22s ease;"></line>
+              </sc-for>
+              <sc-for list="{{ gPuntos }}" as="n" hint-placeholder-count="10">
+                <g onPointerEnter="{{ n.enter }}" onPointerLeave="{{ n.leave }}" onClick="{{ n.click }}" style="cursor:{{ n.cur }};">
+                  <circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.rHalo }}" fill="{{ n.col }}" fill-opacity="{{ n.haloOp }}" style="transition:r .2s ease, fill-opacity .25s ease;"></circle>
+                  <circle cx="{{ n.x }}" cy="{{ n.y }}" r="{{ n.r }}" fill="{{ n.fill }}" fill-opacity="{{ n.fo }}" stroke="{{ n.stroke }}" stroke-width="{{ n.sw }}" style="transition:r .2s ease, fill .25s ease, fill-opacity .25s ease;"></circle>
+                  <sc-if value="{{ n.hayIni }}" hint-placeholder-val="{{ false }}">
+                    <text x="{{ n.x }}" y="{{ n.tyIni }}" text-anchor="middle" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:800;fill:#221a00;pointer-events:none;">{{ n.ini }}</text>
+                  </sc-if>
+                  <sc-if value="{{ n.hayLabel }}" hint-placeholder-val="{{ false }}">
+                    <text x="{{ n.x }}" y="{{ n.ly }}" text-anchor="middle" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:{{ n.fs }};font-weight:{{ n.fw }};fill:{{ n.lcol }};pointer-events:none;">{{ n.label }}</text>
+                  </sc-if>
+                </g>
+              </sc-for>
+            </svg>
+            <sc-if value="{{ gTipVis }}" hint-placeholder-val="{{ false }}">
+              <div style="{{ gTipEstilo }}">
+                <div style="display:flex;align-items:center;gap:7px;">
+                  <span style="width:7px;height:7px;border-radius:99px;background:{{ gTipCol }};flex-shrink:0;"></span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3);">{{ gTipKicker }}</span>
+                </div>
+                <div style="margin-top:5px;font-size:13px;font-weight:700;line-height:1.35;color:var(--tx);">{{ gTipTitulo }}</div>
+                <div style="margin-top:3px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--tx3);">{{ gTipSub }}</div>
+                <div style="margin-top:7px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:{{ gTipCol }};">click para ir →</div>
+              </div>
+            </sc-if>
+          </div>
+          <div style="display:flex;justify-content:center;margin-top:2px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--tx4);">hover para leer cada ítem · click para ir</span>
+          </div>
+        </sc-if>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ verDetalle }}" hint-placeholder-val="{{ false }}">
+      <section data-screen-label="Detalle de materia">
+        <button onClick="{{ volver }}" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--acc);font-size:14px;font-weight:700;cursor:pointer;min-height:44px;padding:0 8px 0 0;margin-left:-2px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+          Volver
+        </button>
+        <div style="margin-top:12px;display:flex;gap:14px;">
+          <div style="width:4px;border-radius:99px;background:{{ detColor }};flex-shrink:0;"></div>
+          <div style="flex:1;min-width:0;">
+            <h1 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.015em;line-height:1.2;">{{ detNombre }}</h1>
+            <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--tx2);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg>
+                <span>{{ detProfe }}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--tx2);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                <span>{{ detAula }}</span>
+              </div>
+              <sc-for list="{{ detHorarios }}" as="h" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:9px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;color:var(--tx2);">{{ h.txt }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;border-bottom:1px solid var(--bor);margin-top:24px;">
+          <button onClick="{{ irTabNotas }}" style="flex:1;background:none;border:none;border-bottom:2px solid {{ bTabNotas }};margin-bottom:-1px;min-height:48px;padding:12px 4px;font-size:13.5px;font-weight:700;cursor:pointer;color:{{ colTabNotas }};">Notas <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;opacity:.85;">{{ nNotasDet }}</span></button>
+          <button onClick="{{ irTabArch }}" style="flex:1;background:none;border:none;border-bottom:2px solid {{ bTabArch }};margin-bottom:-1px;min-height:48px;padding:12px 4px;font-size:13.5px;font-weight:700;cursor:pointer;color:{{ colTabArch }};">Archivos <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;opacity:.85;">{{ nArchDet }}</span></button>
+          <button onClick="{{ irTabAv }}" style="flex:1;background:none;border:none;border-bottom:2px solid {{ bTabAv }};margin-bottom:-1px;min-height:48px;padding:12px 4px;font-size:13.5px;font-weight:700;cursor:pointer;color:{{ colTabAv }};">Avisos <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;opacity:.85;">{{ nAvDet }}</span></button>
+        </div>
+
+        <sc-if value="{{ detTabNotas }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+              <div style="display:inline-flex;background:var(--sup);border:1px solid var(--bor);border-radius:10px;padding:3px;gap:2px;">
+                <button onClick="{{ verDoc }}" style="min-height:36px;padding:0 14px;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;color:{{ colVDoc }};background:{{ bgVDoc }};">Documento</button>
+                <button onClick="{{ verKanban }}" style="min-height:36px;padding:0 14px;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;color:{{ colVKan }};background:{{ bgVKan }};">Tablero</button>
+              </div>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx4);">{{ pista }}</span>
+            </div>
+            <sc-if value="{{ enPagina }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:16px;">
+                <button onClick="{{ salirPagina }}" style="display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--tx3);font-size:12.5px;font-weight:700;cursor:pointer;min-height:40px;padding:0 6px 0 0;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+                  Todas las notas
+                </button>
+                <input value="{{ pagTituloVal }}" onChange="{{ setPagTitulo }}" placeholder="Título de la nota" style="display:block;width:100%;background:none;border:none;padding:4px 0 0;margin-top:4px;font-family:inherit;font-size:27px;font-weight:800;letter-spacing:-.02em;color:var(--tx);">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px;">
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx4);">{{ pagFechaTxt }}</span>
+                  <sc-if value="{{ pagHayTodo }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:inline-flex;align-items:center;gap:7px;">
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.08em;color:{{ pagTodoCol }};border:1px solid {{ pagTodoCol }};border-radius:99px;padding:3px 9px;">{{ pagTodoTxt }}</span>
+                      <span style="width:74px;height:4px;border-radius:99px;background:var(--bor);overflow:hidden;display:inline-block;">
+                        <span style="display:block;height:100%;border-radius:99px;background:{{ pagTodoCol }};width:{{ pagTodoPct }};transition:width .4s cubic-bezier(.22,.8,.3,1);"></span>
+                      </span>
+                    </span>
+                  </sc-if>
+                  <button onClick="{{ agregarTareaRapida }}" style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;background:var(--sup);border:1px solid var(--bor);border-radius:99px;color:var(--tx2);font-size:12px;font-weight:700;min-height:32px;padding:0 13px;cursor:pointer;" style-hover="color:var(--acc);border-color:var(--bor2);">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+                    To-do
+                  </button>
+                </div>
+                <div style="height:1px;background:var(--bor);margin-top:14px;"></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ vistaDoc }}" hint-placeholder-val="{{ false }}">
+              <sc-if value="{{ hayAdj }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;margin-top:14px;">
+                  <span style="display:inline-flex;align-items:center;gap:7px;background:var(--sup);border:1px solid var(--bor2);border-radius:99px;padding:5px 6px 5px 12px;">
+                    <span style="width:7px;height:7px;border-radius:99px;background:{{ adjCol }};flex-shrink:0;"></span>
+                    <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;color:var(--tx);">{{ adjNombre }}</span>
+                    <button onClick="{{ quitarAdj }}" aria-label="Quitar archivo" style="background:none;border:none;color:var(--tx3);cursor:pointer;width:24px;height:24px;display:grid;place-items:center;border-radius:99px;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                  </span>
+                </div>
+              </sc-if>
+              <div style="margin-top:{{ mtComposer }};display:flex;gap:8px;">
+                <input value="{{ nuevoTxt }}" onChange="{{ setNuevo }}" onKeyDown="{{ nuevoKey }}" placeholder="Anotá lo que dice el profe · / bloques · @ referencias" style="flex:1;min-width:0;min-height:46px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:14.5px;color:var(--tx);">
+                <button onClick="{{ agregarNuevo }}" aria-label="Agregar bloque" style="width:46px;height:46px;flex-shrink:0;background:#fbbf24;border:none;border-radius:12px;color:#221a00;cursor:pointer;display:grid;place-items:center;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+                </button>
+              </div>
+              <sc-if value="{{ slashAbierto }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:8px;background:var(--sup);border:1px solid var(--bor2);border-radius:12px;overflow:hidden;padding:4px;">
+                  <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx4);padding:8px 10px 4px;">Bloques</div>
+                  <sc-for list="{{ slashOpts }}" as="op" hint-placeholder-count="3">
+                    <button onClick="{{ op.elegir }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 10px;background:none;border:none;border-radius:9px;cursor:pointer;text-align:left;color:var(--tx);" style-hover="background:var(--bor);">
+                      <span style="width:28px;height:28px;border-radius:8px;background:var(--bor);display:grid;place-items:center;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;color:var(--acc);flex-shrink:0;">{{ op.ic }}</span>
+                      <span style="flex:1;font-size:14px;font-weight:600;">{{ op.nombre }}</span>
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">{{ op.cmd }}</span>
+                    </button>
+                  </sc-for>
+                  <sc-if value="{{ sinSlash }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:10px 12px;font-size:13px;color:var(--tx3);">No hay ningún comando «/{{ slashQ }}».</div>
+                  </sc-if>
+                </div>
+              </sc-if>
+              <sc-if value="{{ atAbierto }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:8px;background:var(--sup);border:1px solid var(--bor2);border-radius:12px;overflow:hidden;padding:4px;">
+                  <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx4);padding:8px 10px 4px;">Referenciar</div>
+                  <sc-for list="{{ atOpts }}" as="f" hint-placeholder-count="2">
+                    <button onClick="{{ f.elegir }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 10px;background:none;border:none;border-radius:9px;cursor:pointer;text-align:left;color:var(--tx);" style-hover="background:var(--bor);">
+                      <span style="width:8px;height:8px;border-radius:99px;background:{{ f.col }};flex-shrink:0;"></span>
+                      <span style="flex:1;min-width:0;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ f.nombre }}</span>
+                      <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx4);">{{ f.kind }}</span>
+                    </button>
+                  </sc-for>
+                  <sc-if value="{{ sinAt }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:10px 12px;font-size:13px;color:var(--tx3);">Nada que referenciar con «{{ atQ }}».</div>
+                  </sc-if>
+                </div>
+              </sc-if>
+              <sc-if value="{{ sinNotasDet }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:14px;border:1px dashed var(--bor);border-radius:14px;padding:20px;text-align:center;color:var(--tx3);font-size:13.5px;">Sin notas todavía. Anotá lo que dice el profe acá — con / agregás títulos, tareas, links y divisores.</div>
+              </sc-if>
+              <div style="margin-top:12px;display:flex;flex-direction:column;">
+                <sc-for list="{{ detBloques }}" as="b" hint-placeholder-count="3">
+                  <div onDragOver="{{ b.dragOver }}" onDrop="{{ b.drop }}" style="display:flex;align-items:flex-start;gap:4px;padding:3px 0;border-top:2px solid {{ b.marca }};">
+                    <span draggable="true" onDragStart="{{ b.dragStart }}" onDragEnd="{{ b.dragEnd }}" title="Arrastrá para ordenar" style="width:24px;align-self:stretch;display:grid;place-items:center;cursor:grab;color:var(--bor2);flex-shrink:0;">
+                      <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="3.5" cy="3" r="1.4"></circle><circle cx="8.5" cy="3" r="1.4"></circle><circle cx="3.5" cy="8" r="1.4"></circle><circle cx="8.5" cy="8" r="1.4"></circle><circle cx="3.5" cy="13" r="1.4"></circle><circle cx="8.5" cy="13" r="1.4"></circle></svg>
+                    </span>
+                    <sc-if value="{{ b.esTitulo }}" hint-placeholder-val="{{ false }}">
+                      <textarea value="{{ b.texto }}" onChange="{{ b.setTexto }}" rows="{{ b.rows }}" autoFocus="{{ b.af }}" placeholder="Título…" style="flex:1;min-width:0;background:none;border:none;padding:6px 4px;color:var(--tx);font-family:inherit;font-size:17.5px;font-weight:800;line-height:1.35;resize:none;overflow:hidden;"></textarea>
+                    </sc-if>
+                    <sc-if value="{{ b.esTexto }}" hint-placeholder-val="{{ false }}">
+                      <span style="flex:1;min-width:0;display:flex;flex-direction:column;">
+                        <textarea value="{{ b.texto }}" onChange="{{ b.setTexto }}" rows="{{ b.rows }}" autoFocus="{{ b.af }}" placeholder="Escribí…" style="width:100%;background:{{ b.fmtBg }};border:none;border-radius:6px;padding:7px 4px;color:{{ b.colTxt }};font-family:inherit;font-size:14.5px;font-weight:{{ b.fmtW }};font-style:{{ b.fmtSty }};text-decoration:{{ b.deco }};line-height:1.5;resize:none;overflow:hidden;"></textarea>
+                        <sc-if value="{{ b.hayArch }}" hint-placeholder-val="{{ false }}">
+                          <a href="{{ b.archUrl }}" target="{{ b.archTarget }}" onClick="{{ b.archIr }}" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;align-self:flex-start;background:var(--bg);border:1px solid var(--bor);border-radius:99px;padding:4px 11px;margin:0 0 7px 4px;text-decoration:none;">
+                            <span style="width:6px;height:6px;border-radius:99px;background:{{ b.archCol }};flex-shrink:0;"></span>
+                            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:{{ b.archCol }};">{{ b.archNombre }}</span>
+                          </a>
+                        </sc-if>
+                      </span>
+                    </sc-if>
+                    <sc-if value="{{ b.esTarea }}" hint-placeholder-val="{{ false }}">
+                      <span style="flex:1;min-width:0;display:flex;align-items:flex-start;gap:8px;">
+                        <button onClick="{{ b.toggle }}" aria-label="Marcar tarea" style="width:20px;height:20px;margin-top:9px;border-radius:7px;border:2px solid var(--bor2);background:{{ b.cirBg }};flex-shrink:0;cursor:pointer;display:grid;place-items:center;padding:0;">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ b.checkOp }};"><path d="M20 6L9 17l-5-5"></path></svg>
+                        </button>
+                        <span style="flex:1;min-width:0;display:flex;flex-direction:column;">
+                          <textarea value="{{ b.texto }}" onChange="{{ b.setTexto }}" onKeyDown="{{ b.keyTarea }}" rows="{{ b.rows }}" autoFocus="{{ b.af }}" placeholder="To-do… (Enter crea otro)" style="width:100%;background:{{ b.fmtBg }};border:none;border-radius:6px;padding:7px 4px;color:{{ b.colTxt }};font-family:inherit;font-size:14.5px;font-weight:{{ b.fmtW }};font-style:{{ b.fmtSty }};text-decoration:{{ b.deco }};line-height:1.5;resize:none;overflow:hidden;"></textarea>
+                          <sc-if value="{{ b.hayArch }}" hint-placeholder-val="{{ false }}">
+                            <a href="{{ b.archUrl }}" target="{{ b.archTarget }}" onClick="{{ b.archIr }}" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;align-self:flex-start;background:var(--bg);border:1px solid var(--bor);border-radius:99px;padding:4px 11px;margin:0 0 7px 0;text-decoration:none;">
+                              <span style="width:6px;height:6px;border-radius:99px;background:{{ b.archCol }};flex-shrink:0;"></span>
+                              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:{{ b.archCol }};">{{ b.archNombre }}</span>
+                            </a>
+                          </sc-if>
+                        </span>
+                      </span>
+                    </sc-if>
+                    <sc-if value="{{ b.esPagina }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ b.abrirPagina }}" style="flex:1;min-width:0;display:flex;align-items:center;gap:11px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:11px 13px;min-height:52px;cursor:pointer;text-align:left;color:var(--tx);margin:2px 0;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="4" y="3" width="16" height="18" rx="2.5"></rect><path d="M8 8h8"></path><path d="M8 12h8"></path><path d="M8 16h4"></path></svg>
+                        <span style="flex:1;min-width:0;display:block;">
+                          <span style="display:block;font-size:14.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ b.pagTitulo }}</span>
+                          <span style="display:block;margin-top:2px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--tx3);">{{ b.pagSub }}</span>
+                        </span>
+                        <sc-if value="{{ b.pagHayTodo }}" hint-placeholder-val="{{ false }}">
+                          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.08em;color:{{ b.pagTodoCol }};border:1px solid {{ b.pagTodoCol }};border-radius:99px;padding:3px 9px;flex-shrink:0;">{{ b.pagTodoTxt }}</span>
+                        </sc-if>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 6l6 6-6 6"></path></svg>
+                      </button>
+                    </sc-if>
+                    <sc-if value="{{ b.esDivisor }}" hint-placeholder-val="{{ false }}">
+                      <span style="flex:1;align-self:center;height:1px;background:var(--bor);margin:14px 4px;"></span>
+                    </sc-if>
+                    <sc-if value="{{ b.esLink }}" hint-placeholder-val="{{ false }}">
+                      <span style="flex:1;min-width:0;display:block;padding:3px 0;">
+                        <sc-if value="{{ b.urlOk }}" hint-placeholder-val="{{ false }}">
+                          <a href="{{ b.url }}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:10px 12px;text-decoration:none;min-height:52px;">
+                            <span style="width:20px;height:20px;border-radius:5px;flex-shrink:0;background:var(--bor) center / cover no-repeat;background-image:url('{{ b.favicon }}');"></span>
+                            <span style="flex:1;min-width:0;display:block;">
+                              <span style="display:block;font-size:14px;font-weight:600;color:var(--acc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ b.tituloLink }}</span>
+                              <span style="display:block;margin-top:2px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ b.dominio }}</span>
+                            </span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg>
+                          </a>
+                        </sc-if>
+                        <sc-if value="{{ b.urlPend }}" hint-placeholder-val="{{ false }}">
+                          <span style="display:flex;flex-direction:column;gap:6px;background:var(--sup);border:1px dashed var(--bor2);border-radius:12px;padding:10px 12px;">
+                            <input value="{{ b.texto }}" onChange="{{ b.setTexto }}" autoFocus="{{ b.af }}" placeholder="Nombre del link" style="width:100%;background:none;border:none;padding:4px 2px;font-size:14px;font-weight:600;color:var(--tx);">
+                            <input value="{{ b.url }}" onChange="{{ b.setUrl }}" onBlur="{{ b.fijarUrl }}" onKeyDown="{{ b.urlKey }}" placeholder="Pegá el link y dale Enter" style="width:100%;background:none;border:none;padding:4px 2px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:var(--tx2);">
+                          </span>
+                        </sc-if>
+                      </span>
+                    </sc-if>
+                    <sc-if value="{{ b.esEditable }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ b.abrirCarta }}" title="Abrir detalle: formato, referencia y estado" style="width:26px;height:34px;background:none;border:none;color:var(--tx4);cursor:pointer;display:grid;place-items:center;flex-shrink:0;padding:0;" style-hover="color:var(--acc);">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="19" cy="12" r="1.7"></circle></svg>
+                      </button>
+                    </sc-if>
+                    <button onClick="{{ b.cicloEstado }}" title="{{ b.estadoNombre }}" style="width:26px;height:34px;background:none;border:none;cursor:pointer;display:grid;place-items:center;flex-shrink:0;padding:0;">
+                      <span style="width:8px;height:8px;border-radius:99px;background:{{ b.estadoColor }};"></span>
+                    </button>
+                    <button onClick="{{ b.borrar }}" aria-label="Borrar bloque" style="width:26px;height:34px;background:none;border:none;color:var(--bor2);cursor:pointer;display:grid;place-items:center;flex-shrink:0;padding:0;" style-hover="color:#fb7185;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{ vistaKanban }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:14px;overflow-x:auto;padding-bottom:6px;">
+                <div style="display:grid;grid-template-columns:repeat(3,minmax(218px,1fr));gap:10px;min-width:680px;">
+                  <sc-for list="{{ kanbanCols }}" as="k" hint-placeholder-count="3">
+                    <div onDragOver="{{ k.dragOver }}" onDrop="{{ k.drop }}" style="background:var(--sup);border:1px solid {{ k.borde }};border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:190px;">
+                      <div style="display:flex;align-items:center;gap:8px;padding:2px 4px;">
+                        <span style="width:8px;height:8px;border-radius:99px;background:{{ k.color }};"></span>
+                        <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx2);">{{ k.nombre }}</span>
+                        <span style="margin-left:auto;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx4);">{{ k.n }}</span>
+                      </div>
+                      <sc-for list="{{ k.cards }}" as="c" hint-placeholder-count="2">
+                        <div onClick="{{ c.abrirCarta }}" style="background:var(--bg);border:1px solid var(--bor);border-radius:11px;padding:8px 10px;cursor:pointer;" style-hover="border-color:var(--bor2);">
+                          <div style="padding:2px 4px;border-radius:5px;color:var(--tx);background:{{ c.fmtBg }};font-size:13.5px;font-weight:{{ c.fmtW }};font-style:{{ c.fmtSty }};line-height:1.45;text-decoration:{{ c.deco }};">{{ c.textoVista }}</div>
+                          <sc-if value="{{ c.esLinkOk }}" hint-placeholder-val="{{ false }}">
+                            <a href="{{ c.linkUrl }}" target="_blank" rel="noopener" onClick="{{ frenar }}" style="display:flex;align-items:center;gap:8px;background:var(--sup);border:1px solid var(--bor);border-radius:9px;padding:7px 9px;margin-top:6px;text-decoration:none;">
+                              <span style="width:16px;height:16px;border-radius:4px;flex-shrink:0;background:var(--bor) center / cover no-repeat;background-image:url('{{ c.linkFavicon }}');"></span>
+                              <span style="flex:1;min-width:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--acc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.linkDominio }}</span>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg>
+                            </a>
+                          </sc-if>
+                          <sc-if value="{{ c.hayArch }}" hint-placeholder-val="{{ false }}">
+                            <a href="{{ c.archUrl }}" target="{{ c.archTarget }}" onClick="{{ c.archIr }}" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;max-width:100%;background:var(--sup);border:1px solid var(--bor);border-radius:99px;padding:4px 10px;margin-top:6px;text-decoration:none;">
+                              <span style="width:6px;height:6px;border-radius:99px;background:{{ c.archCol }};flex-shrink:0;"></span>
+                              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:{{ c.archCol }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.archNombre }}</span>
+                            </a>
+                          </sc-if>
+                          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+                            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--tx4);">{{ c.fechaTxt }} · {{ c.tipoTxt }}</span>
+                            <button onClick="{{ c.borrar }}" aria-label="Eliminar card" title="Eliminar" style="margin-left:auto;height:24px;min-width:28px;background:none;border:none;color:{{ c.borrCol }};cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:0 2px;" style-hover="color:#fb7185;">
+                              <sc-if value="{{ c.borrArmado }}" hint-placeholder-val="{{ false }}">
+                                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.06em;">¿SEGURO?</span>
+                              </sc-if>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
+                            </button>
+                            <span draggable="true" onDragStart="{{ c.dragStart }}" title="Arrastrá a otra columna" style="width:28px;height:24px;display:grid;place-items:center;cursor:grab;color:var(--bor2);">
+                              <svg width="12" height="12" viewBox="0 0 12 16" fill="currentColor"><circle cx="3.5" cy="3" r="1.4"></circle><circle cx="8.5" cy="3" r="1.4"></circle><circle cx="3.5" cy="8" r="1.4"></circle><circle cx="8.5" cy="8" r="1.4"></circle><circle cx="3.5" cy="13" r="1.4"></circle><circle cx="8.5" cy="13" r="1.4"></circle></svg>
+                            </span>
+                          </div>
+                        </div>
+                      </sc-for>
+                      <button onClick="{{ k.agregar }}" style="min-height:40px;border:1px dashed var(--bor2);background:none;border-radius:10px;color:var(--tx3);font-size:12.5px;font-weight:600;cursor:pointer;" style-hover="color:var(--acc);border-color:var(--acc);">+ Nueva card</button>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ detTabArch }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:16px;">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <input value="{{ archNombre }}" onChange="{{ setArchNombre }}" placeholder="Nombre (ej: Guía 5 PDF)" style="width:100%;min-height:46px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:14.5px;color:var(--tx);">
+              <div style="display:flex;gap:8px;">
+                <input value="{{ archUrl }}" onChange="{{ setArchUrl }}" placeholder="Pegá el link acá" style="flex:1;min-width:0;min-height:46px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:14.5px;color:var(--tx);">
+                <button onClick="{{ agregarArchivo }}" style="background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14px;min-height:46px;padding:0 16px;cursor:pointer;flex-shrink:0;">Agregar</button>
+              </div>
+            </div>
+            <sc-if value="{{ sinArchDet }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:14px;border:1px dashed var(--bor);border-radius:14px;padding:20px;text-align:center;color:var(--tx3);font-size:13.5px;">Sin archivos todavía. Guardá los PDFs y links de la materia acá.</div>
+            </sc-if>
+            <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ detArchivos }}" as="f" hint-placeholder-count="2">
+                <a href="{{ f.url }}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:12px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:12px 14px;min-height:54px;text-decoration:none;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>
+                  <span style="flex:1;min-width:0;display:block;">
+                    <span style="display:block;font-size:14px;font-weight:600;color:var(--acc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ f.nombre }}</span>
+                    <span style="display:block;margin-top:2px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ f.url }}</span>
+                  </span>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M7 17L17 7"></path><path d="M8 7h9v9"></path></svg>
+                </a>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ detTabAv }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:16px;">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <input value="{{ daTitulo }}" onChange="{{ setDaTitulo }}" placeholder="Título (ej: Entrega del TP)" style="width:100%;min-height:46px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:14.5px;color:var(--tx);">
+              <div style="display:flex;gap:8px;">
+                <input type="date" value="{{ daFecha }}" onChange="{{ setDaFecha }}" style="flex:1;min-width:0;min-height:46px;background:var(--sup);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:14px;color:var(--tx);font-family:'JetBrains Mono',ui-monospace,monospace;">
+                <button onClick="{{ agregarAvisoDet }}" style="background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14px;min-height:46px;padding:0 16px;cursor:pointer;flex-shrink:0;">Agregar</button>
+              </div>
+            </div>
+            <sc-if value="{{ sinAvDet }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:14px;border:1px dashed var(--bor);border-radius:14px;padding:20px;text-align:center;color:var(--tx3);font-size:13.5px;">Nada pendiente para esta materia.</div>
+            </sc-if>
+            <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ detAvisos }}" as="a" hint-placeholder-count="2">
+                <button onClick="{{ a.toggle }}" style="display:flex;align-items:center;gap:12px;width:100%;min-height:54px;background:var(--sup);border:1px solid var(--bor);border-radius:13px;padding:10px 14px;cursor:pointer;text-align:left;color:var(--tx);opacity:{{ a.op }};">
+                  <span style="width:20px;height:20px;border-radius:99px;border:2px solid var(--bor2);background:{{ a.cirBg }};flex-shrink:0;"></span>
+                  <span style="flex:1;min-width:0;display:block;">
+                    <span style="display:block;font-size:14.5px;font-weight:600;text-decoration:{{ a.deco }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ a.titulo }}</span>
+                    <sc-if value="{{ a.hayNota }}" hint-placeholder-val="{{ false }}">
+                      <span onClick="{{ a.irNota }}" title="Abrir la nota" style="display:block;cursor:pointer;">
+                        <dc-import name="NotaAviso" texto="{{ a.notaTexto }}" tipo="{{ a.notaTipo }}" estado-nombre="{{ a.notaEstNombre }}" estado-color="{{ a.notaEstColor }}" color="{{ a.matColor }}" hint-size="100%,54px"></dc-import>
+                      </span>
+                    </sc-if>
+                  </span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:{{ a.fCol }};white-space:nowrap;">{{ a.fechaTxt }} {{ a.suf }}</span>
+                  <span onClick="{{ a.verAviso }}" role="button" aria-label="Ver detalle del aviso" title="Ver detalle" style="width:32px;height:32px;border:1px solid var(--bor);border-radius:9px;display:grid;place-items:center;color:var(--tx3);cursor:pointer;flex-shrink:0;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+                  </span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <button onClick="{{ eliminar }}" style="{{ delStyle }}">{{ delLabel }}</button>
+      </section>
+    </sc-if>
+  </main>
+
+  <sc-if value="{{ verNavMov }}" hint-placeholder-val="{{ true }}"><nav style="position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--navbg);backdrop-filter:blur(14px);border-top:1px solid var(--bor);padding-bottom:env(safe-area-inset-bottom);">
+    <div style="max-width:720px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);">
+      <button onClick="{{ irHoy }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 12px;font-size:11px;font-weight:700;color:{{ colHoy }};min-height:56px;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"></path></svg>
+        Hoy
+      </button>
+      <button onClick="{{ irSemana }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 12px;font-size:11px;font-weight:700;color:{{ colSemana }};min-height:56px;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18"></path><path d="M8 3v4"></path><path d="M16 3v4"></path></svg>
+        Semana
+      </button>
+      <button onClick="{{ irMaterias }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 12px;font-size:11px;font-weight:700;color:{{ colMaterias }};min-height:56px;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        Materias
+      </button>
+      <button onClick="{{ irAvisos }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 12px;font-size:11px;font-weight:700;color:{{ colAvisos }};min-height:56px;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+        Avisos
+      </button>
+      <button onClick="{{ irGrafo }}" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 12px;font-size:11px;font-weight:700;color:{{ colGrafo }};min-height:56px;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.6"></circle><circle cx="19" cy="6" r="2.6"></circle><circle cx="12" cy="18" r="2.6"></circle><path d="M7.2 7.4L10.5 16"></path><path d="M16.8 7.4L13.5 16"></path><path d="M7.6 6h8.8"></path></svg>
+        Grafo
+      </button>
+    </div>
+  </nav></sc-if>
+
+  <sc-if value="{{ cartaVis }}" hint-placeholder-val="{{ false }}">
+    <div style="{{ ovStyle }}" onClick="{{ cerrarCarta }}">
+      <div style="{{ panelStyleGrande }}" onClick="{{ frenar }}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);border:1px solid var(--acc);border-radius:99px;padding:4px 11px;">{{ cartaTipoTxt }}</span>
+          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:{{ cartaEstadoBadgeCol }};border:1px solid {{ cartaEstadoBadgeCol }};border-radius:99px;padding:4px 11px;">{{ cartaEstadoBadge }}</span>
+          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx4);">{{ cartaFecha }}</span>
+          <button onClick="{{ cerrarCarta }}" aria-label="Cerrar" style="margin-left:auto;background:none;border:none;color:var(--tx3);cursor:pointer;width:44px;height:44px;display:grid;place-items:center;margin-right:-12px;border-radius:12px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <textarea value="{{ cartaTexto }}" onChange="{{ setCartaTexto }}" autoFocus="{{ true }}" rows="4" placeholder="¿Qué hay que hacer? · / cambia el tipo · @ referencia" style="width:100%;background:var(--bg);border:1px solid var(--bor);border-radius:14px;padding:14px 16px;font-family:inherit;font-size:17px;font-weight:600;line-height:1.55;color:var(--tx);resize:vertical;"></textarea>
+        <sc-if value="{{ cartaSlashAbierto }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:8px;background:var(--bg);border:1px solid var(--bor2);border-radius:12px;padding:4px;">
+            <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx4);padding:8px 10px 4px;">Convertir en</div>
+            <sc-for list="{{ cartaSlashOpts }}" as="op" hint-placeholder-count="3">
+              <button onClick="{{ op.elegir }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:6px 10px;background:none;border:none;border-radius:9px;cursor:pointer;text-align:left;color:var(--tx);" style-hover="background:var(--bor);">
+                <span style="width:26px;height:26px;border-radius:8px;background:var(--bor);display:grid;place-items:center;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:var(--acc);flex-shrink:0;">{{ op.ic }}</span>
+                <span style="flex:1;font-size:13.5px;font-weight:600;">{{ op.nombre }}</span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--tx3);">{{ op.cmd }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ cartaAtAbierto }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:8px;background:var(--bg);border:1px solid var(--bor2);border-radius:12px;padding:4px;">
+            <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx4);padding:8px 10px 4px;">Referenciar</div>
+            <sc-for list="{{ cartaAtOpts }}" as="rf" hint-placeholder-count="3">
+              <button onClick="{{ rf.elegir }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:6px 10px;background:none;border:none;border-radius:9px;cursor:pointer;text-align:left;color:var(--tx);" style-hover="background:var(--bor);">
+                <span style="width:8px;height:8px;border-radius:99px;background:{{ rf.col }};flex-shrink:0;"></span>
+                <span style="flex:1;min-width:0;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ rf.nombre }}</span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx4);">{{ rf.kind }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </sc-if>
+        <div style="margin-top:16px;">
+          <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:8px;">Estado</label>
+          <div style="display:flex;background:var(--bg);border:1px solid var(--bor);border-radius:11px;padding:3px;gap:2px;">
+            <sc-for list="{{ cartaEstados }}" as="es" hint-placeholder-count="3">
+              <button onClick="{{ es.elegir }}" style="flex:1;min-height:38px;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;color:{{ es.col }};background:{{ es.bg }};display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+                <span style="width:7px;height:7px;border-radius:99px;background:{{ es.dot }};"></span>{{ es.nombre }}
+              </button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:8px;">Formato</label>
+          <div style="display:flex;gap:8px;">
+            <sc-for list="{{ cartaFmts }}" as="fm" hint-placeholder-count="4">
+              <button onClick="{{ fm.toggle }}" style="width:44px;height:40px;border:1px solid var(--bor);border-radius:10px;cursor:pointer;font-size:14px;font-weight:{{ fm.fw }};font-style:{{ fm.fst }};text-decoration:{{ fm.deco }};color:{{ fm.col }};background:{{ fm.bg }};transition:background .15s ease,color .15s ease;">{{ fm.glifo }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="margin-top:14px;">
+          <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:8px;">Referencia</label>
+          <select value="{{ cartaRef }}" onChange="{{ setCartaRef }}" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 12px;font-size:14px;color:var(--tx);">
+            <option value="">Sin referencia</option>
+            <sc-for list="{{ cartaRefOpts }}" as="o" hint-placeholder-count="3">
+              <option value="{{ o.val }}">{{ o.etiqueta }}</option>
+            </sc-for>
+          </select>
+        </div>
+        <sc-if value="{{ cartaEsLink }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:14px;">
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:8px;">URL</label>
+            <input value="{{ cartaUrl }}" onChange="{{ setCartaUrl }}" onBlur="{{ fijarCartaUrl }}" placeholder="Pegá el link acá" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;color:var(--tx);">
+          </div>
+        </sc-if>
+        <sc-if value="{{ cartaEsTarea }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ cartaToggleHecho }}" style="margin-top:14px;display:flex;align-items:center;gap:10px;width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 14px;cursor:pointer;text-align:left;color:var(--tx);font-size:14px;font-weight:600;">
+            <span style="width:19px;height:19px;border-radius:7px;border:2px solid var(--bor2);background:{{ cartaCirBg }};display:grid;place-items:center;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:{{ cartaCheckOp }};"><path d="M20 6L9 17l-5-5"></path></svg>
+            </span>
+            {{ cartaHechoTxt }}
+          </button>
+        </sc-if>
+        <div style="margin-top:14px;">
+          <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:8px;">Aviso</label>
+          <sc-if value="{{ cartaSinAviso }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;gap:8px;">
+              <input type="date" value="{{ cartaAvFecha }}" onChange="{{ setCartaAvFecha }}" style="flex:1;min-width:0;min-height:44px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 12px;font-size:13px;color:var(--tx);font-family:'JetBrains Mono',ui-monospace,monospace;">
+              <button onClick="{{ crearAvisoDeCarta }}" style="display:inline-flex;align-items:center;gap:7px;background:var(--bg);border:1px solid var(--bor2);border-radius:12px;color:var(--tx);font-size:13px;font-weight:700;min-height:44px;padding:0 14px;cursor:pointer;flex-shrink:0;" style-hover="border-color:var(--acc);color:var(--acc);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+                Crear aviso
+              </button>
+            </div>
+          </sc-if>
+          <sc-if value="{{ cartaConAviso }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:9px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:10px 13px;">
+              <span style="width:7px;height:7px;border-radius:99px;background:#fb7185;flex-shrink:0;"></span>
+              <span style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Aviso creado · {{ cartaAvisoFechaTxt }}</span>
+              <button onClick="{{ verAvisoDeCarta }}" style="background:none;border:none;color:var(--acc);font-size:12.5px;font-weight:700;cursor:pointer;padding:4px 2px;">Ver</button>
+            </div>
+          </sc-if>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px;">
+          <button onClick="{{ borrarCarta }}" style="{{ cartaBorrEstilo }}">{{ cartaBorrLabel }}</button>
+          <button onClick="{{ cerrarCarta }}" style="flex:1;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14.5px;min-height:46px;cursor:pointer;">Listo</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ avmVis }}" hint-placeholder-val="{{ false }}">
+    <div style="{{ ovStyle }}" onClick="{{ cerrarAvm }}">
+      <div style="{{ panelStyle }}" onClick="{{ frenar }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);">Aviso</div>
+          <button onClick="{{ cerrarAvm }}" aria-label="Cerrar" style="background:none;border:none;color:var(--tx3);cursor:pointer;width:44px;height:44px;display:grid;place-items:center;margin-right:-12px;border-radius:12px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="font-size:21px;font-weight:800;letter-spacing:-.015em;line-height:1.3;color:var(--tx);">{{ avm.titulo }}</div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px;">
+          <span style="display:inline-flex;align-items:center;gap:7px;">
+            <span style="width:8px;height:8px;border-radius:99px;background:{{ avm.matColor }};"></span>
+            <span style="font-size:13.5px;font-weight:600;color:var(--tx2);">{{ avm.matNombre }}</span>
+          </span>
+          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12.5px;color:var(--tx3);">{{ avm.fechaLargaTxt }}</span>
+          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:{{ avm.estadoCol }};border:1px solid {{ avm.estadoCol }};border-radius:99px;padding:3px 10px;">{{ avm.estadoTxt }}</span>
+        </div>
+        <sc-if value="{{ avm.hayNota }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:18px;">
+            <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:8px;">Nota vinculada</div>
+            <div style="background:var(--bg);border:1px solid var(--bor);border-left:3px solid {{ avm.matColor }};border-radius:12px;padding:14px 16px;">
+              <div style="font-size:14.5px;line-height:1.6;color:var(--tx);white-space:pre-wrap;">{{ avm.notaTexto }}</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx4);">{{ avm.notaTipo }}</span>
+                <span style="width:6px;height:6px;border-radius:99px;background:{{ avm.notaEstColor }};"></span>
+                <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:{{ avm.notaEstColor }};">{{ avm.notaEstNombre }}</span>
+                <button onClick="{{ avm.irNota }}" style="margin-left:auto;background:none;border:none;color:var(--acc);font-size:13px;font-weight:700;cursor:pointer;padding:4px 2px;">Abrir la nota →</button>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+        <div style="display:flex;gap:10px;margin-top:22px;">
+          <button onClick="{{ avm.toggle }}" style="flex:1;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14.5px;min-height:48px;cursor:pointer;">{{ avm.toggleTxt }}</button>
+          <button onClick="{{ cerrarAvm }}" style="background:none;border:1px solid var(--bor2);color:var(--tx2);border-radius:12px;font-weight:700;font-size:14px;min-height:48px;padding:0 18px;cursor:pointer;">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toastVis }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;bottom:96px;left:0;right:0;z-index:60;display:flex;justify-content:center;pointer-events:none;">
+      <div style="display:flex;align-items:center;gap:10px;background:var(--sup);border:1px solid {{ toastBorde }};border-radius:99px;padding:10px 18px 10px 12px;animation:logroIn .4s cubic-bezier(.3,1.4,.4,1) both;">
+        <sc-if value="{{ toastDel }}" hint-placeholder-val="{{ false }}">
+          <span style="width:28px;height:28px;border-radius:99px;background:rgba(251,113,133,.15);display:grid;place-items:center;flex-shrink:0;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fb7185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
+          </span>
+        </sc-if>
+        <sc-if value="{{ toastOk }}" hint-placeholder-val="{{ false }}">
+          <span style="width:28px;height:28px;border-radius:99px;background:rgba(52,211,153,.15);display:grid;place-items:center;flex-shrink:0;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+          </span>
+        </sc-if>
+        <span style="font-size:13.5px;font-weight:700;color:var(--tx);">{{ toastMsg }}</span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ logroVis }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;right:18px;bottom:96px;z-index:60;display:flex;justify-content:flex-end;pointer-events:none;">
+      <div style="display:flex;align-items:center;gap:13px;background:linear-gradient(120deg,#f97316,#ea580c);border-radius:99px;padding:9px 26px 9px 10px;animation:logroIn .55s cubic-bezier(.3,1.4,.4,1) both;overflow:hidden;position:relative;">
+        <span style="position:absolute;top:0;bottom:0;left:0;width:56px;background:rgba(255,255,255,.22);filter:blur(2px);animation:logroBrillo 1.4s ease .35s both;"></span>
+        <span style="width:46px;height:46px;border-radius:99px;background:rgba(59,21,3,.35);display:grid;place-items:center;flex-shrink:0;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffedd5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M6 3h12v6a6 6 0 0 1-12 0z"></path><path d="M6 5H3v2a4 4 0 0 0 3 3.87"></path><path d="M18 5h3v2a4 4 0 0 1-3 3.87"></path></svg>
+        </span>
+        <span style="display:block;">
+          <span style="display:block;font-size:15.5px;font-weight:800;letter-spacing:-.01em;color:#fff7ed;">¡Logro desbloqueado!</span>
+          <span style="display:block;margin-top:1px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;color:rgba(255,247,237,.85);">{{ logroSub }}</span>
+        </span>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ modalMateria }}" hint-placeholder-val="{{ false }}">
+    <div style="{{ ovStyle }}" onClick="{{ cerrarModal }}">
+      <div style="{{ panelStyle }}" onClick="{{ frenar }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+          <div style="font-size:17px;font-weight:800;">Nueva materia</div>
+          <button onClick="{{ cerrarModal }}" aria-label="Cerrar" style="background:none;border:none;color:var(--tx3);cursor:pointer;width:44px;height:44px;display:grid;place-items:center;margin-right:-12px;border-radius:12px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div>
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Nombre</label>
+            <input value="{{ mNombre }}" onChange="{{ setMNombre }}" placeholder="Ej: Análisis Matemático" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+          </div>
+          <div style="display:flex;gap:10px;">
+            <div style="flex:1.4;min-width:0;">
+              <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Profe</label>
+              <input value="{{ mProfe }}" onChange="{{ setMProfe }}" placeholder="Nombre del profe" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+            </div>
+            <div style="flex:1;min-width:0;">
+              <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Aula</label>
+              <input value="{{ mAula }}" onChange="{{ setMAula }}" placeholder="Ej: Aula 12" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+            </div>
+          </div>
+          <div>
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:9px;">Color</label>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <sc-for list="{{ colores }}" as="c" hint-placeholder-count="6">
+                <button onClick="{{ c.elegir }}" aria-label="{{ c.nombre }}" style="width:34px;height:34px;border-radius:99px;border:none;cursor:pointer;background:{{ c.hex }};box-shadow:{{ c.ring }};"></button>
+              </sc-for>
+            </div>
+          </div>
+          <div>
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:9px;">Horarios</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+              <sc-for list="{{ chips }}" as="ch" hint-placeholder-count="1">
+                <span style="display:inline-flex;align-items:center;gap:4px;background:var(--bor);border-radius:99px;padding:6px 6px 6px 12px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;">
+                  {{ ch.txt }}
+                  <button onClick="{{ ch.quitar }}" aria-label="Quitar horario" style="background:none;border:none;color:var(--tx2);cursor:pointer;width:24px;height:24px;display:grid;place-items:center;border-radius:99px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+                  </button>
+                </span>
+              </sc-for>
+            </div>
+            <select value="{{ mDia }}" onChange="{{ setMDia }}" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 12px;font-size:15px;color:var(--tx);">
+              <option value="1">Lunes</option>
+              <option value="2">Martes</option>
+              <option value="3">Miércoles</option>
+              <option value="4">Jueves</option>
+              <option value="5">Viernes</option>
+              <option value="6">Sábado</option>
+            </select>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <input type="time" value="{{ mIni }}" onChange="{{ setMIni }}" style="flex:1;min-width:0;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 12px;font-size:14px;color:var(--tx);font-family:'JetBrains Mono',ui-monospace,monospace;">
+              <input type="time" value="{{ mFin }}" onChange="{{ setMFin }}" style="flex:1;min-width:0;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 12px;font-size:14px;color:var(--tx);font-family:'JetBrains Mono',ui-monospace,monospace;">
+              <button onClick="{{ agregarHorario }}" aria-label="Agregar horario" style="width:46px;height:46px;flex-shrink:0;background:var(--bor);border:1px solid var(--bor2);border-radius:12px;color:var(--acc);cursor:pointer;display:grid;place-items:center;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              </button>
+            </div>
+          </div>
+          <sc-if value="{{ mErrorHay }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:13px;color:#fb7185;">{{ mError }}</div>
+          </sc-if>
+          <div style="display:flex;gap:10px;margin-top:2px;">
+            <button onClick="{{ cerrarModal }}" style="background:none;border:1px solid var(--bor2);color:var(--tx2);border-radius:12px;font-weight:700;font-size:14px;min-height:48px;padding:0 18px;cursor:pointer;">Cancelar</button>
+            <button onClick="{{ guardarMateria }}" style="flex:1;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14.5px;min-height:48px;cursor:pointer;">Guardar materia</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ modalAviso }}" hint-placeholder-val="{{ false }}">
+    <div style="{{ ovStyle }}" onClick="{{ cerrarModal }}">
+      <div style="{{ panelStyle }}" onClick="{{ frenar }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+          <div style="font-size:17px;font-weight:800;">Nuevo aviso</div>
+          <button onClick="{{ cerrarModal }}" aria-label="Cerrar" style="background:none;border:none;color:var(--tx3);cursor:pointer;width:44px;height:44px;display:grid;place-items:center;margin-right:-12px;border-radius:12px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <div>
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Título</label>
+            <input value="{{ avTitulo }}" onChange="{{ setAvTitulo }}" placeholder="Ej: Entrega del TP2" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:15px;color:var(--tx);">
+          </div>
+          <div>
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Materia</label>
+            <select value="{{ avMateria }}" onChange="{{ setAvMateria }}" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 12px;font-size:15px;color:var(--tx);">
+              <option value="">General</option>
+              <sc-for list="{{ matOpts }}" as="o" hint-placeholder-count="2">
+                <option value="{{ o.id }}">{{ o.nombre }}</option>
+              </sc-for>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:7px;">Fecha</label>
+            <input type="date" value="{{ avFecha }}" onChange="{{ setAvFecha }}" style="width:100%;min-height:46px;background:var(--bg);border:1px solid var(--bor);border-radius:12px;padding:0 14px;font-size:14px;color:var(--tx);font-family:'JetBrains Mono',ui-monospace,monospace;">
+          </div>
+          <sc-if value="{{ avErrorHay }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:13px;color:#fb7185;">{{ avError }}</div>
+          </sc-if>
+          <div style="display:flex;gap:10px;margin-top:2px;">
+            <button onClick="{{ cerrarModal }}" style="background:none;border:1px solid var(--bor2);color:var(--tx2);border-radius:12px;font-weight:700;font-size:14px;min-height:48px;padding:0 18px;cursor:pointer;">Cancelar</button>
+            <button onClick="{{ guardarAviso }}" style="flex:1;background:#fbbf24;color:#221a00;border:none;border-radius:12px;font-weight:700;font-size:14.5px;min-height:48px;cursor:pointer;">Guardar aviso</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:820},&quot;horaSimulada&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;datosDeEjemplo&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;mostrarSincronizacion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;}}">
+class Component extends DCLogic {
+  state = { tab:'hoy', detalleId:null, detalleTab:'notas', modal:null, now:Date.now(), rev:0, isMobile:true, armado:false,
+    pantalla:'login', loginFase:'form', emailTxt:'', passTxt:'', perfilNombre:'', perfilInsti:'', fotoTomada:false, perfilError:'', tema:'oscuro',
+    notaVista:'doc', nuevoTxt:'', nuevoArch:null, nuevoRef:null, paginaId:null, cartaId:null, focusId:null, dragIdx:null, overIdx:null, dragBloqueId:null, kanOver:null,
+    archNombre:'', archUrl:'', daTitulo:'', daFecha:'',
+    avTitulo:'', avMateria:'', avFecha:'', avError:'',
+    mNombre:'', mProfe:'', mAula:'', mColor:'#38bdf8', mHorarios:[], mDia:'1', mIni:'18:10', mFin:'19:40', mError:'' };
+  componentDidMount(){
+    this._t = setInterval(()=>this.setState({now:Date.now()}), 30000);
+    this._mq = window.matchMedia('(max-width: 640px)');
+    this._onMq = ()=>this.setState({isMobile:this._mq.matches});
+    try { this._mq.addEventListener('change', this._onMq); } catch(e) { this._mq.addListener(this._onMq); }
+    this._onMq();
+    try { const ui = JSON.parse(localStorage.getItem('miCursada.ui.v1')||'null');
+      if (ui) this.setState({tema:ui.tema||'oscuro', perfilNombre:ui.nombre||'', perfilInsti:ui.insti||'', emailTxt:ui.correo||'', fotoTomada:!!ui.foto, pantalla:ui.dentro?'app':'login'});
+    } catch(e) {}
+  }
+  armarGrafo(D, ini){
+    const sig = D.materias.map(m=>m.id+':'+(m.doc||[]).length+':'+m.archivos.length).join('|')+'#'+D.avisos.filter(a=>!a.hecho).map(a=>a.id).join(',');
+    if (this._gSig === sig && this._g) return;
+    this._gSig = sig;
+    const nodes = [], links = [];
+    const yo = {id:'yo', tipo:'yo', x:380, y:270, vx:0, vy:0, r:24, col:'#fbbf24', label:ini, rotulo:''};
+    nodes.push(yo);
+    D.materias.forEach((m,i)=>{
+      const ang = i*2.399963;
+      const mx = 380+Math.cos(ang)*170, my = 270+Math.sin(ang)*115;
+      const notas = (m.doc||[]).filter(b=>b.tipo!=='divisor');
+      const avs = D.avisos.filter(a=>a.materiaId===m.id && !a.hecho);
+      const tot = notas.length + m.archivos.length + avs.length;
+      const mn = {id:m.id, tipo:'materia', x:mx, y:my, vx:0, vy:0, r:13+Math.min(12, tot*1.3), col:m.color, mid:m.id,
+        rotulo: m.nombre.length>22 ? m.nombre.slice(0,21)+'…' : m.nombre};
+      nodes.push(mn);
+      links.push({a:yo, b:mn, d:165, col:'var(--bor2)', op:'0.5', w:'1.3'});
+      mn.titulo = m.nombre; mn.sub = (m.profe||'—')+' · '+(m.aula||'—')+' · '+tot+' ítems'; mn.matNombre = m.nombre;
+      const item = (id, lab, tipo, r, sub) => {
+        const it = {id, tipo, x:mx+(Math.random()-.5)*80, y:my+(Math.random()-.5)*80, vx:0, vy:0, r, col:m.color, mid:m.id,
+          rotulo: lab.length>18 ? lab.slice(0,17)+'…' : lab,
+          titulo: lab.length>70 ? lab.slice(0,69)+'…' : lab, sub, matNombre:m.nombre};
+        nodes.push(it);
+        links.push({a:mn, b:it, d:48, col:m.color, op:'0.32', w:'1'});
+      };
+      const fmtD = t => { const d = new Date(t); return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); };
+      notas.forEach(b=>item('n'+b.id, b.texto||'nota', 'nota', 5, fmtD(b.fecha||Date.now())+' · '+({pendiente:'por hacer',proceso:'en proceso',listo:'listo'})[b.estado||'pendiente']));
+      m.archivos.forEach(f=>{ let dom=f.url; try { dom=new URL(f.url).hostname.replace(/^www\./,''); } catch(e) {} item('f'+f.id, f.nombre, 'archivo', 4.5, dom); });
+      avs.forEach(a2=>{ const p=String(a2.fecha).split('-'); item('a'+a2.id, a2.titulo, 'aviso', 5, p[2]+'/'+p[1]+' · pendiente'); });
+    });
+    this._g = {nodes, links, alpha:1};
+  }
+  tickGrafo(){
+    const g = this._g; if (!g) return;
+    const al = g.alpha;
+    for (let i=0; i<g.nodes.length; i++) { const a = g.nodes[i];
+      for (let j=i+1; j<g.nodes.length; j++) { const b = g.nodes[j];
+        let dx = a.x-b.x, dy = a.y-b.y; let d2 = dx*dx+dy*dy; if (d2 < 1) d2 = 1;
+        if (d2 > 36000) continue;
+        const d = Math.sqrt(d2); const f = 1500*al/d2;
+        const fx = dx/d*f, fy = dy/d*f;
+        a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy; } }
+    g.links.forEach(l=>{
+      let dx = l.b.x-l.a.x, dy = l.b.y-l.a.y;
+      const d = Math.max(Math.sqrt(dx*dx+dy*dy), 1);
+      const f = (d-l.d)*0.028*al;
+      const fx = dx/d*f, fy = dy/d*f;
+      l.a.vx += fx; l.a.vy += fy; l.b.vx -= fx; l.b.vy -= fy; });
+    g.nodes.forEach(n=>{
+      if (n.tipo==='yo') { n.x = 380; n.y = 270; n.vx = 0; n.vy = 0; return; }
+      if (n === this._dragN) { n.vx = 0; n.vy = 0; return; }
+      n.vx += (380-n.x)*0.0012*al; n.vy += (270-n.y)*0.0012*al;
+      n.vx *= 0.86; n.vy *= 0.86;
+      n.x += n.vx; n.y += n.vy;
+      n.x = Math.max(18, Math.min(742, n.x));
+      n.y = Math.max(18, Math.min(510, n.y)); });
+    g.alpha = Math.max(g.alpha*0.99, 0.02);
+  }
+  arrancarGrafo(){
+    if (this._raf) return;
+    const paso = ()=>{
+      if (this.state.pantalla!=='app' || this.state.tab!=='grafo' || this.state.detalleId) {
+        this._raf = null; return; }
+      if (this._g && (this._g.alpha > 0.025 || this._dragN)) { this.tickGrafo(); this.forceUpdate(); }
+      this._raf = requestAnimationFrame(paso); };
+    this._raf = requestAnimationFrame(paso);
+  }
+  lanzarToast(msg, ok){
+    this.setState({toast:{msg, ok:!!ok}});
+    clearTimeout(this._toastT);
+    this._toastT = setTimeout(()=>this.setState({toast:null}), 2600);
+  }
+  lanzarLogro(){
+    const cnt = arr => (arr||[]).reduce((a,b)=>a+(b.tipo==='divisor'?0:1)+cnt(b.hijos), 0);
+    const n = this._data.materias.reduce((a,m)=>a+cnt(m.doc), 0);
+    let visto = false;
+    try { visto = localStorage.getItem('miCursada.logro.primera')==='1'; } catch(e) {}
+    if (visto) return;
+    try { localStorage.setItem('miCursada.logro.primera', '1'); } catch(e) {}
+    let sub = 'Primera nota cargada · +50 XP';
+    if (n===1) sub = 'Primera nota de tu cursada · +50 XP';
+    else if (n===5) sub = '¡5 notas! Vas tomando ritmo · +100 XP';
+    else if (n===10) sub = '10 notas. Imparable · +150 XP';
+    else if (n>0 && n%25===0) sub = n+' notas acumuladas · +250 XP';
+    this.setState({logro:sub});
+    clearTimeout(this._logroT);
+    this._logroT = setTimeout(()=>this.setState({logro:null}), 3800);
+  }
+  guardarUI(extra){ const S = Object.assign({}, this.state, extra);
+    try { localStorage.setItem('miCursada.ui.v1', JSON.stringify({tema:S.tema, nombre:S.perfilNombre, insti:S.perfilInsti, correo:S.emailTxt, foto:S.fotoTomada, dentro:S.pantalla==='app'})); } catch(e) {}
+    this.setState(extra); }
+  componentWillUnmount(){
+    clearInterval(this._t); clearTimeout(this._arm); clearTimeout(this._logroT); clearTimeout(this._borrT); clearTimeout(this._toastT); cancelAnimationFrame(this._raf); this._raf = null; (this._tl||[]).forEach(clearTimeout);
+    try { this._mq.removeEventListener('change', this._onMq); } catch(e) { this._mq.removeListener(this._onMq); }
+  }
+  clave(){ return (this.props.datosDeEjemplo ?? true) ? 'miCursada.demo.v5' : 'miCursada.propia.v2'; }
+  migrar(d){
+    (d.materias||[]).forEach(m=>{ if (!m.doc) m.doc = (m.notas||[]).map(n=>({id:n.id, tipo:'texto', texto:n.texto, fecha:n.fecha, estado:'pendiente', hecho:false, url:''}));
+      const fix = arr => (arr||[]).forEach(b=>{ if (b.arch && !b.ref) b.ref = {tipo:'archivo', id:b.arch};
+        if (b.tipo==='pagina' && !b.hijos) b.hijos = []; fix(b.hijos); });
+      fix(m.doc); });
+    return d;
+  }
+  arrDe(d, mid, pid){ const m = d.materias.find(x=>x.id===mid); if (!m) return null;
+    if (!m.doc) m.doc = [];
+    if (!pid) return m.doc;
+    const p = m.doc.find(b=>b.id===pid); if (!p) return m.doc;
+    if (!p.hijos) p.hijos = [];
+    return p.hijos; }
+  bloque(d, mid, bid){ const arr = this.arrDe(d, mid, this.state.paginaId); return arr ? arr.find(b=>b.id===bid) : null; }
+  cargar(k){
+    try { const raw = localStorage.getItem(k); if (raw) return this.migrar(JSON.parse(raw)); } catch(e) {}
+    const d = this.migrar(k.indexOf('demo') >= 0 ? this.semilla() : { materias:[], avisos:[] });
+    try { localStorage.setItem(k, JSON.stringify(d)); } catch(e) {}
+    return d;
+  }
+  guardar(){ try { localStorage.setItem(this._dataKey, JSON.stringify(this._data)); } catch(e) {} }
+  mutar(fn){ fn(this._data); this.guardar(); this.setState(s=>({rev:s.rev+1})); }
+  iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  min(hm){ const p = String(hm).split(':'); return (+p[0])*60 + (+p[1]); }
+  durTxt(m){ const h = Math.floor(m/60), r = m%60; if (h>0 && r>0) return h+' h '+r+' min'; if (h>0) return h+' h'; return r+' min'; }
+  ahora(){
+    const d = new Date(this.state.now);
+    const hs = String(this.props.horaSimulada || '').trim();
+    const m = hs.match(/^(\d{1,2}):(\d{2})$/);
+    if (m) d.setHours(+m[1], +m[2], 0, 0);
+    return d;
+  }
+  semilla(){
+    const h = new Date();
+    const rel = n => { const d = new Date(h); d.setDate(d.getDate()+n); return this.iso(d); };
+    const ts = n => Date.now() - n*864e5;
+    return {
+      materias:[
+        { id:'m1', nombre:'Análisis Matemático', profe:'Marcela Ruiz', aula:'Aula 12', color:'#38bdf8',
+          horarios:[{dia:1,ini:'18:10',fin:'19:40'},{dia:4,ini:'19:50',fin:'21:30'}],
+          doc:[
+            {id:'n0', tipo:'titulo', texto:'Parcial — unidades 1 a 3', fecha:ts(1), estado:'pendiente', hecho:false, url:''},
+            {id:'pg1', tipo:'pagina', texto:'Clase 6 — Integración por partes', fecha:ts(1), estado:'pendiente', hecho:false, url:'', hijos:[
+              {id:'pg1a', tipo:'titulo', texto:'Lo que explicó el profe', fecha:ts(1), estado:'pendiente', hecho:false, url:''},
+              {id:'pg1b', tipo:'texto', texto:'La idea es elegir u y dv de forma que dv sea fácil de integrar. Si aparece un logaritmo, casi siempre es u.', fecha:ts(1), estado:'pendiente', hecho:false, url:''},
+              {id:'pg1c', tipo:'tarea', texto:'Hacer los 5 ejercicios de la guía', ref:{tipo:'archivo', id:'f1'}, fecha:ts(1), estado:'proceso', hecho:false, url:''},
+              {id:'pg1d', tipo:'texto', texto:'Ojo que se parece a lo que vimos en', ref:{tipo:'materia', id:'m3'}, fecha:ts(1), estado:'pendiente', hecho:false, url:''}]},
+            {id:'n1', tipo:'texto', texto:'Entra integración por partes. Repasar la guía 5, ejercicios 3 al 8.', fecha:ts(1), estado:'proceso', hecho:false, url:''},
+            {id:'n1b', tipo:'tarea', texto:'Rehacer el ejercicio 7 de la guía 5', fecha:ts(1), estado:'pendiente', hecho:false, url:''},
+            {id:'n1f', tipo:'tarea', texto:'Terminar el trabajo práctico de integrales', arch:'f1', fecha:ts(0), estado:'proceso', hecho:false, url:''},
+            {id:'n1c', tipo:'tarea', texto:'Pedirle los apuntes de la clase pasada a Vale', fecha:ts(2), estado:'listo', hecho:true, url:''},
+            {id:'n1d', tipo:'link', texto:'Video — integración por partes', fecha:ts(2), estado:'proceso', hecho:false, url:'https://www.youtube.com/watch?v=ejemplo'},
+            {id:'n1e', tipo:'divisor', texto:'', fecha:ts(6), estado:'pendiente', hecho:false, url:''},
+            {id:'n2', tipo:'texto', texto:'El profe toma asistencia 18:15 en punto. Llevar la tabla de derivadas impresa.', fecha:ts(6), estado:'pendiente', hecho:false, url:''}],
+          archivos:[{id:'f1', nombre:'Guía 5 — Integrales (PDF)', url:'https://example.com/guia-5-integrales.pdf'}] },
+        { id:'m2', nombre:'Programación II', profe:'Diego Sosa', aula:'Lab 3', color:'#a78bfa',
+          horarios:[{dia:2,ini:'18:10',fin:'21:30'}],
+          doc:[
+            {id:'n3', tipo:'texto', texto:'TP2: se entrega por el aula virtual, en grupos de dos. Usar el repo de ejemplos como base.', fecha:ts(2), estado:'proceso', hecho:false, url:''},
+            {id:'n3b', tipo:'tarea', texto:'Armar el README del TP2', fecha:ts(1), estado:'pendiente', hecho:false, url:''},
+            {id:'n3c', tipo:'link', texto:'Repo de ejemplos en clase', fecha:ts(2), estado:'pendiente', hecho:false, url:'https://github.com/ejemplo/prog2-clases'}],
+          archivos:[
+            {id:'f2', nombre:'Consigna TP2', url:'https://example.com/tp2-consigna.pdf'},
+            {id:'f3', nombre:'Repo de ejemplos en clase', url:'https://github.com/ejemplo/prog2-clases'}] },
+        { id:'m3', nombre:'Base de Datos', profe:'Carla Méndez', aula:'Lab 2', color:'#34d399',
+          horarios:[{dia:4,ini:'18:10',fin:'19:40'},{dia:5,ini:'18:10',fin:'19:40'}],
+          notas:[], archivos:[{id:'f4', nombre:'Apunte — Modelo entidad-relación', url:'https://example.com/der-apunte.pdf'}] },
+        { id:'m4', nombre:'Inglés Técnico', profe:'Laura Paz', aula:'Aula 5', color:'#fb7185',
+          horarios:[{dia:3,ini:'19:00',fin:'21:00'}], notas:[], archivos:[] },
+        { id:'m5', nombre:'Práctica Profesional', profe:'Rubén Álvarez', aula:'Taller 1', color:'#f97316',
+          horarios:[{dia:5,ini:'19:50',fin:'21:30'}], notas:[], archivos:[] }
+      ],
+      avisos:[
+        {id:'a1', titulo:'Entrega TP2', materiaId:'m2', fecha:rel(-1), hecho:false},
+        {id:'a2', titulo:'Parcial — unidades 1 a 3', materiaId:'m1', fecha:rel(0), hecho:false},
+        {id:'a7', titulo:'Terminar el trabajo práctico de integrales', materiaId:'m1', fecha:rel(2), hecho:false, notaId:'n1f'},
+        {id:'a3', titulo:'Cuestionario del capítulo 4', materiaId:'m3', fecha:rel(4), hecho:false},
+        {id:'a4', titulo:'Feriado — no hay clases', materiaId:null, fecha:rel(8), hecho:false},
+        {id:'a5', titulo:'Comprar la carpeta de Práctica', materiaId:'m5', fecha:rel(-3), hecho:true},
+        {id:'a6', titulo:'Mandarle el mail al profe de Análisis', materiaId:'m1', fecha:rel(-5), hecho:true}
+      ]
+    };
+  }
+  renderVals(){
+    const key = this.clave();
+    if (this._dataKey !== key) { this._data = this.cargar(key); this._dataKey = key; }
+    const D = this._data, S = this.state;
+    try { document.documentElement.setAttribute('data-tema', S.tema); } catch(e) {}
+    const app = S.pantalla==='app';
+    const now = this.ahora();
+    const nowMin = now.getHours()*60 + now.getMinutes();
+    const hoyDia = now.getDay();
+    const hoyIso = this.iso(now);
+    const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const fechaLarga = DIAS[hoyDia]+' '+now.getDate()+' de '+MESES[now.getMonth()];
+    const matDe = id => D.materias.find(m=>m.id===id);
+    const abrir = id => () => this.setState({detalleId:id, detalleTab:'notas', armado:false, notaVista:'doc', nuevoTxt:'', nuevoRef:null, paginaId:null, focusId:null, archNombre:'', archUrl:'', daTitulo:'', daFecha:hoyIso});
+    const clasesDia = dia => {
+      const out = [];
+      D.materias.forEach(m => m.horarios.forEach(h => { if (h.dia === dia) out.push({m,h}); }));
+      out.sort((a,b)=>this.min(a.h.ini)-this.min(b.h.ini));
+      return out;
+    };
+    const deHoy = (hoyDia>=1 && hoyDia<=6) ? clasesDia(hoyDia) : [];
+    const hoyClases = deHoy.map(({m,h})=>{
+      const ini = this.min(h.ini), fin = this.min(h.fin);
+      const pasada = fin <= nowMin, enCurso = ini <= nowMin && nowMin < fin;
+      return { nombre:m.nombre, color:m.color, aula:m.aula, horario:h.ini+'–'+h.fin,
+        op: pasada ? '0.4' : '1', hColor: enCurso ? 'var(--acc)' : 'var(--tx2)', abrir:abrir(m.id) };
+    });
+    let hero = null;
+    for (let off = 0; off < 8 && !hero; off++) {
+      const dia = (hoyDia + off) % 7;
+      if (dia < 1 || dia > 6) continue;
+      const lista = clasesDia(dia);
+      for (const {m,h} of lista) {
+        if (off === 0) { if (this.min(h.fin) <= nowMin) continue; hero = {m,h,off,enCurso:this.min(h.ini)<=nowMin}; break; }
+        hero = {m,h,off,enCurso:false}; break;
+      }
+    }
+    let heroKicker='Próxima clase', heroEstado='', heroNombre='', heroHorario='', heroAula='', heroColor='var(--acc)', heroEstadoColor='var(--acc)', heroAbrir=()=>{};
+    if (hero) {
+      heroNombre = hero.m.nombre; heroHorario = hero.h.ini+'–'+hero.h.fin; heroAula = hero.m.aula; heroColor = hero.m.color; heroAbrir = abrir(hero.m.id);
+      heroEstadoColor = S.tema==='claro' ? 'var(--tx2)' : hero.m.color;
+      if (hero.off === 0) heroEstado = hero.enCurso ? 'En curso — termina '+hero.h.fin : 'Empieza en '+this.durTxt(this.min(hero.h.ini)-nowMin);
+      else if (hero.off === 1) heroEstado = 'Mañana a las '+hero.h.ini;
+      else heroEstado = 'El '+DIAS[(hoyDia+hero.off)%7].toLowerCase()+' a las '+hero.h.ini;
+    }
+    const fmtF = f => { const p = String(f).split('-'); return p[2]+'/'+p[1]; };
+    const buscarBloque = (arr, bid) => { for (const b of (arr||[])) { if (b.id===bid) return b; const h = buscarBloque(b.hijos, bid); if (h) return h; } return null; };
+    const ESTL = {pendiente:['por hacer','#64748b'], proceso:['en proceso','#38bdf8'], listo:['listo','#34d399']};
+    const avVm = a => {
+      const m = a.materiaId ? matDe(a.materiaId) : null;
+      const nb = (a.notaId && m) ? buscarBloque(m.doc, a.notaId) : null;
+      const nEst = nb ? ESTL[nb.hecho ? 'listo' : (nb.estado||'pendiente')] : null;
+      const venc = !a.hecho && a.fecha < hoyIso, esHoy = !a.hecho && a.fecha === hoyIso;
+      return { titulo:a.titulo, matNombre:m?m.nombre:'General', matColor:m?m.color:'var(--tx3)',
+        hayNota: !!nb && !a.hecho,
+        notaTexto: nb ? ((nb.texto||'').trim()||'Sin título') : '',
+        notaTipo: nb ? (({texto:'nota',titulo:'título',tarea:'to-do',link:'link',pagina:'página'})[nb.tipo]||'nota') : '',
+        notaEstNombre: nEst ? nEst[0] : '', notaEstColor: nEst ? nEst[1] : '#64748b',
+        verAviso: e=>{ e.stopPropagation(); this.setState({avisoVerId:a.id}); },
+        irNota: nb ? (e=>{ e.stopPropagation();
+          let pid = null;
+          if (!(m.doc||[]).some(x=>x.id===nb.id)) { const p = (m.doc||[]).find(x=>x.tipo==='pagina' && (x.hijos||[]).some(h=>h.id===nb.id)); pid = p ? p.id : null; }
+          this.setState({avisoVerId:null, detalleId:m.id, detalleTab:'notas', notaVista:'doc', paginaId:pid, cartaId:nb.id, tab:'materias', armado:false, nuevoTxt:'', nuevoRef:null, focusId:null}); }) : null,
+        fechaTxt:fmtF(a.fecha), suf: venc?'· vencido':esHoy?'· hoy':'',
+        fCol: venc?'#fb7185':esHoy?'var(--acc)':'var(--tx3)',
+        op: a.hecho?'0.5':'1', deco: a.hecho?'line-through':'none', cirBg: a.hecho?'var(--bor2)':'transparent',
+        toggle: ()=>this.mutar(d=>{ const x = d.avisos.find(v=>v.id===a.id); if (x) x.hecho = !x.hecho; }) };
+    };
+    const pendRaw = D.avisos.filter(a=>!a.hecho).sort((a,b)=>a.fecha<b.fecha?-1:1);
+    const pend = pendRaw.map(avVm);
+    const hechos = D.avisos.filter(a=>a.hecho).sort((a,b)=>a.fecha<b.fecha?1:-1).map(avVm);
+    const iniciales = S.perfilNombre.trim().split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+    const quedanHoy = deHoy.filter(({h})=>this.min(h.fin)>nowMin).length;
+    const statClasesN = String(deHoy.length);
+    const statClasesSub = deHoy.length===0 ? 'día libre' : (quedanHoy===0 ? 'ya terminaste' : (quedanHoy===deHoy.length ? 'todas por delante' : 'quedan '+quedanHoy));
+    const vencidosN = pendRaw.filter(a=>a.fecha<hoyIso).length;
+    const statPendN = String(pendRaw.length);
+    const statPendSub = pendRaw.length===0 ? 'al día' : (vencidosN>0 ? (vencidosN===1?'1 vencido':vencidosN+' vencidos') : 'nada vencido');
+    const colStatPend = pendRaw.length>0 ? 'var(--acc)' : 'var(--tx)';
+    const digitos = (txt, base) => String(txt).split('').map((c,i)=>({
+      y: this._flow ? 'calc(-1em * '+(+c)+')' : '0', delay: (base + i*0.08).toFixed(2)+'s' }));
+    if (!this._flow) { this._flow = true; requestAnimationFrame(()=>requestAnimationFrame(()=>this.forceUpdate())); }
+    const offLunes = hoyDia === 0 ? -1 : hoyDia - 1;
+    const lunes = new Date(now); lunes.setDate(now.getDate()-offLunes);
+    const dias = [];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(lunes); d.setDate(lunes.getDate()+i);
+      const nd = i+1;
+      const cls = clasesDia(nd);
+      dias.push({ nombre:DIAS[nd], esHoy: nd===hoyDia,
+        fecha: String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'),
+        borde: nd===hoyDia ? 'var(--acc)' : 'var(--bor)', libre: cls.length===0,
+        clases: cls.map(({m,h})=>({nombre:m.nombre,color:m.color,horario:h.ini+'–'+h.fin,abrir:abrir(m.id)})) });
+    }
+    const nTxt = (n,s,p) => n+' '+(n===1?s:p);
+    const materias = D.materias.map(m => {
+      const nA = D.avisos.filter(a=>a.materiaId===m.id && !a.hecho).length;
+      return { nombre:m.nombre, color:m.color,
+        horarios: m.horarios.map(h=>({txt: DIAS[h.dia].slice(0,3)+' '+h.ini+'–'+h.fin})),
+        tNotas:nTxt((function cnt(arr){ return (arr||[]).reduce((a,b)=>a+(b.tipo==='divisor'?0:1)+cnt(b.hijos),0); })(m.doc),'nota','notas'), tArch:nTxt(m.archivos.length,'arch.','arch.'),
+        tAvisos:nTxt(nA,'aviso','avisos'), avCol: nA>0 ? 'var(--acc)' : 'var(--tx3)', abrir:abrir(m.id) };
+    });
+    const det = S.detalleId ? matDe(S.detalleId) : null;
+    let detArchivos = [], detAvisos = [], detHorarios = [];
+    let nAvDet = 0;
+    const docRaiz = det ? (det.doc || []) : [];
+    const pag = S.paginaId ? docRaiz.find(b=>b.id===S.paginaId) : null;
+    const doc = pag ? (pag.hijos || []) : docRaiz;
+    const contar = arr => (arr||[]).reduce((a,b)=>a + (b.tipo==='divisor'?0:1) + contar(b.hijos), 0);
+    const EST = { pendiente:['Por hacer','var(--tx3)'], proceso:['En proceso','#38bdf8'], listo:['Listo','#34d399'] };
+    const CICLO = { pendiente:'proceso', proceso:'listo', listo:'pendiente' };
+    const dominioDe = u => { try { return new URL(u).hostname.replace(/^www\./,''); } catch(e) { return u || ''; } };
+    const fmtTs = t => { const d = new Date(t); return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'); };
+    const editaBloque = (bid, fn) => this.mutar(d=>{ const b = this.bloque(d, det.id, bid); if (b) fn(b); });
+    const archDe = aid => det ? det.archivos.find(f=>f.id===aid) : null;
+    const REFCOL = {archivo:'var(--acc)', materia:'#a78bfa', aviso:'#fb7185', clase:'#38bdf8'};
+    const vmArch = b => { const r = b.ref || (b.arch ? {tipo:'archivo', id:b.arch} : null);
+      if (!r) return { hayArch:false, archNombre:'', archUrl:'#', archTarget:'', archCol:'var(--acc)', archIr:null };
+      if (r.tipo==='archivo') { const f = archDe(r.id);
+        return { hayArch: !!f, archNombre: f?f.nombre:'', archUrl: f?f.url:'#', archTarget:'_blank', archCol:REFCOL.archivo, archIr:null }; }
+      if (r.tipo==='materia') { const m2 = D.materias.find(x=>x.id===r.id);
+        return { hayArch: !!m2, archNombre: m2?m2.nombre:'', archUrl:'#', archTarget:'', archCol: m2?m2.color:REFCOL.materia,
+          archIr: e=>{ e.preventDefault(); if (m2) abrir(m2.id)(); } }; }
+      const a3 = D.avisos.find(x=>x.id===r.id);
+      return { hayArch: !!a3, archNombre: a3?a3.titulo:'', archUrl:'#', archTarget:'', archCol:REFCOL.aviso,
+        archIr: e=>{ e.preventDefault(); this.setState({detalleId:null, paginaId:null, tab:'avisos'}); } };
+    };
+    const detBloques = doc.map((b,i)=>{
+      const est = b.estado || 'pendiente';
+      const urlOk = /^https?:\/\//i.test(b.url || '');
+      const fijar = () => editaBloque(b.id, x=>{ const u = (x.url||'').trim(); if (u && !/^https?:\/\//i.test(u)) x.url = 'https://'+u; });
+      const fmt = b.fmt || {};
+      const deco = [fmt.u?'underline':'', b.hecho?'line-through':''].join(' ').trim() || 'none';
+      return Object.assign(vmArch(b), { id:b.id,
+        esTexto:b.tipo==='texto', esTitulo:b.tipo==='titulo', esTarea:b.tipo==='tarea', esLink:b.tipo==='link', esDivisor:b.tipo==='divisor',
+        esPagina:b.tipo==='pagina', pagTitulo: b.texto||'Nota sin título', pagSub: contar(b.hijos)+(contar(b.hijos)===1?' bloque':' bloques'),
+        pagHayTodo: (b.hijos||[]).some(h=>h.tipo==='tarea'),
+        pagTodoTxt: 'TO-DO '+(b.hijos||[]).filter(h=>h.tipo==='tarea'&&h.hecho).length+'/'+(b.hijos||[]).filter(h=>h.tipo==='tarea').length,
+        pagTodoCol: ((b.hijos||[]).filter(h=>h.tipo==='tarea'&&!h.hecho).length>0) ? 'var(--acc)' : '#34d399',
+        abrirPagina: ()=>this.setState({paginaId:b.id, nuevoTxt:'', nuevoRef:null, focusId:null}),
+        abrirCarta: ()=>this.setState({cartaId:b.id}),
+        esEditable: b.tipo!=='divisor' && b.tipo!=='pagina',
+        fmtW: fmt.b ? '700' : '400', fmtSty: fmt.i ? 'italic' : 'normal',
+        fmtBg: fmt.hl ? 'rgba(251,191,36,.16)' : 'transparent',
+        texto:b.texto||'', rows:String(Math.max(1, Math.ceil(((b.texto||'').length+1)/42))),
+        deco, colTxt:b.hecho?'var(--tx3)':'var(--tx)',
+        cirBg:b.hecho?'var(--bor)':'transparent', checkOp:b.hecho?'1':'0', af:b.id===S.focusId,
+        url:b.url||'', urlOk, urlPend:!urlOk,
+        favicon:'https://www.google.com/s2/favicons?domain='+dominioDe(b.url||'')+'&sz=64',
+        dominio:dominioDe(b.url||''), tituloLink:(b.texto||dominioDe(b.url||'')),
+        estadoColor:EST[est][1], estadoNombre:'Estado: '+EST[est][0]+' — tocá para cambiar',
+        marca:(S.dragIdx!==null && S.overIdx===i)?'var(--acc)':'transparent',
+        setTexto:e=>editaBloque(b.id, x=>{ x.texto = e.target.value; }),
+        keyTarea: b.tipo==='tarea' ? (e=>{ if (e.key==='Enter') { e.preventDefault();
+          const id = 'b'+Date.now()+Math.floor(Math.random()*99);
+          this.mutar(d=>{ const arr = this.arrDe(d, det.id, S.paginaId);
+            const ix = arr.findIndex(x=>x.id===b.id);
+            arr.splice(ix+1, 0, {id, tipo:'tarea', texto:'', url:'', ref:null, estado:'pendiente', hecho:false, fecha:Date.now()}); });
+          this.setState({focusId:id}); } }) : null,
+        setUrl:e=>editaBloque(b.id, x=>{ x.url = e.target.value; }),
+        fijarUrl:fijar,
+        urlKey:e=>{ if (e.key==='Enter') { e.preventDefault(); fijar(); } },
+        toggle:()=>editaBloque(b.id, x=>{ x.hecho = !x.hecho; x.estado = x.hecho ? 'listo' : 'pendiente'; }),
+        cicloEstado:()=>editaBloque(b.id, x=>{ x.estado = CICLO[x.estado||'pendiente']; x.hecho = x.estado==='listo'; }),
+        borrar:()=>{ this.mutar(d=>{ const arr = this.arrDe(d, det.id, S.paginaId); const ix = arr.findIndex(v=>v.id===b.id); if (ix>=0) arr.splice(ix,1); }); this.lanzarToast('Bloque eliminado'); },
+        dragStart:e=>{ this.setState({dragIdx:i, dragBloqueId:b.id}); try { e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', b.id); } catch(err) {} },
+        dragEnd:()=>this.setState({dragIdx:null, overIdx:null, dragBloqueId:null, kanOver:null}),
+        dragOver:e=>{ e.preventDefault(); if (this.state.overIdx !== i) this.setState({overIdx:i}); },
+        drop:e=>{ e.preventDefault(); const from = this.state.dragIdx;
+          this.setState({dragIdx:null, overIdx:null, dragBloqueId:null});
+          if (from === null || from === i) return;
+          this.mutar(d=>{ const arr = d.materias.find(v=>v.id===det.id).doc; const mov = arr.splice(from,1)[0]; arr.splice(from < i ? i-1 : i, 0, mov); }); } });
+    });
+    const agregarBloque = (tipo, estado, txt) => { if (!det) return;
+      const id = 'b'+Date.now()+Math.floor(Math.random()*99);
+      const ref = (tipo!=='divisor' && S.nuevoRef) ? S.nuevoRef : null;
+      this.mutar(d=>{ const arr = this.arrDe(d, det.id, S.paginaId);
+        arr.push({id, tipo, texto:txt||'', url:'', ref, hijos: tipo==='pagina'?[]:undefined, estado:estado||'pendiente', hecho:false, fecha:Date.now()}); });
+      if (tipo==='pagina') { this.setState({nuevoTxt:'', nuevoRef:null, paginaId:id, focusId:null}); this.lanzarLogro(); return; }
+      this.setState({nuevoTxt:'', nuevoRef:null, focusId: tipo==='divisor' ? null : id});
+      if (tipo!=='divisor') this.lanzarLogro(); };
+    const atIdx = S.nuevoTxt.lastIndexOf('@');
+    const atAbierto = !!det && atIdx >= 0 && S.nuevoTxt.charAt(0)!=='/';
+    const atQ = atAbierto ? S.nuevoTxt.slice(atIdx+1).toLowerCase() : '';
+    const refsTodas = [];
+    if (det) {
+      det.archivos.forEach(f=>refsTodas.push({tipo:'archivo', id:f.id, nombre:f.nombre, kind:'archivo'}));
+      D.materias.filter(m=>m.id!==det.id).forEach(m=>refsTodas.push({tipo:'materia', id:m.id, nombre:m.nombre, kind:'materia'}));
+      D.avisos.filter(a=>!a.hecho).forEach(a=>refsTodas.push({tipo:'aviso', id:a.id, nombre:a.titulo, kind:'aviso'}));
+    }
+    const atOpts = atAbierto ? refsTodas.filter(r=>r.nombre.toLowerCase().indexOf(atQ)>=0).slice(0,7).map(r=>({
+      nombre:r.nombre, kind:r.kind, col:REFCOL[r.tipo],
+      elegir: ()=>this.setState({nuevoTxt:S.nuevoTxt.slice(0,atIdx), nuevoRef:{tipo:r.tipo, id:r.id}}) })) : [];
+    const refAdjVm = S.nuevoRef ? vmArch({ref:S.nuevoRef}) : null;
+    const archAdj = (refAdjVm && refAdjVm.hayArch) ? {nombre:refAdjVm.archNombre, col:refAdjVm.archCol} : null;
+    const slashAbierto = !!det && S.nuevoTxt.charAt(0)==='/';
+    const slashQ = slashAbierto ? S.nuevoTxt.slice(1).toLowerCase() : '';
+    const CMDS = [
+      {k:'texto nota parrafo', nombre:'Texto', ic:'T', cmd:'/texto', run:()=>agregarBloque('texto')},
+      {k:'titulo encabezado', nombre:'Título', ic:'#', cmd:'/titulo', run:()=>agregarBloque('titulo')},
+      {k:'tarea pendiente check todo to-do checkbox', nombre:'To-do (checkbox)', ic:'✓', cmd:'/todo', run:()=>agregarBloque('tarea')},
+      {k:'link url preview', nombre:'Link con preview', ic:'↗', cmd:'/link', run:()=>agregarBloque('link')},
+      {k:'divisor separador linea', nombre:'Divisor', ic:'—', cmd:'/divisor', run:()=>agregarBloque('divisor')},
+      {k:'pagina nota nueva subpagina', nombre:'Página de nota', ic:'▤', cmd:'/pagina', run:()=>agregarBloque('pagina', 'pendiente', S.nuevoTxt.slice(1).trim()==='pagina' ? '' : '')},
+      {k:'tablero kanban board', nombre:'Ver tablero', ic:'▦', cmd:'/tablero', run:()=>this.setState({nuevoTxt:'', notaVista:'kanban'})} ];
+    const slashOpts = CMDS.filter(c=>c.k.indexOf(slashQ)>=0 || c.cmd.indexOf(slashQ)>=0).map(c=>({nombre:c.nombre, ic:c.ic, cmd:c.cmd, elegir:c.run}));
+    const agregarNuevo = () => { const t = S.nuevoTxt.trim();
+      if (slashAbierto) { if (slashOpts.length > 0) slashOpts[0].elegir(); return; }
+      if (t) agregarBloque('texto', 'pendiente', t); };
+    const kanbanCols = ['pendiente','proceso','listo'].map(est=>{
+      const cards = doc.filter(b=>b.tipo!=='divisor' && (b.estado||'pendiente')===est).map(b=>Object.assign(vmArch(b), {
+        textoVista: (b.texto||'').trim() || (b.tipo==='link' ? dominioDe(b.url||'') || 'Link' : 'Sin título'),
+        esLinkOk: b.tipo==='link' && /^https?:\/\//i.test(b.url||''),
+        linkUrl: b.url||'#', linkDominio: dominioDe(b.url||''),
+        linkFavicon: 'https://www.google.com/s2/favicons?domain='+dominioDe(b.url||'')+'&sz=64',
+        deco: [(b.fmt&&b.fmt.u)?'underline':'', b.hecho?'line-through':''].join(' ').trim() || 'none',
+        fmtW: (b.fmt&&b.fmt.b) ? '800' : '600', fmtSty: (b.fmt&&b.fmt.i) ? 'italic' : 'normal',
+        fmtBg: (b.fmt&&b.fmt.hl) ? 'rgba(251,191,36,.16)' : 'transparent',
+        fechaTxt:fmtTs(b.fecha||Date.now()), tipoTxt:({texto:'nota',titulo:'título',tarea:'tarea',link:'link',pagina:'página'})[b.tipo]||'nota',
+        abrirCarta: ()=>{ if (b.tipo==='pagina') this.setState({paginaId:b.id, notaVista:'doc', nuevoTxt:'', nuevoRef:null}); else this.setState({cartaId:b.id}); },
+        borrArmado: S.borrArmado===b.id,
+        borrCol: S.borrArmado===b.id ? '#fb7185' : 'var(--bor2)',
+        borrar: e=>{ e.stopPropagation();
+          if (S.borrArmado !== b.id) { this.setState({borrArmado:b.id});
+            clearTimeout(this._borrT); this._borrT = setTimeout(()=>this.setState({borrArmado:null}), 3000); return; }
+          clearTimeout(this._borrT); this.setState({borrArmado:null});
+          this.mutar(d=>{ const arr = this.arrDe(d, det.id, S.paginaId); const ix = arr.findIndex(x=>x.id===b.id); if (ix>=0) arr.splice(ix,1); });
+          this.lanzarToast('Card eliminada del tablero'); },
+        dragStart:e=>{ e.stopPropagation(); this.setState({dragBloqueId:b.id}); try { e.dataTransfer.setData('text/plain', b.id); } catch(err) {} } }));
+      return { nombre:EST[est][0], color:EST[est][1], n:String(cards.length), cards,
+        borde: S.kanOver===est ? 'var(--acc)' : 'var(--bor)',
+        dragOver:e=>{ e.preventDefault(); if (this.state.kanOver !== est) this.setState({kanOver:est}); },
+        drop:e=>{ e.preventDefault(); const id = this.state.dragBloqueId;
+          this.setState({dragBloqueId:null, kanOver:null, dragIdx:null, overIdx:null});
+          if (id) editaBloque(id, x=>{ x.estado = est; x.hecho = est==='listo'; }); },
+        agregar:()=>{ if (!det) return;
+          const id = 'b'+Date.now()+Math.floor(Math.random()*99);
+          this.mutar(d=>{ const arr = this.arrDe(d, det.id, S.paginaId);
+            arr.push({id, tipo:'tarea', texto:'', url:'', ref:null, estado:est, hecho:est==='listo', fecha:Date.now()}); });
+          this.setState({cartaId:id});
+          this.lanzarLogro(); } };
+    });
+    const carta = S.cartaId ? doc.find(b=>b.id===S.cartaId) : null;
+    const cartaRefVal = carta && carta.ref ? carta.ref.tipo+':'+carta.ref.id : '';
+    const ESTN = {pendiente:'Por hacer', proceso:'En proceso', listo:'Listo'};
+    const cartaEstados = carta ? ['pendiente','proceso','listo'].map(es=>({
+      nombre:ESTN[es], dot:EST[es][1],
+      col: (carta.estado||'pendiente')===es ? 'var(--tx)' : 'var(--tx3)',
+      bg: (carta.estado||'pendiente')===es ? 'var(--bor)' : 'transparent',
+      elegir: ()=>{ if ((carta.estado||'pendiente')===es) return;
+        editaBloque(carta.id, x=>{ x.estado = es; x.hecho = es==='listo'; });
+        this.lanzarToast(es==='listo' ? '¡Completada! Movida a Listo' : 'Movida a '+ESTN[es], true); } })) : [];
+    if (det) {
+      detHorarios = det.horarios.map(h=>({txt: DIAS[h.dia]+' '+h.ini+'–'+h.fin}));
+      detArchivos = det.archivos.map(f=>({nombre:f.nombre, url:f.url}));
+      const deLaMateria = D.avisos.filter(a=>a.materiaId===det.id);
+      nAvDet = deLaMateria.filter(a=>!a.hecho).length;
+      detAvisos = deLaMateria.sort((a,b)=>(a.hecho===b.hecho)?(a.fecha<b.fecha?-1:1):(a.hecho?1:-1)).map(avVm);
+    }
+    const set = k => e => this.setState({[k]: e.target.value});
+    let gTotNotas = 0, gTotArch = 0;
+    D.materias.forEach(m=>{ gTotNotas += (m.doc||[]).filter(b=>b.tipo!=='divisor').length; gTotArch += m.archivos.length; });
+    const gTotAv = D.avisos.filter(a=>!a.hecho).length;
+    const verGrafoAhora = app && S.tab==='grafo' && !det;
+    if (verGrafoAhora) { this.armarGrafo(D, iniciales||'YO'); this.arrancarGrafo(); }
+    const g = this._g || {nodes:[], links:[]};
+    const hovN = S.gHover ? g.nodes.find(n=>n.id===S.gHover) : null;
+    let hovSet = null;
+    if (hovN) { hovSet = {};
+      if (hovN.tipo==='yo') g.nodes.forEach(n=>{ hovSet[n.id] = 1; });
+      else if (hovN.tipo==='materia') { hovSet[hovN.id] = 1; hovSet['yo'] = 1; g.nodes.forEach(n=>{ if (n.mid===hovN.id) hovSet[n.id] = 1; }); }
+      else { hovSet[hovN.id] = 1; hovSet[hovN.mid] = 1; hovSet['yo'] = 1; } }
+    const tocaHover = n => !!(hovSet && hovSet[n.id]);
+    const gLinks = verGrafoAhora ? g.links.map(l=>{
+      const activo = hovN && (tocaHover(l.a) && tocaHover(l.b));
+      return {x1:l.a.x.toFixed(1), y1:l.a.y.toFixed(1), x2:l.b.x.toFixed(1), y2:l.b.y.toFixed(1),
+        col: activo ? (l.b.col||l.a.col) : 'var(--bor)',
+        op: activo ? '0.85' : (hovN ? '0.25' : '0.5'), w: activo ? '1.6' : '1'};
+    }) : [];
+    const gPuntos = verGrafoAhora ? g.nodes.map(n=>{
+      const esYo = n.tipo==='yo', esMat = n.tipo==='materia';
+      const hov = S.gHover===n.id;
+      const vecino = tocaHover(n);
+      const apagado = hovN && !vecino;
+      return { x:n.x.toFixed(1), y:n.y.toFixed(1),
+        r:(esYo||esMat ? n.r : (hov ? n.r*1.6 : n.r)).toFixed(1),
+        rHalo:(hov ? n.r+10 : (esMat ? n.r+5 : 0)).toFixed(1),
+        haloOp: hov ? '0.22' : '0.1', col:n.col,
+        fill: esYo ? '#fbbf24' : ((esMat || vecino) ? n.col : 'var(--bor2)'),
+        fo: apagado ? '0.35' : (n.tipo==='archivo' ? '0.75' : '1'),
+        stroke:'none', sw:'0',
+        hayIni: esYo, ini:n.label, tyIni:(n.y+5).toFixed(1),
+        hayLabel: !esYo && !hov, label:n.rotulo,
+        ly:(n.y + n.r + (esMat?17:14)).toFixed(1),
+        fs: esMat ? '12.5px' : '9px', fw: esMat ? '700' : '500',
+        lcol: hov ? 'var(--tx)' : (apagado ? 'transparent' : (esMat ? 'var(--tx2)' : 'var(--tx3)')),
+        cur: esYo ? 'default' : 'pointer',
+        down: null,
+        enter: ()=>this.setState({gHover:n.id}), leave: ()=>this.setState({gHover:null}),
+        click: esYo ? null : (()=>{ const tab = n.tipo==='archivo' ? 'archivos' : (n.tipo==='aviso' ? 'avisos' : 'notas');
+          this.setState({detalleId:n.mid, detalleTab:tab, armado:false, notaVista:'doc', nuevoTxt:'', focusId:null, gHover:null, archNombre:'', archUrl:'', daTitulo:'', daFecha:hoyIso}); }) };
+    }) : [];
+    let gTip = {vis:false};
+    if (hovN && hovN.tipo!=='yo') {
+      const px = hovN.x/760*100, py = hovN.y/560*100;
+      const der = hovN.x < 460;
+      gTip = { vis:true, col:hovN.col,
+        kicker: (hovN.tipo==='materia' ? 'Materia' : hovN.tipo)+(hovN.tipo!=='materia' ? ' · '+hovN.matNombre : ''),
+        titulo: hovN.titulo||'', sub: hovN.sub||'',
+        estilo: { position:'absolute', zIndex:5, pointerEvents:'none', width:'218px',
+          left: der ? 'min('+px.toFixed(1)+'% + 18px, calc(100% - 226px))' : 'auto',
+          right: der ? 'auto' : 'min('+(100-px).toFixed(1)+'% + 18px, calc(100% - 226px))',
+          top: 'clamp(4px, '+(py-6).toFixed(1)+'%, calc(100% - 110px))',
+          background:'var(--sup)', border:'1px solid var(--bor2)', borderRadius:'12px', padding:'11px 13px',
+          animation:'fadeIn .16s ease' } };
+    }
+    const COLORES = [['#38bdf8','Celeste'],['#a78bfa','Violeta'],['#34d399','Verde'],['#fb7185','Rosa'],['#f97316','Naranja'],['#e2e8f0','Tiza']];
+    const colores = COLORES.map(([hex,nombre])=>({ hex, nombre,
+      ring: S.mColor===hex ? '0 0 0 3px var(--sup), 0 0 0 5px #fbbf24' : '0 0 0 1px rgba(255,255,255,.1)',
+      elegir: ()=>this.setState({mColor:hex}) }));
+    const chips = S.mHorarios.map((h,i)=>({ txt: DIAS[h.dia].slice(0,3)+' '+h.ini+'–'+h.fin,
+      quitar: ()=>this.setState(s=>({mHorarios: s.mHorarios.filter((_,j)=>j!==i)})) }));
+    const tabCol = t => (S.detalleTab===t ? 'var(--acc)' : 'var(--tx3)');
+    const tabB = t => (S.detalleTab===t ? 'var(--acc)' : 'transparent');
+    const irTab = t => () => this.setState({detalleTab:t});
+    const ovStyle = { position:'fixed', inset:0, zIndex:50, background:'var(--scrim)', display:'flex',
+      justifyContent:'center', alignItems: S.isMobile?'flex-end':'center', padding: S.isMobile?'0':'24px', animation:'fadeIn .18s ease' };
+    const panelStyle = { background:'var(--sup)', border:'1px solid var(--bor)', width:S.isMobile?'100%':'440px', maxWidth:'100%',
+      maxHeight:S.isMobile?'92dvh':'86dvh', overflowY:'auto', borderRadius:S.isMobile?'20px 20px 0 0':'16px',
+      padding:'20px 20px 30px', animation:'sheetUp .28s cubic-bezier(.22,.8,.3,1)' };
+    const panelStyleGrande = Object.assign({}, panelStyle, { width:S.isMobile?'100%':'580px', padding:'24px 26px 32px' });
+    const delStyle = { width:'100%', marginTop:'30px', minHeight:'48px', borderRadius:'12px', fontWeight:700, fontSize:'14px',
+      cursor:'pointer', border:'1px solid rgba(251,113,133,.45)', transition:'background .15s ease, color .15s ease',
+      background: S.armado?'#fb7185':'transparent', color: S.armado?'#20060b':'#fb7185' };
+    const nav = t => () => this.setState({tab:t, detalleId:null, armado:false});
+    const colNav = t => (S.tab===t ? 'var(--acc)' : 'var(--tx3)');
+    const desk = !S.isMobile;
+    const mailValido = S.emailTxt.trim().toLowerCase()==='demo' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(S.emailTxt.trim());
+    const colapsado = ['saliendo','datos','bienvenida','abriendo'].indexOf(S.loginFase)>=0;
+    const bgNav = t => (desk && S.tab===t && !det ? 'var(--bor)' : 'transparent');
+    return {
+      mostrarSync: (this.props.mostrarSincronizacion ?? true) && D.materias.length > 0,
+      fechaLarga,
+      verLogin: S.pantalla==='login', verPerfil: S.pantalla==='perfil', verApp: app,
+      verNavMov: app && S.isMobile, verNavDesk: app && desk,
+      verGrafo: app && S.tab==='grafo' && !det,
+      irGrafo: nav('grafo'), colGrafo: colNav('grafo'), bgNavGrafo: bgNav('grafo'),
+      logroVis: !!S.logro, logroSub: S.logro||'',
+      toastVis: !!S.toast, toastMsg: S.toast?S.toast.msg:'',
+      toastOk: !!(S.toast && S.toast.ok), toastDel: !!(S.toast && !S.toast.ok),
+      toastBorde: (S.toast && S.toast.ok) ? 'rgba(52,211,153,.5)' : 'rgba(251,113,133,.5)',
+      esDesk: desk, esMovil: S.isMobile,
+      loginCols: desk ? '1.05fr 1fr' : '1fr',
+      loginGapTop: S.isMobile ? '24px' : '0',
+      bgNavHoy:bgNav('hoy'), bgNavSemana:bgNav('semana'), bgNavMaterias:bgNav('materias'), bgNavAvisos:bgNav('avisos'),
+      temaLabel: S.tema==='oscuro' ? 'Modo claro' : 'Modo oscuro',
+      perfilNombreVista: S.perfilNombre.trim() || 'Sin nombre',
+      mainStyle: desk && app
+        ? {maxWidth: S.paginaId ? '1320px' : '1150px', margin:'0 auto', padding:'34px 40px 80px 274px', animation:(S.entrando?'cardIn .6s cubic-bezier(.22,.8,.3,1) both':'none')}
+        : (app ? {maxWidth:'720px', margin:'0 auto', padding:'26px 18px 130px', animation:(S.entrando?'cardIn .6s cubic-bezier(.22,.8,.3,1) both':'none')} : {maxWidth:'900px', margin:'0 auto', padding:'26px 18px 40px'}),
+      bentoCols: desk ? 'repeat(4,minmax(0,1fr))' : 'repeat(2,1fr)',
+      gcHero: desk ? '1 / 3' : '1 / -1',
+      gcClases: desk ? '1 / 3' : '1 / -1',
+      gcAvisos: desk ? '3 / 5' : '1 / -1',
+      semCols: desk ? 'repeat(2,minmax(0,1fr))' : '1fr',
+      verHoy: app && S.tab==='hoy' && !det, verSemana: app && S.tab==='semana' && !det,
+      verMaterias: app && S.tab==='materias' && !det, verAvisos: app && S.tab==='avisos' && !det, verDetalle: app && !!det,
+      emailTxt:S.emailTxt, setEmail:set('emailTxt'), passTxt:S.passTxt, setPass:set('passTxt'),
+      entrar: ()=>{ if (S.loginFase==='error') { this.setState({loginFase:'form', passTxt:''}); return; }
+        if (S.loginFase!=='form') return;
+        const demo = S.emailTxt.trim().toLowerCase()==='demo' && S.passTxt==='demo';
+        const mailOk = demo || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(S.emailTxt.trim());
+        if (!mailOk || S.passTxt.length < 4) {
+          this._tl = this._tl || [];
+          this.setState({loginFase:'cargando'});
+          this._tl.push(setTimeout(()=>this.setState({loginFase:'error'}), 1100));
+          return; }
+        const pref = S.emailTxt.split('@')[0].replace(/[._\-+0-9]+/g,' ').trim();
+        const nombre = demo ? 'Estudiante ORT'
+          : (pref ? pref.split(/\s+/).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ') : 'Estudiante');
+        this.setState({loginFase:'cargando', perfilNombre:nombre});
+        this._tl = this._tl || [];
+        const paso = (f,ms)=>this._tl.push(setTimeout(()=>this.setState({loginFase:f}), ms));
+        paso('check',1300); paso('saliendo',2000); paso('datos',2650); paso('abriendo',4300);
+        this._tl.push(setTimeout(()=>this.guardarUI({pantalla:'app', tab:'hoy', loginFase:'form', entrando:true}), 5500));
+        this._tl.push(setTimeout(()=>this.setState({entrando:false}), 7000)); },
+      faseFormVis: ['form','cargando','check','saliendo','error'].indexOf(S.loginFase)>=0,
+      esError: S.loginFase==='error',
+      mailMal: S.loginFase==='error' && !mailValido,
+      passMal: S.loginFase==='error' && S.passTxt.length < 4,
+      bordeMail: (S.loginFase==='error' && !mailValido) ? '#fb7185' : 'var(--bor)',
+      bordePass: (S.loginFase==='error' && S.passTxt.length < 4) ? '#fb7185' : 'var(--bor)',
+      msgError: !mailValido
+        ? 'Ese correo no es válido. Probá con demo / demo.'
+        : 'No pudimos entrar con esos datos. Probá con demo / demo.',
+      faseFormMontado: S.loginFase!=='bienvenida' && S.loginFase!=='abriendo',
+      panelVis: desk || colapsado,
+      wrapEstilo: {width:'100%', display:'flex', alignItems:'stretch', justifyContent:'center',
+        gap: colapsado ? '0px' : '14px',
+        maxWidth: desk ? '840px' : '440px',
+        transition:'gap .6s cubic-bezier(.22,.8,.3,1)'},
+      panelEstilo: Object.assign({background:'var(--sup)', border:'1px solid var(--bor)', borderRadius:'20px',
+        padding:'34px 30px', display:'flex', flexDirection:'column', minWidth:0,
+        flexBasis:'0', flexShrink:1, flexGrow: desk ? 1.05 : 2.6,
+        transition:'flex-grow .6s cubic-bezier(.22,.8,.3,1), opacity .45s ease, transform .55s cubic-bezier(.22,.8,.3,1)'},
+        (!desk && S.loginFase==='saliendo') ? {opacity:0, transform:'scale(.97)'} : {opacity:1, transform:'none'},
+        colapsado ? {justifyContent:'center', padding:'22px 30px', maxWidth: desk?'620px':'100%', margin:'0 auto'} : null),
+      panelBodyEstilo: Object.assign({position:'relative', transition:'min-height .6s cubic-bezier(.22,.8,.3,1), padding-top .5s ease'},
+        colapsado ? {paddingTop:'16px', minHeight: S.loginFase==='abriendo' ? '128px' : '274px'}
+                  : {marginTop:'auto', paddingTop:'24px', minHeight:'118px'}),
+      capaIntro: Object.assign({transition:'opacity .45s ease, transform .55s cubic-bezier(.22,.8,.3,1), filter .45s ease'},
+        colapsado ? {opacity:0, transform:'translateY(-10px)', filter:'blur(4px)', position:'absolute', inset:'18px 0 auto 0', pointerEvents:'none'}
+                  : {opacity:1, transform:'none', filter:'none'}),
+      capaDatos: Object.assign({transition:'opacity .5s ease, transform .55s cubic-bezier(.22,.8,.3,1), filter .5s ease'},
+        S.loginFase==='datos' ? {opacity:1, transform:'none', filter:'none'}
+          : {opacity:0, transform: S.loginFase==='abriendo' ? 'translateY(-8px)' : 'translateY(10px)', filter:'blur(4px)'}),
+      capaAbriendo: Object.assign({display:'flex', flexDirection:'column', alignItems:'center', gap:'14px',
+        position:'absolute', left:0, right:0, top:'50%', marginTop:'-30px',
+        transition:'opacity .5s ease, transform .55s cubic-bezier(.22,.8,.3,1)'},
+        S.loginFase==='abriendo' ? {opacity:1, transform:'none'} : {opacity:0, transform:'translateY(10px)', pointerEvents:'none'}),
+      faseAbriendoMontado: S.loginFase==='datos' || S.loginFase==='abriendo',
+      formCardEstilo: Object.assign({background:'var(--sup)', border:'1px solid var(--bor)', borderRadius:'20px',
+        display:'flex', flexDirection:'column', justifyContent:'center', overflow:'hidden', minWidth:0,
+        flexBasis:'0', flexShrink:1,
+        transition:'opacity .45s ease, transform .55s cubic-bezier(.22,.8,.3,1), flex-grow .6s cubic-bezier(.22,.8,.3,1), padding .6s cubic-bezier(.22,.8,.3,1), border-width .4s ease'},
+        colapsado
+          ? {flexGrow:0.0001, padding:'30px 0', borderWidth:'0px', opacity:0, transform:'scale(.96)'}
+          : {flexGrow: desk ? 1 : 2.6, padding:'30px 26px', opacity:1, transform:'none'}),
+      btnBg: S.loginFase==='check'||S.loginFase==='saliendo' ? '#34d399' : (S.loginFase==='error' ? '#fb7185' : '#fbbf24'),
+      btnNormal: S.loginFase==='form', btnCargando: S.loginFase==='cargando',
+      btnReintentar: S.loginFase==='error',
+      usarDemo: ()=>this.setState({emailTxt:'demo', passTxt:'demo', loginFase:'form'}),
+      menuPerfil: !!S.menuPerfil,
+      abrirMenuPerfil: ()=>{ clearTimeout(this._menuT); this.setState({menuPerfil:true}); },
+      cerrarMenuPerfil: ()=>{ clearTimeout(this._menuT); this.setState({menuPerfil:false}); },
+      btnCheck: S.loginFase==='check'||S.loginFase==='saliendo',
+      faseDatosVis: ['saliendo','datos','bienvenida','abriendo'].indexOf(S.loginFase)>=0,
+      faseAbriendo: S.loginFase==='abriendo',
+      esSincro: S.loginFase==='datos', esBienvenida: S.loginFase==='bienvenida',
+      mainAnim: (app && S.entrando) ? 'cardIn .6s cubic-bezier(.22,.8,.3,1) both' : 'none',
+      nombreBienvenida: S.perfilNombre||'Estudiante', nMateriasTxt: String(D.materias.length),
+      saludoChars: ('Bienvenido, '+(S.perfilNombre||'Estudiante')).split('').map((c,i)=>({c: c===' '?'\u00A0':c, d:(0.1+i*0.035).toFixed(3)+'s'})),
+      volverLogin: ()=>this.setState({pantalla:'login', loginFase:'form'}),
+      editarPerfil: ()=>this.setState({pantalla:'perfil'}),
+      listoPerfil: ()=>this.setState({pantalla:'app'}),
+      cerrarSesion: ()=>this.guardarUI({pantalla:'login', loginFase:'form', passTxt:'', menuPerfil:false}),
+      correoVista: S.emailTxt.trim()||'—',
+      tomarFoto: ()=>this.setState({fotoTomada:true}),
+      fotoLista: S.fotoTomada, fotoLabel: S.fotoTomada ? 'Sacar otra foto' : 'Sacate una foto',
+      iniciales, tieneIniciales: !!iniciales, sinIniciales: !iniciales,
+      avatarBg: iniciales ? '#FBBF24' : 'var(--sup)', avatarCol: iniciales ? '#221a00' : 'var(--tx3)',
+      avatarRing: S.fotoTomada ? '0 0 0 3px var(--bg), 0 0 0 5px #34d399' : '0 0 0 1px var(--bor2)',
+      toggleTema: ()=>this.guardarUI({tema: S.tema==='oscuro' ? 'claro' : 'oscuro'}),
+      esOscuro: S.tema==='oscuro', esClaro: S.tema==='claro',
+      knobX: S.tema==='oscuro' ? 'none' : 'translateX(28px)',
+      colIcoLuna: S.tema==='oscuro' ? '#221a00' : 'var(--tx3)',
+      colIcoSol: S.tema==='claro' ? '#221a00' : 'var(--tx3)',
+      knobDeskX: S.tema==='oscuro' ? 'translateX(18px)' : 'none',
+      trackBg: S.tema==='oscuro' ? 'rgba(251,191,36,.22)' : 'var(--bg)',
+      knobBg: S.tema==='oscuro' ? '#fbbf24' : 'var(--tx3)',
+      statClasesN, statClasesSub, statPendN, statPendSub, colStatPend,
+      statClasesDigits: digitos(statClasesN, 0.12), statPendDigits: digitos(statPendN, 0.22),
+      irHoy:nav('hoy'), irSemana:nav('semana'), irMaterias:nav('materias'), irAvisos:nav('avisos'),
+      colHoy:colNav('hoy'), colSemana:colNav('semana'), colMaterias:colNav('materias'), colAvisos:colNav('avisos'),
+      sinMaterias: D.materias.length===0, hayHero: !!hero,
+      heroKicker, heroNombre, heroHorario, heroAula, heroEstado, heroColor, heroEstadoColor, heroAbrir,
+      hoyClases, sinClasesHoy: D.materias.length>0 && hoyClases.length===0,
+      avisosHoy: pend.slice(0,3), sinAvisosHoy: pend.length===0,
+      verTodos: ()=>this.setState({tab:'avisos', detalleId:null}),
+      dias, semanaRango: dias[0].fecha+' – '+dias[5].fecha,
+      gLinks, gPuntos, hayGrafo: D.materias.length>0,
+      gTipVis: gTip.vis, gTipEstilo: gTip.estilo||{}, gTipCol: gTip.col||'var(--acc)',
+      gTipKicker: gTip.kicker||'', gTipTitulo: gTip.titulo||'', gTipSub: gTip.sub||'',
+      gSvgRef: el=>{ this._svgEl = el; },
+      gTotMat: String(D.materias.length), gTotNotas: String(gTotNotas), gTotArch: String(gTotArch),
+      gTotAv: String(gTotAv), gColAv: gTotAv>0 ? 'var(--acc)' : 'var(--tx2)',
+      materias, abrirModalMateria: ()=>this.setState({modal:'materia', mNombre:'', mProfe:'', mAula:'', mColor:'#38bdf8', mHorarios:[], mDia:'1', mIni:'18:10', mFin:'19:40', mError:''}),
+      pend, hechos, sinPend: pend.length===0, hayHechos: hechos.length>0,
+      abrirModalAviso: ()=>this.setState({modal:'aviso', avTitulo:'', avMateria:'', avFecha:hoyIso, avError:''}),
+      detNombre: det?det.nombre:'', detColor: det?det.color:'var(--acc)',
+      detProfe: det&&det.profe?det.profe:'—', detAula: det&&det.aula?det.aula:'—', detHorarios,
+      colTabNotas:tabCol('notas'), colTabArch:tabCol('archivos'), colTabAv:tabCol('avisos'),
+      bTabNotas:tabB('notas'), bTabArch:tabB('archivos'), bTabAv:tabB('avisos'),
+      irTabNotas:irTab('notas'), irTabArch:irTab('archivos'), irTabAv:irTab('avisos'),
+      detTabNotas: S.detalleTab==='notas', detTabArch: S.detalleTab==='archivos', detTabAv: S.detalleTab==='avisos',
+      nNotasDet: contar(docRaiz), nArchDet: det?det.archivos.length:0, nAvDet,
+      vistaDoc: S.notaVista!=='kanban', vistaKanban: S.notaVista==='kanban',
+      verDoc: ()=>this.setState({notaVista:'doc'}), verKanban: ()=>this.setState({notaVista:'kanban'}),
+      colVDoc: S.notaVista!=='kanban'?'var(--acc)':'var(--tx3)', bgVDoc: S.notaVista!=='kanban'?'var(--bor)':'transparent',
+      colVKan: S.notaVista==='kanban'?'var(--acc)':'var(--tx3)', bgVKan: S.notaVista==='kanban'?'var(--bor)':'transparent',
+      pista: S.notaVista==='kanban' ? 'arrastrá entre columnas' : '/ bloques · @ referencias',
+      nuevoTxt:S.nuevoTxt, setNuevo:set('nuevoTxt'), agregarNuevo,
+      atAbierto, atOpts, sinAt: atOpts.length===0, atQ,
+      hayAdj: !!archAdj, adjNombre: archAdj?archAdj.nombre:'', adjCol: archAdj?archAdj.col:'var(--acc)',
+      quitarAdj: ()=>this.setState({nuevoRef:null}),
+      mtComposer: archAdj ? '8px' : '14px',
+      enPagina: !!pag, pagTituloVal: pag ? (pag.texto||'') : '',
+      pagHayTodo: pag ? (pag.hijos||[]).some(h=>h.tipo==='tarea') : false,
+      pagTodoTxt: pag ? 'TO-DO '+(pag.hijos||[]).filter(h=>h.tipo==='tarea'&&h.hecho).length+'/'+(pag.hijos||[]).filter(h=>h.tipo==='tarea').length : '',
+      pagTodoCol: (pag && (pag.hijos||[]).filter(h=>h.tipo==='tarea'&&!h.hecho).length===0) ? '#34d399' : 'var(--acc)',
+      pagTodoPct: (function(){ if (!pag) return '0%'; const t = (pag.hijos||[]).filter(h=>h.tipo==='tarea'); if (!t.length) return '0%';
+        return Math.round(t.filter(h=>h.hecho).length/t.length*100)+'%'; })(),
+      agregarTareaRapida: ()=>agregarBloque('tarea'),
+      setPagTitulo: e=>{ const v = e.target.value; this.mutar(d=>{ const b = (this.arrDe(d, det.id, null)||[]).find(x=>x.id===S.paginaId); if (b) b.texto = v; }); },
+      salirPagina: ()=>this.setState({paginaId:null, nuevoTxt:'', nuevoRef:null, focusId:null}),
+      pagFechaTxt: pag ? new Date(pag.fecha||Date.now()).toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit', year:'numeric'}) : '',
+      nuevoKey: e=>{ if (e.key==='Enter') { e.preventDefault(); agregarNuevo(); } if (e.key==='Escape') this.setState({nuevoTxt:''}); },
+      slashAbierto, slashOpts, sinSlash: slashOpts.length===0, slashQ,
+      detBloques, kanbanCols, sinNotasDet: doc.length===0,
+      cartaVis: !!carta,
+      cerrarCarta: ()=>this.setState({cartaId:null}),
+      cartaTexto: carta ? (carta.texto||'') : '',
+      setCartaTexto: e=>{ const v = e.target.value; if (carta) editaBloque(carta.id, x=>{ x.texto = v; }); },
+      cartaTipoTxt: carta ? (({texto:'Nota',titulo:'Título',tarea:'Tarea',link:'Link',pagina:'Página'})[carta.tipo]||'Nota') : '',
+      cartaFecha: carta ? fmtTs(carta.fecha||Date.now()) : '',
+      cartaEstados,
+      cartaRef: cartaRefVal,
+      cartaRefOpts: refsTodas.map(r=>({val:r.tipo+':'+r.id, etiqueta:(r.kind==='archivo'?'📄 ':r.kind==='materia'?'▣ ':'! ')+r.nombre})),
+      setCartaRef: e=>{ const v = e.target.value; if (!carta) return;
+        editaBloque(carta.id, x=>{ if (!v) { x.ref = null; return; } const p = v.split(':'); x.ref = {tipo:p[0], id:p.slice(1).join(':')}; });
+        this.lanzarToast(v ? 'Referencia vinculada' : 'Referencia quitada', true); },
+      cartaAtOpts: (function(self){ if (!carta) return [];
+        const t = carta.texto||''; const ix = t.lastIndexOf('@'); if (ix < 0) return [];
+        const q = t.slice(ix+1).toLowerCase();
+        return refsTodas.filter(r=>r.nombre.toLowerCase().indexOf(q)>=0).slice(0,5).map(r=>({
+          nombre:r.nombre, kind:r.kind, col:REFCOL[r.tipo],
+          elegir: ()=>editaBloque(carta.id, x=>{ x.ref = {tipo:r.tipo, id:r.id}; x.texto = t.slice(0,ix); }) })); })(this),
+      cartaAtAbierto: !!(carta && (carta.texto||'').lastIndexOf('@') >= 0 && (carta.texto||'').charAt(0)!=='/'),
+      cartaSlashAbierto: !!(carta && (carta.texto||'').charAt(0)==='/'),
+      cartaSlashOpts: carta ? [['texto','Texto','T'],['titulo','Título','#'],['tarea','Tarea','✓'],['link','Link','↗'],['pagina','Página de nota','▤']]
+        .filter(o=>o[0].indexOf((carta.texto||'').slice(1).toLowerCase())>=0 || (carta.texto||'').length<=1)
+        .map(o=>({ nombre:o[1], ic:o[2], cmd:'/'+o[0],
+          elegir: ()=>{ editaBloque(carta.id, x=>{ x.tipo = o[0]; if (o[0]==='pagina' && !x.hijos) x.hijos = []; x.texto = ''; });
+            this.lanzarToast('Convertida en '+o[1], true); } })) : [],
+      cartaFmts: carta ? [['b','B','700','normal','none'],['i','I','400','italic','none'],['u','S','400','normal','underline'],['hl','▍A','400','normal','none']].map(f=>{
+        const on = !!(carta.fmt && carta.fmt[f[0]]);
+        return { glifo:f[1], fw:f[2], fst:f[3], deco:f[4],
+          col: on ? '#221a00' : 'var(--tx2)', bg: on ? '#fbbf24' : 'var(--bg)',
+          toggle: ()=>editaBloque(carta.id, x=>{ if (!x.fmt) x.fmt = {}; x.fmt[f[0]] = !x.fmt[f[0]]; }) };
+      }) : [],
+      avmVis: !!(S.avisoVerId && D.avisos.some(a=>a.id===S.avisoVerId)),
+      avm: (function(self){ const a = S.avisoVerId ? D.avisos.find(v=>v.id===S.avisoVerId) : null;
+        if (!a) return {};
+        const vm = avVm(a);
+        const p = String(a.fecha).split('-');
+        vm.fechaLargaTxt = p[2]+'/'+p[1]+'/'+p[0];
+        vm.estadoTxt = a.hecho ? 'Hecho' : (a.fecha < hoyIso ? 'Vencido' : (a.fecha === hoyIso ? 'Vence hoy' : 'Pendiente'));
+        vm.estadoCol = a.hecho ? '#34d399' : (a.fecha < hoyIso ? '#fb7185' : (a.fecha === hoyIso ? 'var(--acc)' : 'var(--tx2)'));
+        vm.toggleTxt = a.hecho ? 'Marcar como pendiente' : 'Marcar como hecho';
+        return vm; })(this),
+      cerrarAvm: ()=>this.setState({avisoVerId:null}),
+      cartaSinAviso: carta ? !D.avisos.some(a=>a.notaId===carta.id) : true,
+      cartaConAviso: carta ? D.avisos.some(a=>a.notaId===carta.id) : false,
+      cartaAvisoFechaTxt: (function(){ if (!carta) return ''; const a = D.avisos.find(v=>v.notaId===carta.id); if (!a) return '';
+        const p = String(a.fecha).split('-'); return p[2]+'/'+p[1]+(a.hecho?' · hecho':''); })(),
+      cartaAvFecha: S.cartaAvFecha || hoyIso,
+      setCartaAvFecha: set('cartaAvFecha'),
+      crearAvisoDeCarta: ()=>{ if (!carta || !det) return;
+        const titulo = (carta.texto||'').trim() || 'Nota sin título';
+        this.mutar(d=>{ d.avisos.push({id:'a'+Date.now(), titulo: titulo.length>60?titulo.slice(0,59)+'…':titulo,
+          materiaId:det.id, fecha:S.cartaAvFecha||hoyIso, hecho:false, notaId:carta.id}); });
+        this.lanzarToast('Aviso creado desde la nota', true); },
+      verAvisoDeCarta: ()=>this.setState({cartaId:null, detalleId:null, paginaId:null, tab:'avisos'}),
+      cartaEsLink: carta ? carta.tipo==='link' : false,
+      cartaUrl: carta ? (carta.url||'') : '',
+      setCartaUrl: e=>{ const v = e.target.value; if (carta) editaBloque(carta.id, x=>{ x.url = v; }); },
+      fijarCartaUrl: ()=>{ if (carta) editaBloque(carta.id, x=>{ const u = (x.url||'').trim(); if (u && !/^https?:\/\//i.test(u)) x.url = 'https://'+u; }); },
+      cartaEsTarea: carta ? carta.tipo==='tarea' : false,
+      cartaCirBg: carta && carta.hecho ? 'var(--bor)' : 'transparent',
+      cartaCheckOp: carta && carta.hecho ? '1' : '0',
+      cartaHechoTxt: carta && carta.hecho ? 'Hecha — tocá para desmarcar' : 'Marcar como hecha',
+      cartaToggleHecho: ()=>{ if (!carta) return; const va = !carta.hecho;
+        editaBloque(carta.id, x=>{ x.hecho = va; x.estado = va ? 'listo' : 'pendiente'; });
+        if (va) this.lanzarToast('¡Tarea completada!', true); },
+      cartaEstadoBadge: carta ? (carta.hecho ? 'Listo' : ESTN[carta.estado||'pendiente']) : '',
+      cartaEstadoBadgeCol: carta ? EST[carta.hecho ? 'listo' : (carta.estado||'pendiente')][1] : 'var(--tx3)',
+      cartaBorrArmado: carta ? S.borrArmado===('modal'+carta.id) : false,
+      borrarCarta: ()=>{ if (!carta) return; const bid = carta.id;
+        if (S.borrArmado !== 'modal'+bid) { this.setState({borrArmado:'modal'+bid});
+          clearTimeout(this._borrT); this._borrT = setTimeout(()=>this.setState({borrArmado:null}), 3000); return; }
+        clearTimeout(this._borrT);
+        this.setState({cartaId:null, borrArmado:null});
+        this.mutar(d=>{ const arr = this.arrDe(d, det.id, S.paginaId); const ix = arr.findIndex(x=>x.id===bid); if (ix>=0) arr.splice(ix,1); });
+        this.lanzarToast('Card eliminada'); },
+      cartaBorrLabel: (carta && S.borrArmado===('modal'+carta.id)) ? '¿Seguro? Tocá de nuevo' : 'Borrar',
+      cartaBorrEstilo: (carta && S.borrArmado===('modal'+carta.id))
+        ? {background:'#fb7185', color:'#20060b', border:'1px solid #fb7185', borderRadius:'12px', fontWeight:700, fontSize:'13.5px', minHeight:'46px', padding:'0 16px', cursor:'pointer', transition:'background .15s ease'}
+        : {background:'none', border:'1px solid rgba(251,113,133,.45)', color:'#fb7185', borderRadius:'12px', fontWeight:700, fontSize:'13.5px', minHeight:'46px', padding:'0 16px', cursor:'pointer', transition:'background .15s ease'},
+      archNombre:S.archNombre, setArchNombre:set('archNombre'), archUrl:S.archUrl, setArchUrl:set('archUrl'),
+      agregarArchivo: ()=>{ const n = S.archNombre.trim(); let u = S.archUrl.trim(); if (!n || !u || !det) return;
+        if (!/^https?:\/\//i.test(u)) u = 'https://'+u;
+        this.mutar(d=>{ d.materias.find(m=>m.id===det.id).archivos.unshift({id:'f'+Date.now(), nombre:n, url:u}); });
+        this.setState({archNombre:'', archUrl:''}); },
+      detArchivos, sinArchDet: det ? det.archivos.length===0 : true,
+      daTitulo:S.daTitulo, setDaTitulo:set('daTitulo'), daFecha:S.daFecha, setDaFecha:set('daFecha'),
+      agregarAvisoDet: ()=>{ const t = S.daTitulo.trim(); if (!t || !S.daFecha || !det) return;
+        this.mutar(d=>{ d.avisos.push({id:'a'+Date.now(), titulo:t, materiaId:det.id, fecha:S.daFecha, hecho:false}); });
+        this.setState({daTitulo:''}); },
+      detAvisos, sinAvDet: nAvDet===0,
+      delLabel: S.armado ? '¿Seguro? Tocá de nuevo para eliminar' : 'Eliminar materia', delStyle,
+      eliminar: ()=>{ if (!det) return;
+        if (!S.armado) { this.setState({armado:true}); clearTimeout(this._arm); this._arm = setTimeout(()=>this.setState({armado:false}), 3500); return; }
+        clearTimeout(this._arm); const id = det.id;
+        this.setState({armado:false, detalleId:null});
+        this.mutar(d=>{ d.materias = d.materias.filter(m=>m.id!==id); d.avisos = d.avisos.filter(a=>a.materiaId!==id); });
+        this.lanzarToast('Materia eliminada'); },
+      volver: ()=>this.setState({detalleId:null, armado:false}),
+      modalMateria: S.modal==='materia', modalAviso: S.modal==='aviso',
+      cerrarModal: ()=>this.setState({modal:null, cartaId:null}), frenar: e=>e.stopPropagation(),
+      ovStyle, panelStyle, panelStyleGrande,
+      mNombre:S.mNombre, setMNombre:set('mNombre'), mProfe:S.mProfe, setMProfe:set('mProfe'), mAula:S.mAula, setMAula:set('mAula'),
+      colores, chips, mDia:S.mDia, setMDia:set('mDia'), mIni:S.mIni, setMIni:set('mIni'), mFin:S.mFin, setMFin:set('mFin'),
+      agregarHorario: ()=>{ if (!S.mIni || !S.mFin) return;
+        if (this.min(S.mFin) <= this.min(S.mIni)) { this.setState({mError:'El fin tiene que ser después del inicio.'}); return; }
+        this.setState(s=>({mHorarios:[...s.mHorarios, {dia:+s.mDia, ini:s.mIni, fin:s.mFin}], mError:''})); },
+      mError:S.mError, mErrorHay: !!S.mError,
+      guardarMateria: ()=>{ const n = S.mNombre.trim();
+        if (!n || S.mHorarios.length===0) { this.setState({mError:'Poné un nombre y agregá al menos un horario.'}); return; }
+        this.mutar(d=>{ d.materias.push({id:'m'+Date.now(), nombre:n, profe:S.mProfe.trim(), aula:S.mAula.trim(), color:S.mColor, horarios:S.mHorarios, notas:[], doc:[], archivos:[]}); });
+        this.setState({modal:null}); },
+      avTitulo:S.avTitulo, setAvTitulo:set('avTitulo'), avMateria:S.avMateria, setAvMateria:set('avMateria'), avFecha:S.avFecha, setAvFecha:set('avFecha'),
+      matOpts: D.materias.map(m=>({id:m.id, nombre:m.nombre})),
+      avError:S.avError, avErrorHay: !!S.avError,
+      guardarAviso: ()=>{ const t = S.avTitulo.trim();
+        if (!t || !S.avFecha) { this.setState({avError:'Poné un título y una fecha.'}); return; }
+        this.mutar(d=>{ d.avisos.push({id:'a'+Date.now(), titulo:t, materiaId:S.avMateria||null, fecha:S.avFecha, hecho:false}); });
+        this.setState({modal:null}); }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    html{background:#020617;}
+    :root{--bg:#020617;--sup:#0f172a;--bor:#1e293b;--bor2:#334155;--tx:#e2e8f0;--tx2:#94a3b8;--tx3:#64748b;--tx4:#475569;--acc:#fbbf24;}
+    body{margin:0;background:var(--bg);color:var(--tx);display:block;color-scheme:dark;font-family:'Plus Jakarta Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased;}
+    *{box-sizing:border-box;}
+    a{color:#fbbf24;}a:hover{color:#fde68a;}
+    :focus-visible{outline:2px solid #fbbf24;outline-offset:2px;border-radius:8px;}
+    ::placeholder{color:#475569;opacity:1;}
+    @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+    @keyframes slideIn{from{transform:translateX(30px);opacity:0;}to{transform:none;opacity:1;}}
+    @keyframes pulso{0%,100%{opacity:1;}50%{opacity:.35;}}
+  </style>
+</helmet>
+<div style="min-height:100dvh;background:var(--bg);color:var(--tx);">
+  <header style="border-bottom:1px solid var(--bor);background:rgba(2,6,23,.9);position:sticky;top:0;z-index:20;backdrop-filter:blur(12px);">
+    <div style="max-width:1280px;margin:0 auto;padding:16px 28px;display:flex;align-items:center;gap:14px;">
+      <span style="width:36px;height:36px;border-radius:10px;background:var(--acc);display:grid;place-items:center;flex-shrink:0;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#221a00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"></path><path d="M6 10.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-5.5"></path></svg>
+      </span>
+      <span style="display:block;">
+        <span style="display:block;font-size:15px;font-weight:800;letter-spacing:-.01em;">Mi Cursada · Admin</span>
+        <span style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);">Panel de monitoreo</span>
+      </span>
+      <span style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">
+        <span style="width:7px;height:7px;border-radius:99px;background:#34d399;animation:pulso 2.2s ease infinite;"></span>
+        en vivo · actualizado hace {{ actualizadoHace }}
+      </span>
+    </div>
+  </header>
+
+  <main style="max-width:1280px;margin:0 auto;padding:26px 28px 80px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;">
+      <sc-for list="{{ stats }}" as="s" hint-placeholder-count="6">
+        <div style="background:var(--sup);border:1px solid var(--bor);border-radius:14px;padding:16px 18px;">
+          <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);">{{ s.k }}</div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:26px;font-weight:600;color:{{ s.col }};">{{ s.v }}</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:{{ s.dCol }};">{{ s.delta }}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:grid;grid-template-columns:{{ colsGrid }};gap:20px;margin-top:24px;align-items:start;">
+      <section>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <h2 style="margin:0;font-size:17px;font-weight:800;letter-spacing:-.01em;">Usuarios</h2>
+          <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--tx3);">{{ nFiltrados }} de {{ nTotal }}</span>
+          <div style="margin-left:auto;display:flex;background:var(--sup);border:1px solid var(--bor);border-radius:10px;padding:3px;gap:2px;">
+            <sc-for list="{{ filtros }}" as="f" hint-placeholder-count="4">
+              <button onClick="{{ f.elegir }}" style="min-height:32px;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;padding:0 12px;color:{{ f.col }};background:{{ f.bg }};">{{ f.nombre }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <input value="{{ busca }}" onChange="{{ setBusca }}" placeholder="Buscá por nombre, mail o carrera…" style="width:100%;min-height:42px;background:var(--sup);border:1px solid var(--bor);border-radius:11px;padding:0 14px;font-size:13.5px;color:var(--tx);margin-bottom:12px;">
+        <div style="background:var(--sup);border:1px solid var(--bor);border-radius:14px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:minmax(210px,1.5fr) 110px 1fr 92px 90px;gap:10px;padding:10px 16px;border-bottom:1px solid var(--bor);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--tx4);">
+          <span>Usuario</span><span>Estado</span><span>Última actividad</span><span>Sesión</span><span>Notas hoy</span>
+          </div>
+          <sc-for list="{{ usuarios }}" as="u" hint-placeholder-count="6">
+            <button onClick="{{ u.abrir }}" style="display:grid;grid-template-columns:minmax(210px,1.5fr) 110px 1fr 92px 90px;gap:10px;align-items:center;width:100%;min-height:58px;padding:9px 16px;background:{{ u.bg }};border:none;border-bottom:1px solid var(--bor);cursor:pointer;text-align:left;color:var(--tx);" style-hover="background:rgba(30,41,59,.45);">
+              <span style="display:flex;align-items:center;gap:11px;min-width:0;">
+                <span style="width:34px;height:34px;border-radius:99px;background:{{ u.avBg }};display:grid;place-items:center;font-size:12.5px;font-weight:800;color:#221a00;flex-shrink:0;">{{ u.ini }}</span>
+                <span style="min-width:0;display:block;">
+                  <span style="display:block;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ u.nombre }}</span>
+                  <span style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ u.carrera }}</span>
+                </span>
+              </span>
+              <span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:{{ u.estCol }};">
+                <span style="width:7px;height:7px;border-radius:99px;background:{{ u.estCol }};animation:{{ u.pulso }};"></span>{{ u.estado }}
+              </span>
+              <span style="font-size:12.5px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ u.accion }}</span>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;color:var(--tx3);">{{ u.sesion }}</span>
+              <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;color:{{ u.notasCol }};">{{ u.notasHoy }}</span>
+            </button>
+          </sc-for>
+          <sc-if value="{{ sinResultados }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:26px;text-align:center;color:var(--tx3);font-size:13px;">Ningún usuario con «{{ busca }}».</div>
+          </sc-if>
+        </div>
+      </section>
+
+      <sc-if value="{{ hayDetalle }}" hint-placeholder-val="{{ true }}">
+        <aside style="background:var(--sup);border:1px solid var(--bor);border-radius:16px;padding:20px;animation:slideIn .3s cubic-bezier(.22,.8,.3,1);position:sticky;top:86px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="width:44px;height:44px;border-radius:99px;background:{{ det.avBg }};display:grid;place-items:center;font-size:16px;font-weight:800;color:#221a00;flex-shrink:0;">{{ det.ini }}</span>
+            <span style="min-width:0;display:block;">
+              <span style="display:block;font-size:16px;font-weight:800;">{{ det.nombre }}</span>
+              <span style="display:block;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--tx3);">{{ det.mail }}</span>
+            </span>
+            <button onClick="{{ cerrarDet }}" aria-label="Cerrar" style="margin-left:auto;background:none;border:none;color:var(--tx3);cursor:pointer;width:38px;height:38px;display:grid;place-items:center;border-radius:10px;flex-shrink:0;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+            </button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:{{ det.estCol }};border:1px solid {{ det.estCol }};border-radius:99px;padding:4px 10px;">{{ det.estado }}</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);border:1px solid var(--bor2);border-radius:99px;padding:4px 10px;">{{ det.dispositivo }}</span>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--tx2);border:1px solid var(--bor2);border-radius:99px;padding:4px 10px;">{{ det.version }}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px;">
+            <sc-for list="{{ det.metricas }}" as="m" hint-placeholder-count="6">
+              <div style="background:var(--bg);border:1px solid var(--bor);border-radius:11px;padding:10px 12px;">
+                <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx4);">{{ m.k }}</div>
+                <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:17px;font-weight:600;color:{{ m.col }};margin-top:4px;">{{ m.v }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:18px;">
+            <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:8px;">Pantallas más usadas</div>
+            <div style="display:flex;flex-direction:column;gap:7px;">
+              <sc-for list="{{ det.pantallas }}" as="p" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="width:74px;font-size:12px;font-weight:600;color:var(--tx2);flex-shrink:0;">{{ p.k }}</span>
+                  <span style="flex:1;height:5px;border-radius:99px;background:var(--bor);overflow:hidden;">
+                    <span style="display:block;height:100%;border-radius:99px;background:var(--acc);width:{{ p.pct }};"></span>
+                  </span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--tx3);width:38px;text-align:right;flex-shrink:0;">{{ p.pct }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="margin-top:18px;">
+            <div style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3);margin-bottom:8px;">Actividad reciente</div>
+            <div style="display:flex;flex-direction:column;">
+              <sc-for list="{{ det.eventos }}" as="e" hint-placeholder-count="5">
+                <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--bor);">
+                  <span style="width:7px;height:7px;border-radius:99px;background:{{ e.col }};flex-shrink:0;margin-top:5px;"></span>
+                  <span style="flex:1;min-width:0;font-size:12.5px;color:var(--tx2);line-height:1.45;">{{ e.txt }}</span>
+                  <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;color:var(--tx4);white-space:nowrap;">{{ e.hace }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:14px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 3v6h-6"></path></svg>
+            <span style="font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--tx3);">Scraper del aula virtual: {{ det.sync }}</span>
+          </div>
+        </aside>
+      </sc-if>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = { filtro:'todos', busca:'', selId:'u1', isNarrow:false };
+  componentDidMount(){
+    this._mq = window.matchMedia('(max-width: 980px)');
+    this._onMq = ()=>this.setState({isNarrow:this._mq.matches});
+    try { this._mq.addEventListener('change', this._onMq); } catch(e) { this._mq.addListener(this._onMq); }
+    this._onMq();
+  }
+  componentWillUnmount(){ try { this._mq.removeEventListener('change', this._onMq); } catch(e) { this._mq.removeListener(this._onMq); } }
+  datos(){
+    if (this._u) return this._u;
+    const AV = ['#38bdf8','#a78bfa','#34d399','#fb7185','#f97316','#e2e8f0'];
+    this._u = [
+      {id:'u1', nombre:'Federico Álvarez', mail:'falvarez@ort.edu.ar', carrera:'Analista de Sistemas', estado:'online', accion:'Editando nota en Programación II', sesion:'42 min', notasHoy:6, dispositivo:'Desktop · Chrome', version:'v1.4.2', av:AV[0],
+        met:[['materias','5','var(--tx)'],['notas','48','var(--tx)'],['to-dos','12/19','var(--acc)'],['archivos','14','var(--tx)'],['avisos pend.','3','var(--acc)'],['XP','740','#34d399']],
+        pant:[['Hoy','38%'],['Materias','29%'],['Semana','18%'],['Grafo','9%'],['Avisos','6%']],
+        ev:[['#34d399','Completó el to-do "Rehacer ejercicio 7" en Análisis','hace 4 min'],['#38bdf8','Creó una página "Clase 6 — Integración por partes"','hace 18 min'],['#fbbf24','Logro desbloqueado: primera nota (+50 XP)','hace 31 min'],['#a78bfa','Vinculó la Guía 5 (PDF) con @referencia','hace 40 min'],['#fb7185','Creó un aviso desde una nota (vence 20/08)','hace 1 h']], sync:'ok · hace 2 h'},
+      {id:'u2', nombre:'Sofía Benítez', mail:'sbenitez@ort.edu.ar', carrera:'Analista de Sistemas', estado:'online', accion:'Viendo el tablero de Base de Datos', sesion:'17 min', notasHoy:3, dispositivo:'Android · PWA', version:'v1.4.2', av:AV[1],
+        met:[['materias','6','var(--tx)'],['notas','31','var(--tx)'],['to-dos','8/10','#34d399'],['archivos','9','var(--tx)'],['avisos pend.','1','var(--acc)'],['XP','520','#34d399']],
+        pant:[['Materias','41%'],['Hoy','24%'],['Avisos','16%'],['Semana','12%'],['Grafo','7%']],
+        ev:[['#38bdf8','Movió una card a "En proceso"','hace 2 min'],['#34d399','Marcó hecho el aviso "Cuestionario cap. 4"','hace 25 min'],['#a78bfa','Subió link "Repo TP2" a Archivos','hace 50 min']], sync:'ok · hace 40 min'},
+      {id:'u3', nombre:'Martín Correa', mail:'mcorrea@ort.edu.ar', carrera:'Desarrollo de Software', estado:'inactivo', accion:'Sin actividad hace 22 min (tab abierta)', sesion:'1 h 05', notasHoy:1, dispositivo:'Desktop · Firefox', version:'v1.4.1', av:AV[2],
+        met:[['materias','4','var(--tx)'],['notas','12','var(--tx)'],['to-dos','2/9','#fb7185'],['archivos','3','var(--tx)'],['avisos pend.','5','#fb7185'],['XP','180','#34d399']],
+        pant:[['Hoy','52%'],['Avisos','21%'],['Semana','14%'],['Materias','10%'],['Grafo','3%']],
+        ev:[['#fb7185','2 avisos pasaron a vencidos','hace 22 min'],['#38bdf8','Abrió el detalle de Inglés Técnico','hace 28 min']], sync:'error de login · hace 6 h'},
+      {id:'u4', nombre:'Lucía Duarte', mail:'lduarte@ort.edu.ar', carrera:'Analista de Sistemas', estado:'online', accion:'En el Grafo (hover en nodos)', sesion:'8 min', notasHoy:0, dispositivo:'iOS · Safari', version:'v1.4.2', av:AV[3],
+        met:[['materias','5','var(--tx)'],['notas','56','var(--tx)'],['to-dos','20/22','#34d399'],['archivos','18','var(--tx)'],['avisos pend.','0','var(--tx3)'],['XP','910','#34d399']],
+        pant:[['Grafo','33%'],['Materias','27%'],['Hoy','22%'],['Semana','11%'],['Avisos','7%']],
+        ev:[['#a78bfa','Navegó del grafo a una nota (click en nodo)','hace 1 min'],['#34d399','Completó todos los to-dos de "Clase 8"','hace 15 min']], sync:'ok · hace 12 min'},
+      {id:'u5', nombre:'Joaquín Herrera', mail:'jherrera@ort.edu.ar', carrera:'Desarrollo de Software', estado:'offline', accion:'Último acceso ayer 22:41', sesion:'—', notasHoy:0, dispositivo:'Android · PWA', version:'v1.3.9', av:AV[4],
+        met:[['materias','3','var(--tx)'],['notas','7','var(--tx)'],['to-dos','1/4','#fb7185'],['archivos','2','var(--tx)'],['avisos pend.','2','var(--acc)'],['XP','90','#34d399']],
+        pant:[['Hoy','61%'],['Avisos','19%'],['Materias','12%'],['Semana','8%'],['Grafo','0%']],
+        ev:[['#38bdf8','Cerró sesión','ayer 22:41'],['#fbbf24','Logro: primera nota (+50 XP)','ayer 21:58']], sync:'nunca conectado'},
+      {id:'u6', nombre:'Valentina Ibáñez', mail:'vibanez@ort.edu.ar', carrera:'Analista de Sistemas', estado:'offline', accion:'Último acceso hace 3 días', sesion:'—', notasHoy:0, dispositivo:'Desktop · Edge', version:'v1.4.0', av:AV[5],
+        met:[['materias','6','var(--tx)'],['notas','22','var(--tx)'],['to-dos','5/8','var(--acc)'],['archivos','11','var(--tx)'],['avisos pend.','4','#fb7185'],['XP','310','#34d399']],
+        pant:[['Materias','35%'],['Hoy','30%'],['Semana','20%'],['Avisos','10%'],['Grafo','5%']],
+        ev:[['#fb7185','Aviso "Entrega TP" venció sin marcar','hace 1 día'],['#38bdf8','Editó horarios de Práctica Profesional','hace 3 días']], sync:'ok · hace 3 días'}
+    ];
+    return this._u;
+  }
+  renderVals(){
+    const S = this.state;
+    const U = this.datos();
+    const ESTC = {online:'#34d399', inactivo:'#fbbf24', offline:'#64748b'};
+    const online = U.filter(u=>u.estado==='online').length;
+    const stats = [
+      {k:'usuarios activos', v:String(online), col:'#34d399', delta:'+1 esta hora', dCol:'#34d399'},
+      {k:'usuarios totales', v:String(U.length), col:'var(--tx)', delta:'+2 esta semana', dCol:'var(--tx3)'},
+      {k:'notas creadas hoy', v:String(U.reduce((a,u)=>a+u.notasHoy,0)), col:'var(--acc)', delta:'+18% vs ayer', dCol:'#34d399'},
+      {k:'sesión promedio', v:'34m', col:'var(--tx)', delta:'−3m vs ayer', dCol:'#fb7185'},
+      {k:'scrapers ok', v:'4/6', col:'var(--acc)', delta:'1 error · 1 nunca', dCol:'#fb7185'},
+      {k:'avisos vencidos', v:'7', col:'#fb7185', delta:'en 3 usuarios', dCol:'var(--tx3)'}
+    ];
+    const FILT = [['todos','Todos'],['online','Online'],['inactivo','Inactivos'],['offline','Offline']];
+    const filtros = FILT.map(([k,n])=>({ nombre:n,
+      col: S.filtro===k ? 'var(--tx)' : 'var(--tx3)', bg: S.filtro===k ? 'var(--bor)' : 'transparent',
+      elegir: ()=>this.setState({filtro:k}) }));
+    const q = S.busca.trim().toLowerCase();
+    const lista = U.filter(u=>(S.filtro==='todos'||u.estado===S.filtro) &&
+      (!q || (u.nombre+' '+u.mail+' '+u.carrera).toLowerCase().indexOf(q)>=0));
+    const usuarios = lista.map(u=>({
+      nombre:u.nombre, carrera:u.carrera, ini:u.nombre.split(' ').map(p=>p[0]).slice(0,2).join(''),
+      avBg:u.av, estado:u.estado, estCol:ESTC[u.estado],
+      pulso: u.estado==='online' ? 'pulso 2.2s ease infinite' : 'none',
+      accion:u.accion, sesion:u.sesion,
+      notasHoy: u.notasHoy>0 ? String(u.notasHoy) : '—', notasCol: u.notasHoy>0 ? 'var(--acc)' : 'var(--tx4)',
+      bg: S.selId===u.id ? 'rgba(251,191,36,.06)' : 'transparent',
+      abrir: ()=>this.setState({selId:u.id}) }));
+    const d = U.find(u=>u.id===S.selId);
+    const det = d ? {
+      nombre:d.nombre, mail:d.mail, ini:d.nombre.split(' ').map(p=>p[0]).slice(0,2).join(''), avBg:d.av,
+      estado:d.estado, estCol:ESTC[d.estado], dispositivo:d.dispositivo, version:d.version, sync:d.sync,
+      metricas: d.met.map(([k,v,col])=>({k,v,col})),
+      pantallas: d.pant.map(([k,pct])=>({k,pct})),
+      eventos: d.ev.map(([col,txt,hace])=>({col,txt,hace})) } : {};
+    return { actualizadoHace:'12 s', stats, filtros, busca:S.busca, setBusca:e=>this.setState({busca:e.target.value}),
+      nFiltrados:String(lista.length), nTotal:String(U.length), usuarios, sinResultados:lista.length===0,
+      hayDetalle: !!d && !S.isNarrow ? true : !!d && S.isNarrow ? true : false,
+      colsGrid: S.isNarrow ? '1fr' : 'minmax(0,1.6fr) minmax(330px,1fr)',
+      det, cerrarDet: ()=>this.setState({selId:null}) };
+  }
+}
+</script>
+</body>
+</html>
