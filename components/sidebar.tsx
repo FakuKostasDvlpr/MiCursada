@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, BookOpen, Calendar, Moon } from 'lucide-react';
+import { Bell, BookOpen, Calendar, CircleHelp, Moon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -86,9 +86,21 @@ export function Sidebar({
         })}
       </nav>
 
-      {/* Abajo van el perfil y cerrar sesión (pedido del 18/08: salir sin pasar
-          por el menú del avatar). El tema sigue en el header de Hoy. */}
+      {/* Abajo van el manual, el perfil y cerrar sesión (pedido del 18/08:
+          salir sin pasar por el menú del avatar). El manual va acá y no entre
+          las cinco pestañas principales: se consulta una vez, no todos los
+          días. El tema sigue en el header de Hoy. */}
       <div className="mt-auto flex flex-col gap-1">
+        <Link
+          href="/manual"
+          aria-current={pathname.startsWith('/manual') ? 'page' : undefined}
+          className={`flex min-h-[44px] items-center gap-[11px] rounded-[11px] px-3 text-[13.5px] font-bold ${
+            pathname.startsWith('/manual') ? 'bg-bor !text-acc' : '!text-tx3'
+          }`}
+        >
+          <CircleHelp size={18} strokeWidth={1.9} aria-hidden />
+          Manual
+        </Link>
         <Link
           href="/perfil"
           className="flex min-h-12 items-center gap-[11px] rounded-[11px] px-3 !text-tx"
