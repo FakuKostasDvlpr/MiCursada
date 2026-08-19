@@ -189,8 +189,22 @@ export function HoyLive({
         <div className="col-span-full rounded-2xl border border-bor bg-sup p-[14px] min-[641px]:col-[1/3]">
           <div className="kicker mb-[10px] tracking-[0.16em]">Clases de hoy</div>
           {hoy.length === 0 ? (
+            // Sin NINGÚN horario cargado, "Hoy no cursás" es mentira: no es que
+            // hoy tengas libre, es que la app todavía no sabe cuándo cursás. El
+            // aula virtual no publica horarios, así que hay que decirlo y dar
+            // el camino en vez de dejar una pantalla vacía sin explicación.
             <div className="rounded-xl border border-dashed border-bor p-4 text-center text-[13.5px] text-tx3">
-              Hoy no cursás. Aprovechá para ponerte al día.
+              {materias.length > 0 && materias.every((m) => m.horarios.length === 0) ? (
+                <>
+                  Todavía no cargaste tus horarios, así que no sabemos qué cursás hoy.{' '}
+                  <Link href="/semana" className="font-semibold text-acc underline">
+                    Armá tu semana
+                  </Link>{' '}
+                  — son dos minutos.
+                </>
+              ) : (
+                'Hoy no cursás. Aprovechá para ponerte al día.'
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-[6px]">

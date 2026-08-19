@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ArmarSemana } from '@/components/armar-semana';
 import { semana } from '@/lib/cursada';
 import { getMaterias } from '@/lib/queries';
 import type { Horario, Materia } from '@/lib/types';
@@ -30,6 +31,11 @@ export default async function PaginaSemana() {
         <h1 className="text-2xl font-extrabold tracking-[-0.015em]">Semana</h1>
         <div className="font-mono text-xs text-tx3">{rango}</div>
       </header>
+
+      {/* Se abre solo cuando no hay ningún horario cargado: sin esto, la grilla
+          de abajo dice "— libre" los seis días y parece un dato, no un
+          "todavía no lo configuraste". */}
+      <ArmarSemana materias={materias} />
 
       {/* 1 columna en móvil, 2 en desktop (cards al tope de su fila). */}
       <div className="mt-5 grid items-start gap-[10px] min-[641px]:grid-cols-[repeat(2,minmax(0,1fr))]">

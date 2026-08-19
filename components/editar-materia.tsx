@@ -4,6 +4,7 @@ import { Pencil, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { actualizarMateria } from '@/app/actions';
 import { Rueda } from '@/components/cargando';
+import { CampoHora } from '@/components/campo-hora';
 import { Modal } from '@/components/modal';
 import { nombreDia } from '@/lib/cursada';
 import { COLORES_MATERIA, type ColorMateria, type Dia, type Materia } from '@/lib/types';
@@ -188,26 +189,17 @@ export function EditarMateria({ materia }: { materia: Materia }) {
                 </option>
               ))}
             </select>
-            <div className="mt-2 flex gap-2">
-              <input
-                type="time"
-                value={ini}
-                onChange={(e) => setIni(e.target.value)}
-                aria-label="Inicio"
-                className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-bor bg-bg px-3 font-mono text-sm text-tx"
-              />
-              <input
-                type="time"
-                value={fin}
-                onChange={(e) => setFin(e.target.value)}
-                aria-label="Fin"
-                className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-bor bg-bg px-3 font-mono text-sm text-tx"
-              />
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <CampoHora valor={ini} onCambio={setIni} etiqueta="Inicio" />
+              <span aria-hidden className="font-mono text-sm text-tx4">
+                –
+              </span>
+              <CampoHora valor={fin} onCambio={setFin} etiqueta="Fin" />
               <button
                 type="button"
                 onClick={agregarHorario}
                 aria-label="Agregar horario"
-                className="grid h-[46px] w-[46px] shrink-0 cursor-pointer place-items-center rounded-xl border border-bor2 bg-bor text-acc"
+                className="ml-auto grid h-[46px] w-[46px] shrink-0 cursor-pointer place-items-center rounded-xl border border-bor2 bg-bor text-acc"
               >
                 <Plus size={18} strokeWidth={2.4} aria-hidden />
               </button>

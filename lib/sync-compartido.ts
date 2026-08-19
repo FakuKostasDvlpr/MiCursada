@@ -9,6 +9,8 @@
 import { registrarEvento } from '@/lib/eventos';
 import type { Credencial } from '@/lib/moodle/credenciales';
 import { armarSnapshot, construirPlan } from '@/lib/moodle/plan';
+import { grillaConsensuada, type FilaHorario } from '@/lib/horarios-comision';
+import { horariosSembrables, type HorarioSembrado } from '@/lib/plantilla-horarios';
 import { adminClient } from '@/lib/supabase/admin';
 
 export const HORAS_FRESCO_COMPARTIDO = 6;
@@ -89,17 +91,29 @@ export async function sincronizarCompartido(
   // malformado si `ids` está vacío (Postgres lo lee como una lista con un
   // string vacío adentro, no como "ninguno"), así que ese caso se resuelve
   // aparte con un delete sin filtro de curso.
+  //
+  // El `.not('curso_id', 'like', 'manual:%')` NO es opcional: las materias
+  // cargadas a mano no están en el snapshot de Moodle y sin este filtro el
+  // primer sync se las llevaría puestas, con sus horarios y notas atrás por
+  // cascada. Solo se limpia lo que el aula virtual dejó de traer.
   if (ids.length === 0) {
-    const { error } = await admin.from('inscripciones').delete().eq('user_id', userId);
+    const { error } = await admin
+      .from('inscripciones')
+      .delete()
+      .eq('user_id', userId)
+      .not('curso_id', 'like', 'manual:%');
     if (error) throw error;
   } else {
     const { error } = await admin
       .from('inscripciones')
       .delete()
       .eq('user_id', userId)
+      .not('curso_id', 'like', 'manual:%')
       .not('curso_id', 'in', `(${ids.map((i) => `"${i}"`).join(',')})`);
     if (error) throw error;
   }
+
+  await sembrarHorarios(userId, snapshot.materias);
 
   const archivos = snapshot.materias.reduce((n, m) => n + m.archivos.length, 0);
   await admin.from('sync_log').insert({
@@ -116,4 +130,106 @@ export async function sincronizarCompartido(
     generado: ahora,
     nombre: plan.site.fullname,
   };
+}
+
+/**
+ * Siembra la grilla horaria de la carrera para quien todavía no tiene ninguna.
+ *
+ * El aula virtual no publica horarios, así que una cuenta nueva sincroniza sus
+ * materias y aun así abre "Hoy" y "Semana" en blanco. Esto le deja un punto de
+ * partida editable en el primer sync.
+ *
+ * La condición es "cero horarios", no "cero horarios en esta materia": apenas
+ * la persona toca su grilla pasa a ser dueña de ella y ningún sync posterior
+ * se la vuelve a tocar. Si borró todos los suyos a propósito, el próximo sync
+ * se los repone — es el precio de no llevar una marca aparte, y repone algo
+ * editable, no destruye nada.
+ *
+ * Un fallo acá NO corta la sincronización: las materias ya se guardaron y
+ * quedarse sin horarios sugeridos es mucho menos grave que perder el sync.
+ */
+async function sembrarHorarios(
+  userId: string,
+  materias: { id: string; nombre: string }[]
+): Promise<void> {
+  const admin = adminClient();
+  try {
+    const { count, error } = await admin
+      .from('horarios')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId);
+    if (error) throw error;
+    if ((count ?? 0) > 0) return;
+
+    // Primero los compañeros, después la plantilla. Un horario que alguien de
+    // tu misma comisión cursa de verdad le gana a una grilla escrita a mano,
+    // y encima cubre carreras y tramos que la plantilla no conoce.
+    const heredadas = await heredarDeComision(admin, userId, materias);
+    const filas = heredadas.length > 0 ? heredadas : horariosSembrables(materias);
+    if (filas.length === 0) return;
+
+    const { error: eInsert } = await admin
+      .from('horarios')
+      .insert(filas.map((f) => ({ ...f, user_id: userId })));
+    if (eInsert) throw eInsert;
+
+    await registrarEvento('horarios_sembrados', userId, {
+      franjas: filas.length,
+      origen: heredadas.length > 0 ? 'comision' : 'plantilla',
+    });
+  } catch (e) {
+    console.error('sembrarHorarios:', e);
+  }
+}
+
+/**
+ * Los horarios que le corresponden a cada materia según lo que ya cargaron sus
+ * compañeros de curso.
+ *
+ * Va materia por materia y no de una: cada `curso_id` es una comisión distinta
+ * y alguien puede compartir Matemáticas con un grupo y Inglés con otro.
+ *
+ * Se lee con service role a propósito. Los horarios llevan RLS por `auth.uid()`
+ * —nadie ve los de otro— y esta función NO los expone: solo copia día y franja
+ * a la fila propia del usuario. Del compañero no viaja nada, ni el id.
+ */
+async function heredarDeComision(
+  admin: ReturnType<typeof adminClient>,
+  userId: string,
+  materias: { id: string }[]
+): Promise<HorarioSembrado[]> {
+  if (materias.length === 0) return [];
+
+  const { data, error } = await admin
+    .from('horarios')
+    .select('user_id, curso_id, dia, inicio, fin')
+    .in(
+      'curso_id',
+      materias.map((m) => m.id)
+    )
+    .neq('user_id', userId);
+  if (error) throw error;
+
+  const porCurso = new Map<string, FilaHorario[]>();
+  for (const h of data ?? []) {
+    const cursoId = h.curso_id as string;
+    const lista = porCurso.get(cursoId) ?? [];
+    // `time` vuelve de PostgREST como 'HH:MM:SS'; los horarios se guardan y se
+    // comparan como 'HH:MM' en toda la app.
+    lista.push({
+      user_id: h.user_id as string,
+      dia: h.dia as number,
+      inicio: String(h.inicio).slice(0, 5),
+      fin: String(h.fin).slice(0, 5),
+    });
+    porCurso.set(cursoId, lista);
+  }
+
+  const filas: HorarioSembrado[] = [];
+  for (const [cursoId, deEseCurso] of porCurso) {
+    for (const f of grillaConsensuada(deEseCurso)) {
+      filas.push({ curso_id: cursoId, dia: f.dia, inicio: f.inicio, fin: f.fin });
+    }
+  }
+  return filas;
 }
