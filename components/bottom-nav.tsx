@@ -15,11 +15,12 @@ const ITEMS = [
 
 /**
  * Bottom nav fija de 5 pestañas (móvil ≤640px; arriba de eso manda Sidebar).
- * No se muestra en /login ni /perfil.
+ * No se muestra en /login. (/perfil dejó de ser especial: se abre como modal
+ * interceptado y el shell queda visible atrás.)
  */
 export function BottomNav() {
   const pathname = usePathname();
-  if (pathname.startsWith('/login') || pathname.startsWith('/perfil')) return null;
+  if (pathname.startsWith('/login')) return null;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-bor bg-navbg pb-[env(safe-area-inset-bottom)] backdrop-blur-[14px] min-[641px]:hidden">

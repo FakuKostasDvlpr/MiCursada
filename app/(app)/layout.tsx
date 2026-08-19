@@ -29,7 +29,14 @@ import { supabaseConfigurado } from '@/lib/supabase/configurado';
  * select) en vez de una query aparte: una sola consulta a `perfiles` por
  * página, no dos.
  */
-export default async function LayoutApp({ children }: { children: React.ReactNode }) {
+export default async function LayoutApp({
+  children,
+  modal,
+}: {
+  children: React.ReactNode;
+  /** Slot @modal: el perfil interceptado (app/(app)/@modal). Vacío el resto del tiempo. */
+  modal: React.ReactNode;
+}) {
   await exigirSesion();
   const [perfil, materias] = await Promise.all([getPerfil(), getMaterias()]);
   // Total de notas de toda la cursada: es el hito que muestra el toast de logro.
@@ -56,6 +63,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         <Logro totalNotas={totalNotas} />
         <Toast />
       </div>
+      {modal}
       {faltaConsentir ? <Consentimiento /> : null}
     </>
   );

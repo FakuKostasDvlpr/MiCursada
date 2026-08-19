@@ -24,9 +24,14 @@ type Props = {
   usuario: string;
   /** Solo con Supabase configurado hay cuenta real que borrar. */
   conCuenta: boolean;
+  /**
+   * En la cáscara modal (perfil-modal.tsx), "Listo" cierra el modal en vez de
+   * navegar a Hoy. Sin este prop (la página completa) navega como siempre.
+   */
+  alCerrar?: () => void;
 };
 
-export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
+export function PerfilVista({ perfil, usuario, conCuenta, alCerrar }: Props) {
   const router = useRouter();
   const inputFoto = useRef<HTMLInputElement>(null);
 
@@ -205,7 +210,7 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
 
       <button
         type="button"
-        onClick={() => router.push('/')}
+        onClick={() => (alCerrar ? alCerrar() : router.push('/'))}
         className="mt-5 min-h-12 w-full cursor-pointer rounded-xl bg-acc-bg text-[15px] font-bold text-acc-fg"
       >
         Listo

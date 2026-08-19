@@ -25,11 +25,12 @@ type Props = {
 
 /**
  * Nav lateral fija de 232px (>640px). En móvil la reemplaza BottomNav.
- * No se muestra en /login ni /perfil.
+ * No se muestra en /login. (/perfil dejó de ser especial: se abre como modal
+ * interceptado y el shell queda visible atrás.)
  */
 export function Sidebar({ nombre, iniciales, avatarUrl = null, carrera = null }: Props) {
   const pathname = usePathname();
-  if (pathname.startsWith('/login') || pathname.startsWith('/perfil')) return null;
+  if (pathname.startsWith('/login')) return null;
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-[232px] flex-col border-r border-bor bg-sup px-[14px] py-[22px] min-[641px]:flex">

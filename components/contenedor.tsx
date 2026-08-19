@@ -4,12 +4,13 @@ import { usePathname } from 'next/navigation';
 
 /**
  * Contenedor de página. En las rutas de la app deja el hueco de la sidebar
- * (desktop) y el despeje de la bottom nav (móvil). En /login y /perfil no hay
- * nav, así que el contenido va centrado sin offsets.
+ * (desktop) y el despeje de la bottom nav (móvil). En /login no hay nav, así
+ * que el contenido va centrado sin offsets. (/perfil dejó de ser especial: se
+ * abre como modal interceptado y, con URL directa, vive dentro del shell.)
  */
 export function Contenedor({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const sinNav = pathname.startsWith('/login') || pathname.startsWith('/perfil');
+  const sinNav = pathname.startsWith('/login');
 
   if (sinNav) {
     return <div className="mx-auto max-w-[720px] px-[18px]">{children}</div>;
