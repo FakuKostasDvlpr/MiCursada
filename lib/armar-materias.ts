@@ -67,7 +67,10 @@ export function armarMaterias(
         profe: e?.profe ?? '',
         aula: e?.aula ?? '',
         color: (e?.color ?? '#38bdf8') as ColorMateria,
-        source: 'moodle' as const,
+        // Una materia cargada a mano guarda `source: 'manual'` en `datos`; el
+        // default es 'moodle' porque todo lo que escribe el sync viene de ahí
+        // y no lleva el campo.
+        source: d.source === 'manual' ? ('manual' as const) : ('moodle' as const),
         ...(d.asistenciaUrl ? { asistenciaUrl: d.asistenciaUrl } : {}),
         ...(d.claseUrl ? { claseUrl: d.claseUrl } : {}),
         ...(d.secciones ? { secciones: d.secciones } : {}),

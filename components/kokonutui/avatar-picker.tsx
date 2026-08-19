@@ -23,7 +23,7 @@
  * Original: @author @dorianbaffier — https://kokonutui.com — MIT.
  */
 
-import { Check, ChevronRight } from 'lucide-react';
+import { Check, ChevronRight, Plus, X } from 'lucide-react';
 import type { Variants } from 'motion/react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { ReactElement } from 'react';
@@ -205,19 +205,76 @@ type Props = {
   subiendo: boolean;
   /** Error de la subida (mismo copy que devuelve guardarAvatarLocal), mostrado dentro del picker. */
   error: string;
-  /** Confirmar ("Usar este avatar"): el padre convierte a blob y sube. */
+  /**
+   * Tu biblioteca: las imágenes que ya subiste, la más reciente primero. Van
+   * antes que los predefinidos, así lo tuyo queda a mano.
+   */
+  biblioteca: string[];
+  /** URL de la biblioteca que arranca marcada (tu avatar actual), si es una. */
+  seleccionInicial?: string | null;
+  /** Confirmar un predefinido: el padre lo convierte a blob y lo sube. */
   onElegir: (avatar: Avatar) => void;
-  /** "…o subí tu propia foto": el padre abre su input de archivo. */
-  onSubirPropia: () => void;
+  /** Confirmar una imagen de la biblioteca: el padre solo la apunta, no la sube. */
+  onElegirImagen: (url: string) => void;
+  /** El óvalo con `+`: el padre abre su input de archivo. */
+  onAgregarImagen: () => void;
+  /** La ✕ de una foto de la biblioteca. */
+  onBorrarImagen: (url: string) => void;
 };
 
-export function AvatarPicker({ subiendo, error, onElegir, onSubirPropia }: Props) {
-  const [selectedAvatar, setSelectedAvatar] = useState<Avatar>(AVATARES_PREDEFINIDOS[0]!);
+/** Lo que está marcado: un avatar generado, o una imagen tuya. */
+type Seleccion = { tipo: 'predefinido'; avatar: Avatar } | { tipo: 'imagen'; url: string };
+
+/**
+ * La misma imagen llega con `?v=<timestamp>` cuando viene del perfil y sin él
+ * cuando viene del listado del bucket. Comparar crudo no matchearía nunca y el
+ * avatar actual se vería sin marcar en su propia biblioteca.
+ */
+const sinQuery = (url: string) => url.split('?')[0] ?? url;
+
+export function AvatarPicker({
+  subiendo,
+  error,
+  biblioteca,
+  seleccionInicial = null,
+  onElegir,
+  onElegirImagen,
+  onAgregarImagen,
+  onBorrarImagen,
+}: Props) {
+  const [seleccion, setSeleccion] = useState<Seleccion>(() =>
+    seleccionInicial
+      ? { tipo: 'imagen', url: seleccionInicial }
+      : { tipo: 'predefinido', avatar: AVATARES_PREDEFINIDOS[0]! }
+  );
   const shouldReduceMotion = useReducedMotion();
 
+  // Cuando entra una imagen nueva a la biblioteca queda primera y marcada, sin
+  // que haya que volver a tocarla: es el paso siguiente natural después de
+  // elegir el archivo.
+  const primera = biblioteca[0];
+  const [ultimaVista, setUltimaVista] = useState(primera);
+  if (primera !== ultimaVista) {
+    setUltimaVista(primera);
+    if (primera) setSeleccion({ tipo: 'imagen', url: primera });
+  }
+
+  const selectedAvatar =
+    seleccion.tipo === 'predefinido' ? seleccion.avatar : AVATARES_PREDEFINIDOS[0]!;
+
   const handleAvatarSelect = (avatar: Avatar) => {
-    if (avatar.id === selectedAvatar.id || subiendo) return;
-    setSelectedAvatar(avatar);
+    if (subiendo) return;
+    setSeleccion({ tipo: 'predefinido', avatar });
+  };
+
+  const elegirImagen = (url: string) => {
+    if (subiendo) return;
+    setSeleccion({ tipo: 'imagen', url });
+  };
+
+  const confirmar = () => {
+    if (seleccion.tipo === 'imagen') onElegirImagen(seleccion.url);
+    else onElegir(seleccion.avatar);
   };
 
   const rgb = AVATAR_RGB[selectedAvatar.id];
@@ -244,10 +301,21 @@ export function AvatarPicker({ subiendo, error, onElegir, onSubirPropia }: Props
                 className="absolute inset-0 flex items-center justify-center"
                 exit={{ opacity: 0 }}
                 initial={{ opacity: 0 }}
-                key={selectedAvatar.id}
+                key={seleccion.tipo === 'imagen' ? seleccion.url : selectedAvatar.id}
                 transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.2, ease: 'easeOut' }}
               >
-                <div className="scale-[4] transform">{selectedAvatar.svg}</div>
+                {seleccion.tipo === 'imagen' ? (
+                  // <img> y no next/image: son URLs del bucket con ?v= y acá
+                  // no hay nada que optimizar (se ve a 160px una sola vez).
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={seleccion.url}
+                    alt="Tu imagen"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="scale-[4] transform">{selectedAvatar.svg}</div>
+                )}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -259,10 +327,10 @@ export function AvatarPicker({ subiendo, error, onElegir, onSubirPropia }: Props
             className="text-[11px] text-tx3 uppercase tracking-[0.12em]"
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
-            key={selectedAvatar.id}
+            key={seleccion.tipo === 'imagen' ? seleccion.url : selectedAvatar.id}
             transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.16, ease: 'easeOut' }}
           >
-            {selectedAvatar.alt}
+            {seleccion.tipo === 'imagen' ? 'Tu imagen' : selectedAvatar.alt}
           </motion.span>
         </AnimatePresence>
 
@@ -272,8 +340,76 @@ export function AvatarPicker({ subiendo, error, onElegir, onSubirPropia }: Props
           initial="initial"
           variants={containerVariants}
         >
+          {/* El óvalo con `+`: agregar una imagen propia. Va primero porque es
+              la acción, y lo que sube queda como la primera imagen de la fila. */}
+          <motion.button
+            aria-label="Agregar una imagen tuya"
+            className="relative h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-full border-2 border-dashed border-bor2 bg-sup text-tx2 transition-opacity duration-200 ease-out hover:border-acc hover:text-acc disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={subiendo}
+            onClick={onAgregarImagen}
+            type="button"
+            variants={thumbnailVariants}
+            whileHover={shouldReduceMotion || subiendo ? undefined : { scale: 1.06 }}
+            whileTap={shouldReduceMotion || subiendo ? undefined : { scale: 0.94 }}
+          >
+            <span className="absolute inset-0 flex items-center justify-center">
+              <Plus aria-hidden="true" className="h-6 w-6" strokeWidth={2.4} />
+            </span>
+          </motion.button>
+
+          {/* Tu biblioteca: lo que ya subiste, sin volver a subirlo. */}
+          {biblioteca.map((url) => {
+            const isSelected =
+              seleccion.tipo === 'imagen' && sinQuery(seleccion.url) === sinQuery(url);
+            return (
+              // El borrar NO puede ir adentro del botón de elegir (un <button>
+              // dentro de otro es HTML inválido y el click interno no llega):
+              // van como hermanos, con el de borrar posicionado encima.
+              <motion.div
+                className="relative h-14 w-14 shrink-0"
+                key={url}
+                variants={thumbnailVariants}
+                whileHover={shouldReduceMotion || subiendo ? undefined : { scale: 1.06 }}
+                whileTap={shouldReduceMotion || subiendo ? undefined : { scale: 0.94 }}
+              >
+                <button
+                  aria-label="Elegir tu imagen"
+                  aria-pressed={isSelected}
+                  className={`h-full w-full cursor-pointer overflow-hidden rounded-xl border-2 bg-sup transition-[opacity,box-shadow] duration-200 ease-out disabled:cursor-not-allowed ${
+                    isSelected ? 'border-tx opacity-100' : 'border-bor2 opacity-50 hover:opacity-100'
+                  }`}
+                  disabled={subiendo}
+                  onClick={() => elegirImagen(url)}
+                  type="button"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="h-full w-full object-cover" />
+                </button>
+
+                {isSelected && (
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -right-0.5 -bottom-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-tx"
+                  >
+                    <Check className="h-3 w-3 text-bg" />
+                  </span>
+                )}
+
+                <button
+                  aria-label="Borrar esta foto"
+                  className="absolute -top-1.5 -right-1.5 grid h-5 w-5 cursor-pointer place-items-center rounded-full border border-bor2 bg-sup text-tx3 hover:border-[#fb7185] hover:text-[#fb7185] disabled:cursor-not-allowed"
+                  disabled={subiendo}
+                  onClick={() => onBorrarImagen(url)}
+                  type="button"
+                >
+                  <X aria-hidden="true" className="h-3 w-3" strokeWidth={2.6} />
+                </button>
+              </motion.div>
+            );
+          })}
+
           {AVATARES_PREDEFINIDOS.map((avatar) => {
-            const isSelected = selectedAvatar.id === avatar.id;
+            const isSelected = seleccion.tipo === 'predefinido' && selectedAvatar.id === avatar.id;
             return (
               <motion.button
                 aria-label={`Elegir ${avatar.alt}`}
@@ -307,7 +443,7 @@ export function AvatarPicker({ subiendo, error, onElegir, onSubirPropia }: Props
         <button
           className="group flex min-h-12 w-full cursor-pointer items-center justify-center gap-1 rounded-xl bg-acc-bg text-[15px] font-bold text-acc-fg disabled:cursor-not-allowed disabled:opacity-60"
           disabled={subiendo}
-          onClick={() => onElegir(selectedAvatar)}
+          onClick={confirmar}
           type="button"
         >
           {subiendo && <Rueda sobreAmbar />}
@@ -320,14 +456,9 @@ export function AvatarPicker({ subiendo, error, onElegir, onSubirPropia }: Props
           )}
         </button>
 
-        <button
-          className="tactil block w-full cursor-pointer text-center text-[13px] font-semibold text-tx2 underline decoration-dotted underline-offset-4 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={subiendo}
-          onClick={onSubirPropia}
-          type="button"
-        >
-          …o subí tu propia foto
-        </button>
+        {/* El "…o subí tu propia foto" que iba acá se fue: subir una imagen es
+            ahora el óvalo con `+` de la grilla, al lado del resto. Tener dos
+            entradas para lo mismo, y una escondida abajo, era el problema. */}
 
         {error && <p className="text-center text-[13px] text-vencido">{error}</p>}
       </div>

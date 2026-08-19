@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AgregarMateria } from '@/components/agregar-materia';
 import { nombreDia } from '@/lib/cursada';
 import { getAvisos, getMaterias } from '@/lib/queries';
 
@@ -12,15 +13,19 @@ export default async function PaginaMaterias() {
 
   return (
     <main>
-      <header className="flex items-baseline justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold tracking-[-0.015em]">Materias</h1>
-        {/* Las materias vienen del sync con el aula virtual — no hay alta manual. */}
-        <span className="font-mono text-[11px] text-tx4">del aula virtual</span>
+        {/* Las materias llegan del sync, pero el aula virtual no siempre las
+            trae todas: por eso el alta manual convive con las sincronizadas. */}
+        <AgregarMateria />
       </header>
 
       {materias.length === 0 ? (
-        <div className="mt-5 rounded-2xl border border-dashed border-bor px-5 py-7 text-center text-[13.5px] text-tx3">
-          Tus materias llegan del aula virtual con la primera sincronización.
+        <div className="mt-5 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-bor px-5 py-7 text-center">
+          <p className="m-0 text-[13.5px] text-tx3">
+            Tus materias llegan del aula virtual con la primera sincronización. Si alguna no
+            aparece, cargala vos.
+          </p>
         </div>
       ) : (
         <div className="mt-5 grid grid-cols-[repeat(auto-fill,minmax(165px,1fr))] gap-3">

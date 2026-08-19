@@ -8,6 +8,7 @@
 // Estrategia de revalidación consistente: revalidatePath('/', 'layout') — cubre
 // '/', '/semana', '/materias', '/materias/[id]' y '/avisos' de una.
 
+import { randomUUID } from 'node:crypto';
 import type { User } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -28,10 +29,12 @@ import {
   getDatosLocales,
   reordenarBloquesLocales,
 } from '@/lib/datos-locales';
+import { MAX_FOTOS_BIBLIOTECA, MAX_SUBIDA, formatearPeso } from '@/lib/avatares';
 import { tituloDesdeNota } from '@/lib/aviso-nota';
 import { registrarEvento } from '@/lib/eventos';
 import { textoPlano } from '@/lib/referencias';
 import { hayAcceso } from '@/lib/sesion-actual';
+import { adminClient } from '@/lib/supabase/admin';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 import { createClient } from '@/lib/supabase/server';
 import { normalizarUrl } from '@/lib/urls';
@@ -212,6 +215,102 @@ export async function actualizarMateria(
     if (error.code === 'P0002') {
       return { ok: false, error: 'Esa materia ya no existe.' };
     }
+    return { ok: false, error: ERROR_GUARDAR };
+  }
+  revalidarTodo();
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Alta manual de materias
+// ---------------------------------------------------------------------------
+//
+// El aula virtual no siempre trae todo: hay materias que no figuran en Moodle,
+// que no se recuperaron en el sync, o que la persona cursa por fuera. Sin un
+// alta manual, esa materia no existe para la app y no se le puede colgar ni un
+// horario ni una nota.
+//
+// La fila va a `cursos` (la tabla compartida) porque todo lo demás —horarios,
+// notas, archivos— cuelga de un `curso_id` con foreign key. No se "filtra" a
+// nadie: la policy de `cursos` exige estar inscripto, y la única inscripción
+// que se crea es la de quien la dio de alta. El id lleva el prefijo
+// `manual:` (misma convención que archivos y avisos, ver `esManual`), que es
+// lo que la distingue del sync.
+
+const materiaNuevaSchema = z.object({ nombre: z.string().trim().min(1).max(140) });
+
+/**
+ * Da de alta una materia propia y te inscribe a ella.
+ *
+ * Escribe con service role porque `cursos` no tiene policy de insert para
+ * usuarios (la escribe únicamente el sync compartido). La autorización la hace
+ * esta action: sesión + consentimiento, igual que cualquier otra.
+ */
+export async function crearMateriaManual(
+  nombre: string
+): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+  if (!supabaseConfigurado()) return { ok: false, error: ERROR_SIN_CONFIG };
+
+  const parsed = materiaNuevaSchema.safeParse({ nombre });
+  if (!parsed.success) return { ok: false, error: 'Poné un nombre para la materia.' };
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+
+  const id = `manual:${randomUUID()}`;
+  const admin = adminClient();
+
+  const { error: eCurso } = await admin.from('cursos').insert({
+    id,
+    nombre: parsed.data.nombre,
+    datos: { id, nombre: parsed.data.nombre, source: 'manual' },
+    sincronizado: new Date().toISOString(),
+  });
+  if (eCurso) {
+    console.error('crearMateriaManual (curso):', eCurso);
+    return { ok: false, error: ERROR_GUARDAR };
+  }
+
+  const { error: eIns } = await admin
+    .from('inscripciones')
+    .insert({ user_id: sesion.user.id, curso_id: id });
+  if (eIns) {
+    // Sin inscripción la materia queda huérfana y encima invisible (la policy
+    // de `cursos` la esconde), así que se limpia en vez de dejar basura.
+    await admin.from('cursos').delete().eq('id', id);
+    console.error('crearMateriaManual (inscripcion):', eIns);
+    return { ok: false, error: ERROR_GUARDAR };
+  }
+
+  revalidarTodo();
+  return { ok: true, id };
+}
+
+/** Borra una materia cargada a mano. Las del aula virtual no se tocan. */
+export async function eliminarMateriaManual(id: string): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+  if (!supabaseConfigurado()) return { ok: false, error: ERROR_SIN_CONFIG };
+  if (!id.startsWith('manual:')) return { ok: false, error: 'Esa materia viene del aula virtual.' };
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+
+  const admin = adminClient();
+  // Chequeo de pertenencia explícito: `admin` saltea RLS, así que sin esto
+  // cualquiera podría borrar la materia manual de otra persona pasando su id.
+  const { data: inscripto } = await admin
+    .from('inscripciones')
+    .select('curso_id')
+    .eq('user_id', sesion.user.id)
+    .eq('curso_id', id)
+    .maybeSingle();
+  if (!inscripto) return { ok: false, error: ERROR_NO_EXISTE };
+
+  // El resto (inscripciones, horarios, bloques…) se va en cascada por las FK.
+  const { error } = await admin.from('cursos').delete().eq('id', id);
+  if (error) {
+    console.error('eliminarMateriaManual:', error);
     return { ok: false, error: ERROR_GUARDAR };
   }
   revalidarTodo();
@@ -566,14 +665,221 @@ const perfilSchema = z.object({
   carrera: z.string().trim().max(80).optional(),
 });
 
-/** Máximo de la foto de perfil en modo local (sin Storage, va al disco). */
-const MAX_AVATAR = 5 * 1024 * 1024;
+/**
+ * Máximo por subida. Bajó de 5 MB a `MAX_SUBIDA` (2 MB) cuando la UI pasó a
+ * optimizar la foto en el cliente: lo que llega ahora son ~25 KB, o hasta 1 MB
+ * si es un GIF (el único que no se puede achicar sin perder la animación).
+ *
+ * Se valida igual acá: la action es un POST que se puede llamar sin pasar por
+ * el picker, y este límite es lo único que protege el bucket de una subida
+ * armada a mano.
+ */
+const MAX_AVATAR = MAX_SUBIDA;
 
 const ERROR_FOTO = 'No se pudo subir la foto. Probá de nuevo.';
 const ERROR_FOTO_TIPO = 'Elegí una imagen.';
-const ERROR_FOTO_PESO = 'La foto pesa demasiado (máx 5 MB).';
+const ERROR_FOTO_PESO = `La foto pesa demasiado (máximo ${formatearPeso(MAX_SUBIDA)}).`;
 
 export type ResultadoFoto = { ok: true; url: string } | { ok: false; error: string };
+
+/** Bucket público donde viven los avatares subidos. */
+const BUCKET_AVATARES = 'avatares';
+
+const ERROR_LIMITE_FOTOS = `Llegaste al máximo de ${MAX_FOTOS_BIBLIOTECA} fotos. Borrá una para subir otra.`;
+
+/** Los nombres de archivo de la biblioteca de este usuario, más reciente primero. */
+async function nombresBiblioteca(
+  admin: ReturnType<typeof adminClient>,
+  userId: string
+): Promise<string[]> {
+  const { data, error } = await admin.storage.from(BUCKET_AVATARES).list('', {
+    limit: 200,
+    search: `${userId}.`,
+    sortBy: { column: 'created_at', order: 'desc' },
+  });
+  if (error) throw error;
+  return (data ?? [])
+    .map((o) => o.name)
+    // `search` de Storage es un "contiene", no un "empieza con": el prefijo se
+    // vuelve a chequear acá para que nadie entre por un nombre armado. Y fuera
+    // los PNG generados de un predefinido (ver el `gen-` en guardarAvatarLocal).
+    .filter((n) => n.startsWith(`${userId}.`) && !n.startsWith(`${userId}.gen-`));
+}
+
+/**
+ * Tu biblioteca de avatares: todas las imágenes que subiste alguna vez, la más
+ * reciente primero.
+ *
+ * El listado va con service role a propósito. `storage.objects` tiene un SELECT
+ * abierto a `authenticated` para todo el bucket, así que listar desde el
+ * cliente devolvería también los archivos de los demás; filtrando acá, cada uno
+ * solo ve lo suyo. El filtro es por el prefijo `{userId}.`, que es unívoco: el
+ * id es un UUID de largo fijo y el punto no aparece adentro.
+ */
+export async function listarBibliotecaAvatares(): Promise<
+  { ok: true; urls: string[] } | { ok: false; error: string }
+> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+  if (!supabaseConfigurado()) return { ok: true, urls: [] };
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { user } = sesion;
+
+  const admin = adminClient();
+  try {
+    const urls = (await nombresBiblioteca(admin, user.id)).map(
+      (n) => admin.storage.from(BUCKET_AVATARES).getPublicUrl(n).data.publicUrl
+    );
+    return { ok: true, urls };
+  } catch (e) {
+    console.error('listarBibliotecaAvatares:', e);
+    return { ok: false, error: ERROR_FOTO };
+  }
+}
+
+/**
+ * Borra una foto de tu biblioteca.
+ *
+ * Si era la que estabas usando, el perfil queda sin avatar (vuelven las
+ * iniciales) en vez de quedar apuntando a un archivo que ya no existe, que se
+ * vería como una imagen rota en toda la app.
+ */
+export async function borrarAvatarDeBiblioteca(url: string): Promise<ResultadoAction> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+  if (!supabaseConfigurado()) return { ok: false, error: ERROR_SIN_CONFIG };
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase, user } = sesion;
+
+  const admin = adminClient();
+  const nombre = nombreDesdeUrl(admin, url, user.id);
+  if (!nombre) return { ok: false, error: ERROR_NO_EXISTE };
+
+  const { error: eBorrar } = await admin.storage.from(BUCKET_AVATARES).remove([nombre]);
+  if (eBorrar) {
+    console.error('borrarAvatarDeBiblioteca:', eBorrar);
+    return { ok: false, error: ERROR_FOTO };
+  }
+
+  const { data: perfil } = await supabase
+    .from('perfiles')
+    .select('avatar_url')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  const actual = String(perfil?.avatar_url ?? '').split('?')[0] ?? '';
+  const borrada = admin.storage.from(BUCKET_AVATARES).getPublicUrl(nombre).data.publicUrl;
+  if (actual && actual === borrada) {
+    await supabase.from('perfiles').update({ avatar_url: null }).eq('user_id', user.id);
+  }
+
+  revalidarTodo();
+  return { ok: true };
+}
+
+/**
+ * El nombre del archivo dentro del bucket, o null si la URL no es de una foto
+ * de este usuario. La URL llega del cliente: sin este chequeo, alguien podría
+ * borrar (o apropiarse de) el avatar de otra persona pasando su URL.
+ */
+function nombreDesdeUrl(
+  admin: ReturnType<typeof adminClient>,
+  url: string,
+  userId: string
+): string | null {
+  const base = admin.storage.from(BUCKET_AVATARES).getPublicUrl('').data.publicUrl;
+  const sinQuery = url.split('?')[0] ?? '';
+  if (!sinQuery.startsWith(base)) return null;
+  const nombre = decodeURIComponent(sinQuery.slice(base.length));
+  if (!nombre || !nombre.startsWith(`${userId}.`) || nombre.includes('/')) return null;
+  return nombre;
+}
+
+/**
+ * Sube una imagen a tu biblioteca SIN ponerla todavía como tu avatar.
+ *
+ * Separar subir de aplicar es lo que permite el flujo del picker: agregás la
+ * imagen con el `+`, queda marcada en la grilla, y recién al confirmar pasa a
+ * ser tu avatar. Si cerrás el modal sin confirmar, la imagen igual te quedó en
+ * la biblioteca (ese es el punto: no volver a subirla nunca más), pero tu
+ * perfil sigue con el avatar de antes.
+ */
+export async function subirAvatarABiblioteca(formData: FormData): Promise<ResultadoFoto> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+  if (!supabaseConfigurado()) return { ok: false, error: ERROR_SIN_CONFIG };
+
+  const file = formData.get('foto');
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: ERROR_FOTO_TIPO };
+
+  const ext = extensionAvatar(file.type || '');
+  if (!file.type.startsWith('image/') || !ext) return { ok: false, error: ERROR_FOTO_TIPO };
+  if (file.size > MAX_AVATAR) return { ok: false, error: ERROR_FOTO_PESO };
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase, user } = sesion;
+
+  // El tope se chequea en el server y no solo en la UI: la action es un POST
+  // que se puede llamar sin pasar por el picker.
+  const admin = adminClient();
+  try {
+    if ((await nombresBiblioteca(admin, user.id)).length >= MAX_FOTOS_BIBLIOTECA) {
+      return { ok: false, error: ERROR_LIMITE_FOTOS };
+    }
+  } catch (e) {
+    console.error('subirAvatarABiblioteca (conteo):', e);
+    return { ok: false, error: ERROR_FOTO };
+  }
+
+  const ruta = `${user.id}.${randomUUID()}.${ext}`;
+  const { error: errorSubida } = await supabase.storage
+    .from(BUCKET_AVATARES)
+    .upload(ruta, await file.arrayBuffer(), { contentType: file.type, upsert: false });
+  if (errorSubida) {
+    console.error('subirAvatarABiblioteca:', errorSubida);
+    return { ok: false, error: ERROR_FOTO };
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(BUCKET_AVATARES).getPublicUrl(ruta);
+  return { ok: true, url: publicUrl };
+}
+
+/**
+ * Marca como tuya una imagen que ya está en tu biblioteca, sin volver a subirla.
+ *
+ * La URL llega del cliente, así que no se confía: se exige que el archivo esté
+ * en el bucket y que su nombre arranque con `{userId}.`. Sin ese chequeo,
+ * cualquiera podría apuntar su perfil al avatar de otra persona pasando su URL.
+ */
+export async function usarAvatarDeBiblioteca(url: string): Promise<ResultadoFoto> {
+  if (!(await hayAcceso())) return { ok: false, error: ERROR_SESION };
+  if (!supabaseConfigurado()) return { ok: false, error: ERROR_SIN_CONFIG };
+
+  const sesion = await conUsuario();
+  if (!sesion.user) return { ok: false, error: sesion.error };
+  const { supabase, user } = sesion;
+
+  const admin = adminClient();
+  const nombre = nombreDesdeUrl(admin, url, user.id);
+  if (!nombre) return { ok: false, error: ERROR_NO_EXISTE };
+
+  const conBust = `${admin.storage.from(BUCKET_AVATARES).getPublicUrl(nombre).data.publicUrl}?v=${Date.now()}`;
+  const { error } = await supabase
+    .from('perfiles')
+    .update({ avatar_url: conBust })
+    .eq('user_id', user.id);
+  if (error) {
+    console.error('usarAvatarDeBiblioteca:', error);
+    return { ok: false, error: ERROR_FOTO };
+  }
+
+  await registrarEvento('avatar_cambiado', user.id);
+  revalidarTodo();
+  return { ok: true, url: conBust };
+}
 
 /**
  * Modo sin Supabase: guarda la foto de perfil en datos/avatar.<ext> y devuelve
@@ -604,12 +910,25 @@ export async function guardarAvatarLocal(formData: FormData): Promise<ResultadoF
   if (!sesion.user) return { ok: false, error: sesion.error };
   const { supabase, user } = sesion;
 
+  // Nombre único por subida: `{userId}.{uuid}.{ext}`. Antes era `{userId}.{ext}`,
+  // que pisaba la imagen anterior — por eso cambiar de avatar y volver al de
+  // antes obligaba a subirlo de nuevo. Con un nombre por archivo, cada imagen
+  // que subiste queda y se puede volver a elegir desde tu biblioteca.
+  //
+  // El punto como separador NO es cosmético: la policy de Storage autoriza con
+  // `split_part(name, '.', 1) = auth.uid()`, así que todo lo que va antes del
+  // primer punto tiene que ser tu id. Una subcarpeta (`{userId}/…`) no pasaría
+  // esa policy y obligaría a migrar. De paso, los avatares viejos
+  // (`{userId}.{ext}`) comparten el mismo prefijo y entran solos en la
+  // biblioteca, sin backfill.
+  // El `gen-` marca que el PNG salió de un avatar predefinido, no de una
+  // imagen tuya. La biblioteca los filtra: los predefinidos ya están siempre
+  // en la grilla, y sin esto probar tres se te llenaba de duplicados.
+  const ruta = `${user.id}.gen-${randomUUID()}.${ext}`;
+
   const { error: errorSubida } = await supabase.storage
     .from('avatares')
-    .upload(`${user.id}.${ext}`, await file.arrayBuffer(), {
-      contentType: file.type,
-      upsert: true,
-    });
+    .upload(ruta, await file.arrayBuffer(), { contentType: file.type, upsert: false });
 
   if (errorSubida) {
     console.error('guardarAvatarLocal:', errorSubida);
@@ -618,7 +937,7 @@ export async function guardarAvatarLocal(formData: FormData): Promise<ResultadoF
 
   const {
     data: { publicUrl },
-  } = supabase.storage.from('avatares').getPublicUrl(`${user.id}.${ext}`);
+  } = supabase.storage.from('avatares').getPublicUrl(ruta);
   const url = `${publicUrl}?v=${Date.now()}`;
 
   const { error } = await supabase

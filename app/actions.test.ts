@@ -35,6 +35,7 @@ import {
   reordenarBloques,
   toggleAviso,
 } from '@/app/actions';
+import { MAX_SUBIDA, formatearPeso } from '@/lib/avatares';
 import { getDatosLocales, leerAvatarLocal, leerPerfilLocal, rutaDatos } from '@/lib/datos-locales';
 import { crearSesion } from '@/lib/sesion';
 
@@ -372,11 +373,14 @@ describe('foto de perfil (local)', () => {
     expect(await leerAvatarLocal()).toBeNull();
   });
 
-  it('rechaza una foto de más de 5 MB', async () => {
-    const gorda = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'g.jpg', { type: 'image/jpeg' });
+  it('rechaza una foto más pesada que el máximo', async () => {
+    // El tamaño y el mensaje salen de la constante: la UI ya optimiza en el
+    // cliente, así que este límite puede cambiar y el test no tiene que
+    // quedar clavado a un número viejo.
+    const gorda = new File([new Uint8Array(MAX_SUBIDA + 1)], 'g.jpg', { type: 'image/jpeg' });
     expect(await guardarAvatarLocal(conFoto(gorda))).toEqual({
       ok: false,
-      error: 'La foto pesa demasiado (máx 5 MB).',
+      error: `La foto pesa demasiado (máximo ${formatearPeso(MAX_SUBIDA)}).`,
     });
     expect(await leerAvatarLocal()).toBeNull();
   });
