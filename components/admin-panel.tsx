@@ -1,16 +1,20 @@
 'use client';
 
-// Panel de administración (specs/panel-admin + specs/admin-vivo).
+// Panel de administración (specs/panel-admin).
 //
 // El primer dataset llega armado del servidor; a partir de ahí el panel se
 // refresca solo contra /api/admin/metricas cada 30 s (polling, no Realtime:
-// ver specs/admin-vivo §2.1). Filtro, búsqueda y selección son estado de UI
-// que sobrevive a cada refresco.
+// para un panel de monitoreo con esta cantidad de gente, una suscripción es
+// más maquinaria de la que hace falta). Filtro, búsqueda y selección son
+// estado de UI que sobrevive a cada refresco.
+//
+// El panel NUNCA muestra el contenido de las notas de nadie: el dataset que
+// llega trae counts, tipos, fechas y nombres de materia y nada más. Es una
+// regla estructural del spec (§2, "Privacidad"), no una omisión.
 
 import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { COLOR_ESTADO, type EstadoUsuario, type UsuarioPanel } from '@/lib/admin-calculos';
-import type { ContenidoUsuario } from '@/lib/admin-contenido';
 import type { PanelAdmin } from '@/lib/admin-metricas';
 import { Rueda } from '@/components/cargando';
 import { iniciales } from '@/lib/cursada';
@@ -44,6 +48,13 @@ export function AdminPanel({ panel: inicial, actualizado: actualizadoInicial, de
 
   // El fetch en vuelo, para poder cancelarlo al desmontar o al apagar el vivo.
   const enVuelo = useRef<AbortController | null>(null);
+  const [refrescando, setRefrescando] = useState(false);
+
+  // Quiénes ya estaban: lo que no esté acá en el próximo refresco es un alta.
+  // Va en un ref y no en estado porque cambiarlo no tiene que re-renderizar
+  // (y `traer` depende de él sin querer rearmarse en cada tanda).
+  const conocidos = useRef<Set<string>>(new Set(inicial.usuarios.map((u) => u.id)));
+  const [recienLlegados, setRecienLlegados] = useState<string[]>([]);
 
   const traer = useCallback(async () => {
     enVuelo.current?.abort();
@@ -53,6 +64,11 @@ export function AdminPanel({ panel: inicial, actualizado: actualizadoInicial, de
       const res = await fetch('/api/admin/metricas', { signal: ctrl.signal, cache: 'no-store' });
       if (!res.ok) throw new Error(String(res.status));
       const datos = (await res.json()) as PanelAdmin & { actualizado: string };
+
+      const nuevos = datos.usuarios.filter((u) => !conocidos.current.has(u.id));
+      for (const u of datos.usuarios) conocidos.current.add(u.id);
+      if (nuevos.length > 0) setRecienLlegados((v) => [...v, ...nuevos.map((u) => u.nombre)]);
+
       setPanel({ generado: datos.generado, stats: datos.stats, usuarios: datos.usuarios });
       setActualizado(datos.actualizado);
       setFalla(false);
@@ -62,6 +78,13 @@ export function AdminPanel({ panel: inicial, actualizado: actualizadoInicial, de
       setFalla(true);
     }
   }, []);
+
+  // Refresco a pedido: sirve con el vivo pausado y para no esperar los 30 s.
+  const refrescarAhora = useCallback(async () => {
+    setRefrescando(true);
+    await traer();
+    setRefrescando(false);
+  }, [traer]);
 
   useEffect(() => {
     if (!vivo) {
@@ -118,6 +141,23 @@ export function AdminPanel({ panel: inicial, actualizado: actualizadoInicial, de
           <span className="ml-auto inline-flex items-center gap-3">
             <button
               type="button"
+              onClick={() => void refrescarAhora()}
+              disabled={refrescando}
+              aria-label="Actualizar ahora"
+              className="tactil inline-flex min-h-8 cursor-pointer items-center gap-1.5 rounded-full border border-bor2 px-3 text-[9.5px] text-tx2 disabled:cursor-default disabled:text-tx4"
+            >
+              {refrescando ? (
+                <Rueda />
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M21 12a9 9 0 1 1-3-6.7" />
+                  <path d="M21 3v6h-6" />
+                </svg>
+              )}
+              <span className="kicker">Actualizar</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setVivo((v) => !v)}
               aria-pressed={vivo}
               className={`kicker min-h-8 cursor-pointer rounded-full border px-3 text-[9.5px] ${
@@ -139,6 +179,35 @@ export function AdminPanel({ panel: inicial, actualizado: actualizadoInicial, de
       </header>
 
       <main className="mx-auto max-w-[1280px] px-7 pb-20 pt-[26px]">
+        {/* Alta detectada entre dos refrescos. No se descarta sola: la gracia
+            es enterarte aunque no estuvieras mirando la pantalla. */}
+        {recienLlegados.length > 0 ? (
+          <div
+            role="status"
+            className="mb-4 flex items-center gap-3 rounded-[14px] border border-acc-bg bg-[color-mix(in_srgb,var(--acc-bg)_12%,transparent)] px-[18px] py-3.5"
+          >
+            <span className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full bg-acc-bg">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#221a00" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M19 8v6M22 11h-6" />
+              </svg>
+            </span>
+            <span className="min-w-0 flex-1 text-[13.5px] text-tx">
+              {recienLlegados.length === 1
+                ? `Se sumó ${recienLlegados[0]}.`
+                : `Se sumaron ${recienLlegados.length} personas: ${recienLlegados.join(', ')}.`}
+            </span>
+            <button
+              type="button"
+              onClick={() => setRecienLlegados([])}
+              className="kicker tactil cursor-pointer rounded-[9px] border border-bor2 bg-transparent px-3 text-[9.5px] text-tx2"
+            >
+              Listo
+            </button>
+          </div>
+        ) : null}
+
         {/* Stats */}
         <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
           {panel.stats.map((s) => (
@@ -347,8 +416,6 @@ function DetalleUsuario({ det, onCerrar }: { det: UsuarioPanel; onCerrar: () => 
         </div>
       </div>
 
-      <VisorDatos id={det.id} nombre={det.nombre} />
-
       <div className="mt-3.5 flex items-center gap-2">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M21 12a9 9 0 1 1-3-6.7" />
@@ -357,148 +424,5 @@ function DetalleUsuario({ det, onCerrar }: { det: UsuarioPanel; onCerrar: () => 
         <span className="font-mono text-[10.5px] text-tx3">Aula virtual: {det.sync}</span>
       </div>
     </aside>
-  );
-}
-
-/**
- * "Ver datos cargados" (specs/admin-vivo R9). El contenido NO viaja con el
- * panel: se pide solo cuando el admin lo abre, y esa lectura queda registrada.
- */
-function VisorDatos({ id, nombre }: { id: string; nombre: string }) {
-  const [abierto, setAbierto] = useState(false);
-  const [datos, setDatos] = useState<ContenidoUsuario | null>(null);
-  const [error, setError] = useState('');
-  const [cargando, setCargando] = useState(false);
-
-  async function alternar() {
-    if (abierto) {
-      setAbierto(false);
-      return;
-    }
-    setAbierto(true);
-    if (datos || cargando) return;
-    setCargando(true);
-    setError('');
-    try {
-      const res = await fetch(`/api/admin/usuario/${id}`, { cache: 'no-store' });
-      if (!res.ok) throw new Error(String(res.status));
-      setDatos((await res.json()) as ContenidoUsuario);
-    } catch {
-      setError('No pudimos traer sus datos. Probá de nuevo.');
-    } finally {
-      setCargando(false);
-    }
-  }
-
-  return (
-    <div className="mt-[18px] border-t border-bor pt-3.5">
-      <button
-        type="button"
-        onClick={alternar}
-        aria-expanded={abierto}
-        className="kicker flex min-h-[38px] w-full cursor-pointer items-center justify-center gap-2 rounded-[11px] border border-bor2 bg-transparent text-[10px] text-tx2"
-      >
-        {cargando ? <Rueda /> : null}
-        {abierto ? 'Ocultar datos cargados' : 'Ver datos cargados'}
-      </button>
-
-      {abierto ? (
-        <div className="mt-3.5 flex flex-col gap-3.5">
-          {error ? <p className="text-[12.5px] text-[#fb7185]">{error}</p> : null}
-          {!error && !datos && cargando ? (
-            <p className="text-[12.5px] text-tx3">Trayendo lo que cargó {nombre}…</p>
-          ) : null}
-
-          {datos?.materias.map((m) => (
-            <div key={m.id} className="rounded-[11px] border border-bor bg-bg p-3">
-              <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-[13px] font-bold text-tx">{m.nombre}</span>
-                {m.profe || m.aula ? (
-                  <span className="font-mono text-[10px] text-tx3">
-                    {[m.profe, m.aula].filter(Boolean).join(' · ')}
-                  </span>
-                ) : null}
-              </div>
-              {m.horarios.length > 0 ? (
-                <div className="mt-1 font-mono text-[10px] text-tx4">{m.horarios.join(' · ')}</div>
-              ) : null}
-
-              {m.notas.length > 0 ? (
-                <ul className="mt-2.5 flex flex-col gap-2">
-                  {m.notas.map((n) => (
-                    <li key={n.id} className="border-l-2 border-bor2 pl-2.5">
-                      <div className="flex items-baseline gap-2">
-                        <span className="kicker text-[9px] text-tx4">{n.tipo}</span>
-                        <span className="font-mono text-[9.5px] text-tx4">{n.creada}</span>
-                        {n.hecho ? (
-                          <span className="font-mono text-[9.5px] text-[#34d399]">hecho</span>
-                        ) : null}
-                      </div>
-                      <p className="mt-0.5 text-[12.5px] leading-[1.45] text-tx2">
-                        {n.texto || <span className="text-tx4">(sin texto)</span>}
-                      </p>
-                      {n.url ? (
-                        <span className="block truncate font-mono text-[10px] text-tx3">{n.url}</span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-[12px] text-tx4">Sin notas en esta materia.</p>
-              )}
-
-              {m.archivos.length > 0 ? (
-                <ul className="mt-2.5 flex flex-col gap-1">
-                  {m.archivos.map((a) => (
-                    <li key={a.id} className="truncate font-mono text-[10.5px] text-tx3">
-                      📎 {a.nombre} — {a.url}
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          ))}
-
-          {datos && datos.materias.length === 0 ? (
-            <p className="text-[12.5px] text-tx3">Todavía no cargó ninguna materia.</p>
-          ) : null}
-
-          {datos && datos.avisos.length > 0 ? (
-            <div className="rounded-[11px] border border-bor bg-bg p-3">
-              <div className="kicker mb-2 text-[10px] text-tx3">Avisos propios</div>
-              <ul className="flex flex-col gap-1.5">
-                {datos.avisos.map((a) => (
-                  <li key={a.id} className="flex items-baseline gap-2 text-[12.5px] text-tx2">
-                    <span className="font-mono text-[10px] text-tx4">{a.fecha}</span>
-                    <span className="min-w-0 flex-1 truncate">{a.titulo}</span>
-                    {a.materia ? (
-                      <span className="font-mono text-[10px] text-tx4">{a.materia}</span>
-                    ) : null}
-                    {a.hecho ? (
-                      <span className="font-mono text-[10px] text-[#34d399]">hecho</span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {datos && datos.sueltas.length > 0 ? (
-            <div className="rounded-[11px] border border-bor bg-bg p-3">
-              <div className="kicker mb-2 text-[10px] text-tx3">
-                Notas de materias que ya no cursa
-              </div>
-              <ul className="flex flex-col gap-1.5">
-                {datos.sueltas.map((n) => (
-                  <li key={n.id} className="text-[12.5px] text-tx2">
-                    {n.texto || <span className="text-tx4">(sin texto)</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
   );
 }
