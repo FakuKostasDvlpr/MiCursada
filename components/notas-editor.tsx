@@ -24,6 +24,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
   type BloquePatch,
@@ -43,6 +44,7 @@ import {
   dominio,
 } from '@/components/modal-card';
 import { CardRef, TextoConRefs } from '@/components/ref-curso';
+import { partirComando } from '@/lib/comandos-nota';
 import { EVENTO_NOTA_CREADA } from '@/lib/logro';
 import { lanzarToast } from '@/lib/toast';
 import { agruparPorDia, coincide, type GrupoDia } from '@/lib/bitacora';
@@ -243,8 +245,13 @@ export function NotasEditor({
 
   // --- Composer ---
 
-  const menuAbierto = valor.startsWith('/');
-  const filtro = valor.slice(1).trim().toLowerCase();
+  // `/todo Traer el TP` se parte en comando ("todo") y contenido ("Traer el
+  // TP"). Antes el comando creaba el bloque VACÍO y había que rellenarlo
+  // abajo: se perdía lo que ya venías escribiendo y el foco saltaba fuera del
+  // input. Ahora el composer crea la nota terminada de una.
+  const slash = valor.startsWith('/') ? partirComando(valor) : null;
+  const menuAbierto = slash !== null;
+  const filtro = slash?.cmd ?? '';
   // Como el prototipo: filtra por el comando Y por las palabras clave, así
   // /kanban encuentra "Ver tablero" y /parrafo encuentra "Texto".
   const opciones = menuAbierto
@@ -272,7 +279,7 @@ export function NotasEditor({
     setCursor(mencion.desde);
   };
 
-  const agregar = (tipo: TipoBloque, texto = '', estado?: EstadoBloque) => {
+  const agregar = (tipo: TipoBloque, texto = '', estado?: EstadoBloque, url?: string) => {
     setError('');
     setValor('');
     const ref = refAdjunta?.ref;
@@ -281,6 +288,7 @@ export function NotasEditor({
       crearBloque(materiaId, {
         tipo,
         texto,
+        ...(url ? { url } : {}),
         ...(estado ? { estado } : {}),
         ...(ref ? { ref } : {}),
       })
@@ -292,14 +300,23 @@ export function NotasEditor({
     }
   };
 
-  /** Ejecuta una opción del menú `/`: crear un bloque, o cambiar de vista. */
-  const correrComando = (c: Comando) => {
+  /**
+   * Ejecuta una opción del menú `/`: crear un bloque, o cambiar de vista.
+   *
+   * `contenido` es lo que se escribió después del comando. Un divisor no lo
+   * usa (es una línea, no tiene texto) y un link lo toma como URL, que es lo
+   * que uno pega después de `/link`.
+   */
+  const correrComando = (c: Comando, contenido = '') => {
     if (c.vista) {
       setValor('');
       setVista(c.vista);
       return;
     }
-    if (c.tipo) agregar(c.tipo);
+    if (!c.tipo) return;
+    if (c.tipo === 'divisor') return agregar('divisor');
+    if (c.tipo === 'link') return agregar('link', '', undefined, contenido);
+    agregar(c.tipo, contenido);
   };
 
   const enterComposer = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -311,7 +328,7 @@ export function NotasEditor({
     e.preventDefault();
     if (menuAbierto) {
       const primera = opciones[0];
-      if (primera) correrComando(primera);
+      if (primera) correrComando(primera, slash.resto);
       return;
     }
     const texto = valor.trim();
@@ -321,7 +338,7 @@ export function NotasEditor({
   const botonMas = () => {
     if (menuAbierto) {
       const primera = opciones[0];
-      if (primera) correrComando(primera);
+      if (primera) correrComando(primera, slash.resto);
       return;
     }
     const texto = valor.trim();
@@ -445,6 +462,36 @@ export function NotasEditor({
 
   const grupos = useMemo(() => agruparPorDia(items, new Date()), [items]);
 
+  // --- Deep-link `?nota=<id>` (el click en un puntito del grafo) ---
+  //
+  // La nota puede estar dentro de un día colapsado, así que no alcanza con
+  // scrollear: primero hay que abrir su grupo. El resaltado se apaga solo —
+  // es para encontrarla con la vista, no un estado de selección.
+  const notaFoco = useSearchParams().get('nota');
+  const [destacada, setDestacada] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!notaFoco) return;
+    const grupo = grupos.find((g) => g.bloques.some((b) => b.id === notaFoco));
+    if (!grupo) return; // la nota ya no existe, o todavía no llegó del server
+
+    setAbiertos((prev) => ({ ...prev, [grupo.dia || 'sin-fecha']: true }));
+    setDestacada(notaFoco);
+
+    // Un frame para que el grupo recién abierto exista en el DOM antes de
+    // pedirle que se centre.
+    const raf = requestAnimationFrame(() => {
+      document
+        .getElementById(`bloque-${notaFoco}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    const timer = setTimeout(() => setDestacada(null), 2200);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
+  }, [notaFoco, grupos]);
+
   const buscando = consulta.trim() !== '';
   const visibles: GrupoDia[] = buscando
     ? grupos
@@ -455,22 +502,33 @@ export function NotasEditor({
   /** Con un solo día (o ninguno) la vista es la de siempre: sin encabezados. */
   const conEncabezados = grupos.length > 1;
 
+  // El wrapper existe por el deep-link: le da a cada bloque un ancla estable a
+  // la que scrollear y dónde colgar el resaltado de "es esta".
   const fila = (b: Bloque) => (
-    <FilaBloque
+    <div
       key={b.id}
-      bloque={b}
-      catalogo={catalogo}
-      refs={refs}
-      secciones={secciones}
-      onIr={onIrAModulo}
-      onTexto={(t) => editarTexto(b.id, t)}
-      onBlurTexto={(t) => flush(b.id, { texto: t })}
-      onBorrar={() => borrar(b.id, 'Bloque eliminado')}
-      onEstado={() => ciclarEstado(b)}
-      onToggle={() => toggleTarea(b)}
-      onLink={(texto, url) => guardarLink(b.id, texto, url)}
-      onDetalle={() => setCardId(b.id)}
-    />
+      id={`bloque-${b.id}`}
+      className={
+        destacada === b.id
+          ? 'rounded-[10px] bg-[rgba(251,191,36,.16)] transition-colors duration-500'
+          : 'transition-colors duration-500'
+      }
+    >
+      <FilaBloque
+        bloque={b}
+        catalogo={catalogo}
+        refs={refs}
+        secciones={secciones}
+        onIr={onIrAModulo}
+        onTexto={(t) => editarTexto(b.id, t)}
+        onBlurTexto={(t) => flush(b.id, { texto: t })}
+        onBorrar={() => borrar(b.id, 'Bloque eliminado')}
+        onEstado={() => ciclarEstado(b)}
+        onToggle={() => toggleTarea(b)}
+        onLink={(texto, url) => guardarLink(b.id, texto, url)}
+        onDetalle={() => setCardId(b.id)}
+      />
+    </div>
   );
 
   const card = items.find((b) => b.id === cardId) ?? null;
@@ -629,7 +687,9 @@ export function NotasEditor({
         {/* Menú de comandos */}
         {menuAbierto && (
           <div className="absolute top-[52px] right-0 left-0 z-10 overflow-hidden rounded-xl border border-bor2 bg-sup p-1">
-            <div className="kicker px-[10px] pt-2 pb-1 !text-tx4">Bloques</div>
+            <div className="kicker px-[10px] pt-2 pb-1 !text-tx4">
+              {slash.resto ? `Se crea con «${slash.resto}»` : 'Bloques'}
+            </div>
             {opciones.length === 0 ? (
               <div className="px-3 py-[10px] text-[13px] text-tx3">
                 No hay ningún comando «/{filtro}».
@@ -640,7 +700,7 @@ export function NotasEditor({
                   key={c.cmd}
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => correrComando(c)}
+                  onClick={() => correrComando(c, slash.resto)}
                   className="flex min-h-[44px] w-full cursor-pointer items-center gap-[10px] rounded-[9px] px-[10px] py-1 text-left hover:bg-bor"
                 >
                   <span

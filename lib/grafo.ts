@@ -202,7 +202,11 @@ export function armarGrafo(
       tipo: Exclude<TipoNodo, 'yo' | 'materia'>,
       etiqueta: string,
       r: number,
-      sub: string
+      sub: string,
+      // A dónde lleva el click. Por defecto, la materia; una nota puede
+      // apuntar directo a sí misma con `?nota=<id>`, que es lo que uno espera
+      // al hacer click en su puntito y no "te dejo en la materia, buscala".
+      href = `/materias/${encodeURIComponent(m.id)}`
     ) => {
       const nodo: NodoGrafo = {
         id,
@@ -218,7 +222,7 @@ export function armarGrafo(
         titulo: cortar(etiqueta, 70),
         sub,
         materiaNombre: m.nombre,
-        href: `/materias/${encodeURIComponent(m.id)}`,
+        href,
       };
       nodos.push(nodo);
       aristas.push({ a: nodoMateria, b: nodo, largo: LARGO_MATERIA_ITEM });
@@ -230,7 +234,8 @@ export function armarGrafo(
         'nota',
         b.texto || 'nota',
         5,
-        `${ddmmIso(b.createdAt)} · ${ESTADO_TXT[b.estado] ?? 'por hacer'}`
+        `${ddmmIso(b.createdAt)} · ${ESTADO_TXT[b.estado] ?? 'por hacer'}`,
+        `/materias/${encodeURIComponent(m.id)}?nota=${encodeURIComponent(b.id)}`
       );
     }
     for (const f of m.archivos) {
