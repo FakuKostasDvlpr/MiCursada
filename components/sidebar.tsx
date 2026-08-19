@@ -4,6 +4,7 @@ import { Bell, BookOpen, Calendar, Moon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { CerrarSesion } from '@/components/cerrar-sesion';
 import { IconoGrafo } from '@/components/icono-grafo';
 import { INSTITUTO, SEDE_Y_TURNO } from '@/lib/instituto';
 
@@ -74,8 +75,8 @@ export function Sidebar({ nombre, iniciales, avatarUrl = null, carrera = null }:
         })}
       </nav>
 
-      {/* Abajo va SOLO el perfil: el tema y el cerrar sesión viven en el header
-          de Hoy (interruptor + menú del avatar), como en el prototipo. */}
+      {/* Abajo van el perfil y cerrar sesión (pedido del 18/08: salir sin pasar
+          por el menú del avatar). El tema sigue en el header de Hoy. */}
       <div className="mt-auto flex flex-col gap-1">
         <Link
           href="/perfil"
@@ -102,6 +103,7 @@ export function Sidebar({ nombre, iniciales, avatarUrl = null, carrera = null }:
             <span className="block truncate text-[11px] text-tx3">Tu perfil</span>
           </span>
         </Link>
+        <CerrarSesion variante="sidebar" />
       </div>
     </aside>
   );

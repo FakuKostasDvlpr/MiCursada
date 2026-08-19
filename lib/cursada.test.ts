@@ -13,6 +13,8 @@ import {
   hace,
   estadoAsistencia,
   MIN_ANTES_ASISTENCIA,
+  badgeLlegada,
+  MIN_APURATE,
 } from '@/lib/cursada';
 
 const TZ = 'America/Argentina/Buenos_Aires';
@@ -401,5 +403,46 @@ describe('estadoAsistencia', () => {
 
   it('MIN_ANTES_ASISTENCIA es 10', () => {
     expect(MIN_ANTES_ASISTENCIA).toBe(10);
+  });
+});
+
+describe('badgeLlegada', () => {
+  // Martes 18/08/2026, clase de 19:00 a 22:00.
+  const materias = [mat('Programación', [horario(2, '19:00', '22:00')])];
+  const proxA = (hora: string) => {
+    const ahora = ba(`2026-08-18T${hora}:00`);
+    const prox = proximaClase(materias, ahora);
+    if (!prox) throw new Error('sin próxima clase');
+    return { prox, ahora };
+  };
+
+  it('con tiempo de sobra: "Llegá cuando quieras"', () => {
+    const { prox, ahora } = proxA('17:00');
+    expect(badgeLlegada(prox, ahora)).toEqual({ tono: 'tranqui', texto: 'Llegá cuando quieras' });
+  });
+
+  it('dentro de la ventana de salida: "Llegás, apurate" (borde exacto incluido)', () => {
+    const enVentana = proxA('18:20');
+    expect(badgeLlegada(enVentana.prox, enVentana.ahora)?.tono).toBe('apurate');
+    const justo = proxA('18:15'); // faltan exactamente MIN_APURATE
+    expect(badgeLlegada(justo.prox, justo.ahora)).toEqual({
+      tono: 'apurate',
+      texto: 'Llegás, apurate',
+    });
+    expect(MIN_APURATE).toBe(45);
+  });
+
+  it('con la clase empezada: "Dale que estás tarde"', () => {
+    const { prox, ahora } = proxA('19:30');
+    expect(badgeLlegada(prox, ahora)).toEqual({ tono: 'tarde', texto: 'Dale que estás tarde' });
+  });
+
+  it('si la próxima clase es de otro día no hay badge', () => {
+    // Lunes 17/08: la clase del martes queda a offsetDias=1.
+    const ahora = ba('2026-08-17T19:30:00');
+    const prox = proximaClase(materias, ahora);
+    if (!prox) throw new Error('sin próxima clase');
+    expect(prox.offsetDias).toBe(1);
+    expect(badgeLlegada(prox, ahora)).toBeNull();
   });
 });

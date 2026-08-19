@@ -15,6 +15,7 @@ import { MenuPerfil } from '@/components/menu-perfil';
 import { Saludo } from '@/components/saludo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import {
+  badgeLlegada,
   clasesDeHoy,
   estadoAviso,
   fechaLargaHoy,
@@ -27,6 +28,13 @@ import type { Aviso, Materia } from '@/lib/types';
 
 /** 'YYYY-MM-DD' → 'dd/mm'. */
 const ddmm = (f: string) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
+
+/** Colores del badge de llegada (lib/cursada.badgeLlegada). */
+const COLOR_LLEGADA = {
+  tranqui: '#34d399',
+  apurate: 'var(--acc)',
+  tarde: 'var(--vencido)',
+} as const;
 
 type Props = {
   materias: Materia[];
@@ -69,6 +77,7 @@ export function HoyLive({
   }, []);
 
   const prox = proximaClase(materias, ahora);
+  const badge = prox ? badgeLlegada(prox, ahora) : null;
   const hoy = clasesDeHoy(materias, ahora);
   const stats = statsBento(materias, avisos, ahora);
   const proximos = avisos.filter((a) => !a.hecho).slice(0, 3);
@@ -120,11 +129,19 @@ export function HoyLive({
               <span className="mt-2 block text-[21px] leading-[1.2] font-extrabold tracking-[-0.01em]">
                 {prox.materia.nombre}
               </span>
-              <span className="mt-2 flex flex-wrap items-baseline gap-3">
+              <span className="mt-2 flex flex-wrap items-center gap-3">
                 <span className="font-mono text-[17px] font-semibold">
                   {prox.horario.inicio}–{prox.horario.fin}
                 </span>
                 <span className="text-[13px] text-tx2">{prox.materia.aula}</span>
+                {badge && (
+                  <span
+                    className="kicker rounded-full border px-[10px] py-1 text-[9.5px]"
+                    style={{ color: COLOR_LLEGADA[badge.tono], borderColor: COLOR_LLEGADA[badge.tono] }}
+                  >
+                    {badge.texto}
+                  </span>
+                )}
               </span>
               <span
                 className="mt-[10px] block text-[13.5px] font-semibold"

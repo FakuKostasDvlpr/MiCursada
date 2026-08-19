@@ -119,6 +119,34 @@ export function textoEstado(prox: ProximaClase, ahora: Date): string {
   return `El ${nombreDia(dia).toLowerCase()} a las ${prox.horario.inicio}`;
 }
 
+/** Minutos antes del inicio en que conviene ir saliendo ("apurate"). */
+export const MIN_APURATE = 45;
+
+export type BadgeLlegada = {
+  tono: 'tranqui' | 'apurate' | 'tarde';
+  texto: 'Llegá cuando quieras' | 'Llegás, apurate' | 'Dale que estás tarde';
+};
+
+/**
+ * Badge de llegada del hero de próxima clase, contra el reloj del dispositivo
+ * (en hora de pared de Buenos Aires, como todo acá). PURA: `ahora` llega por
+ * parámetro. Solo aplica a una clase de HOY:
+ *
+ * - tranqui: falta más de MIN_APURATE para el inicio → "Llegá cuando quieras".
+ * - apurate: la ventana de salida (últimos MIN_APURATE minutos) → "Llegás, apurate".
+ * - tarde: la clase ya empezó y no terminó → "Dale que estás tarde".
+ * - null: la clase es de otro día (el apuro no significa nada a 48 h).
+ */
+export function badgeLlegada(prox: ProximaClase, ahora: Date): BadgeLlegada | null {
+  if (prox.offsetDias !== 0) return null;
+  if (prox.enCurso) return { tono: 'tarde', texto: 'Dale que estás tarde' };
+  const local = enBA(ahora);
+  const nowMin = local.getHours() * 60 + local.getMinutes();
+  const faltan = aMin(prox.horario.inicio) - nowMin;
+  if (faltan <= MIN_APURATE) return { tono: 'apurate', texto: 'Llegás, apurate' };
+  return { tono: 'tranqui', texto: 'Llegá cuando quieras' };
+}
+
 export type ClaseHoy = {
   materia: Materia;
   horario: Horario;
