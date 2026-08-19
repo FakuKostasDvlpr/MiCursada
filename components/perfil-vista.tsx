@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { guardarAvatarLocal } from '@/app/actions';
 import { borrarMiCuenta } from '@/app/actions-sesion';
+import { Rueda } from '@/components/cargando';
 import { type Avatar, AvatarPicker, crearAvatarBlob } from '@/components/kokonutui/avatar-picker';
 import { CerrarSesion } from '@/components/cerrar-sesion';
 import { Modal } from '@/components/modal';
@@ -247,9 +248,10 @@ export function PerfilVista({ perfil, usuario, conCuenta }: Props) {
                 type="button"
                 onClick={confirmarBorrado}
                 disabled={borrando}
-                className="min-h-12 flex-1 cursor-pointer rounded-xl border text-[14.5px] font-bold disabled:opacity-60"
+                className="inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border text-[14.5px] font-bold disabled:opacity-60"
                 style={{ borderColor: 'rgba(251,113,133,.45)', color: '#fb7185' }}
               >
+                {borrando && <Rueda />}
                 {borrando ? 'Borrando…' : 'Borrar todo'}
               </button>
             </div>

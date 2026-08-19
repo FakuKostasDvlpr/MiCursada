@@ -22,6 +22,7 @@ import {
   olvidarToken,
   sincronizarAhora,
 } from '@/app/actions-moodle';
+import { Rueda } from '@/components/cargando';
 import { Modal } from '@/components/modal';
 import { hace } from '@/lib/cursada';
 
@@ -362,8 +363,9 @@ function ContenidoPanel({
           type="button"
           onClick={sincronizar}
           disabled={sincronizando}
-          className="min-h-12 w-full cursor-pointer rounded-xl bg-acc-bg text-[14.5px] font-bold text-acc-fg disabled:opacity-60"
+          className="inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-acc-bg text-[14.5px] font-bold text-acc-fg disabled:opacity-60"
         >
+          {sincronizando && <Rueda sobreAmbar />}
           {sincronizando ? 'Sincronizando…' : 'Sincronizar ahora'}
         </button>
         {sincronizando && (
@@ -418,8 +420,9 @@ function ContenidoPanel({
           <button
             type="submit"
             disabled={generando}
-            className="min-h-12 w-full cursor-pointer rounded-xl border border-bor2 text-[14.5px] font-bold text-tx disabled:opacity-60"
+            className="inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-bor2 text-[14.5px] font-bold text-tx disabled:opacity-60"
           >
+            {generando && <Rueda />}
             {generando ? 'Generando…' : 'Generar token'}
           </button>
           <p className="text-[12px] leading-[1.45] text-tx3">

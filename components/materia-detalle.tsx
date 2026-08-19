@@ -30,6 +30,7 @@ import {
   toggleAviso,
 } from '@/app/actions';
 import { useRouter } from 'next/navigation';
+import { Cargando } from '@/components/cargando';
 import { NotasEditor } from '@/components/notas-editor';
 import { estadoAviso, hoyISO } from '@/lib/cursada';
 import { EVENTO_NOTA_CREADA } from '@/lib/logro';
@@ -710,25 +711,6 @@ function VideoCelda({ video }: { video: string }) {
 
 /** En qué anda un recurso que se está trayendo de la red. */
 type EstadoCarga = 'cargando' | 'listo' | 'error';
-
-/**
- * Bloque de "Cargando…" con la altura ya reservada.
- *
- * DECISIÓN: es un overlay `absolute` y no un reemplazo del contenido — si
- * desmontáramos el `<img>`/`<video>` para mostrar el spinner, nunca se
- * dispararía su `onLoad` y el estado quedaría clavado en "cargando".
- */
-function Cargando({ etiqueta = 'Cargando…' }: { etiqueta?: string }) {
-  return (
-    <div
-      role="status"
-      className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl border border-bor bg-sup"
-    >
-      <span aria-hidden className="girando h-5 w-5 rounded-full border-2 border-bor2 border-t-acc" />
-      <span className="font-mono text-[11px] text-tx3">{etiqueta}</span>
-    </div>
-  );
-}
 
 /** Cartel de "no cargó": el archivo puede seguir sirviendo bajándolo. */
 function FalloCarga() {

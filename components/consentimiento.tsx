@@ -14,6 +14,7 @@
 
 import { useFormStatus } from 'react-dom';
 import { aceptarConsentimiento, cerrarSesion } from '@/app/actions-sesion';
+import { Rueda } from '@/components/cargando';
 
 export function Consentimiento() {
   return (
@@ -92,8 +93,9 @@ function BotonAceptar() {
     <button
       type="submit"
       disabled={pending}
-      className="tactil flex w-full cursor-pointer items-center justify-center rounded-xl bg-acc-bg text-[14.5px] font-bold text-acc-fg transition-colors duration-[250ms] disabled:opacity-60"
+      className="tactil flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-acc-bg text-[14.5px] font-bold text-acc-fg transition-colors duration-[250ms] disabled:opacity-60"
     >
+      {pending && <Rueda sobreAmbar />}
       {pending ? 'Preparando tu cursada…' : 'Entendido, entrar a mi cursada'}
     </button>
   );
@@ -105,8 +107,9 @@ function BotonRechazar() {
     <button
       type="submit"
       disabled={pending}
-      className="tactil flex w-full cursor-pointer items-center justify-center rounded-xl border border-bor2 text-[14.5px] font-bold text-tx transition-colors duration-[250ms] disabled:opacity-60"
+      className="tactil flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-bor2 text-[14.5px] font-bold text-tx transition-colors duration-[250ms] disabled:opacity-60"
     >
+      {pending && <Rueda />}
       {pending ? 'Saliendo…' : 'No, gracias'}
     </button>
   );

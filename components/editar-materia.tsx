@@ -3,6 +3,7 @@
 import { Pencil, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { actualizarMateria } from '@/app/actions';
+import { Rueda } from '@/components/cargando';
 import { Modal } from '@/components/modal';
 import { nombreDia } from '@/lib/cursada';
 import { COLORES_MATERIA, type ColorMateria, type Dia, type Materia } from '@/lib/types';
@@ -227,8 +228,9 @@ export function EditarMateria({ materia }: { materia: Materia }) {
               type="button"
               onClick={guardar}
               disabled={guardando}
-              className="min-h-12 flex-1 cursor-pointer rounded-xl bg-acc-bg text-[14.5px] font-bold text-acc-fg disabled:opacity-60"
+              className="inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-acc-bg text-[14.5px] font-bold text-acc-fg disabled:opacity-60"
             >
+              {guardando && <Rueda sobreAmbar />}
               {guardando ? 'Guardando…' : 'Guardar materia'}
             </button>
           </div>

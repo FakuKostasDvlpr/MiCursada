@@ -29,6 +29,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { Rueda } from '@/components/cargando';
 
 export interface Avatar {
   id: number;
@@ -309,6 +310,7 @@ export function AvatarPicker({ subiendo, error, onElegir, onSubirPropia }: Props
           onClick={() => onElegir(selectedAvatar)}
           type="button"
         >
+          {subiendo && <Rueda sobreAmbar />}
           {subiendo ? 'Guardando…' : 'Usar este avatar'}
           {!subiendo && (
             <ChevronRight

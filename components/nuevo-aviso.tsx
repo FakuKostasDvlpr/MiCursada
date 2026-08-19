@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { crearAviso } from '@/app/actions';
+import { Rueda } from '@/components/cargando';
 import { Modal } from '@/components/modal';
 import { hoyISO } from '@/lib/cursada';
 
@@ -118,8 +119,9 @@ export function NuevoAviso({ materias }: { materias: MateriaOpcion[] }) {
               type="button"
               onClick={guardar}
               disabled={guardando}
-              className="min-h-12 flex-1 cursor-pointer rounded-xl bg-acc-bg text-[14.5px] font-bold text-acc-fg disabled:opacity-60"
+              className="inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-acc-bg text-[14.5px] font-bold text-acc-fg disabled:opacity-60"
             >
+              {guardando && <Rueda sobreAmbar />}
               {guardando ? 'Guardando…' : 'Guardar aviso'}
             </button>
           </div>
