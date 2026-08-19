@@ -29,6 +29,7 @@ import {
   reordenarBloquesLocales,
 } from '@/lib/datos-locales';
 import { tituloDesdeNota } from '@/lib/aviso-nota';
+import { registrarEvento } from '@/lib/eventos';
 import { textoPlano } from '@/lib/referencias';
 import { hayAcceso } from '@/lib/sesion-actual';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
@@ -784,6 +785,11 @@ export async function crearBloque(
   if (error) {
     console.error('crearBloque:', error);
     return { ok: false, error: ERROR_GUARDAR };
+  }
+  // Métrica para el panel admin: metadata (el curso), jamás el contenido.
+  // Los divisores no son notas.
+  if (parsed.data.tipo !== 'divisor') {
+    await registrarEvento('nota_creada', sesion.user.id, { curso_id: materiaId });
   }
   revalidarTodo();
   return { ok: true };

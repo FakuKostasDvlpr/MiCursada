@@ -38,6 +38,18 @@ export async function usuarioActual(): Promise<{ userId: string; moodleId: numbe
   return { userId: user.id, moodleId };
 }
 
+/**
+ * ¿La sesión actual es la del administrador? El admin es UN id de Moodle en
+ * CURSADA_ADMIN_ID (el id numérico, no el username: el id es estable). Sin la
+ * variable no hay admin — el panel no existe para nadie. Solo modo Supabase.
+ */
+export async function esAdmin(): Promise<boolean> {
+  const adminId = Number(process.env.CURSADA_ADMIN_ID);
+  if (!Number.isInteger(adminId) || adminId <= 0) return false;
+  const u = await usuarioActual();
+  return u !== null && u.moodleId === adminId;
+}
+
 /** Sesión válida de este request, o null si no hay (modo local). */
 export async function sesionActual(): Promise<Sesion | null> {
   const token = (await cookies()).get(COOKIE_SESION)?.value;

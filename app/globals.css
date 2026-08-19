@@ -602,3 +602,32 @@ html[data-logro='1'] .toast-cont {
   margin: 10px 0;
   background: var(--bg);
 }
+
+/* --- Panel admin (specs/panel-admin): dot "en vivo" y entrada del detalle --- */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes pulso-admin {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+  @keyframes entra-aside {
+    from {
+      transform: translateX(30px);
+      opacity: 0;
+    }
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+  .dot-pulso {
+    animation: pulso-admin 2.2s ease infinite;
+  }
+  .aside-entra {
+    animation: entra-aside 0.3s cubic-bezier(0.22, 0.8, 0.3, 1);
+  }
+}

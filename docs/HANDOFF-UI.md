@@ -142,25 +142,24 @@ Casos concretos de esta sesión donde el README mentía o se quedaba corto:
 
 ---
 
-## 5. Lo que sigue: el diseño nuevo
+## 5. Estado de los paquetes de diseño
 
-Está en **`design_handoff_mi_cursada/`** (17/08, sin implementar):
-
-- `Mi Cursada.dc.html` — 189 KB (el anterior tenía 138 KB)
-- `README.md` — 35 KB, con una sección nueva: **"Actualización — notas estilo
-  Notion, tablero y avisos vinculados (17/08)"**, con estas subsecciones:
-  - Editor de notas (documento)
-  - Tablero (kanban) y **modal de detalle de card**
-  - **Avisos vinculados a notas** + componente `NotaAviso`
-  - Toasts y logro
-- `NotaAviso.dc.html` — componente suelto nuevo: fila con borde izquierdo del
-  color de la materia, ícono de nota, texto truncado a una línea, y una subfila
-  con el tipo en mono + dot de estado + nombre del estado.
-
-**Ojo:** parte de eso pisa cosas que ya se implementaron esta sesión (el editor,
-el tablero, el logro). Hay que **comparar lo que ya está contra el `.html`
-nuevo** antes de escribir nada — puede que la mitad ya esté y la otra mitad
-haya cambiado de forma.
+- **17/08 (`design_handoff_mi_cursada/`)** — notas estilo Notion, tablero,
+  modal de card, avisos vinculados, toasts y logro: **implementado** (specs en
+  `specs/modal-de-card`, `specs/avisos-vinculados`, `specs/toasts-y-logro`,
+  `specs/bloques-formato-y-referencias`, `specs/paginas-de-nota`; rama
+  `handoff-ui-17-08`, mergeada a main el 18/08).
+- **18/08 (`design_handoff_mi_cursada copy/`)** — trae además
+  **`Mi Cursada Admin.dc.html`**: el panel de monitoreo. **Implementado el
+  18/08** (spec en `specs/panel-admin/spec.md`): ruta `/admin` en el grupo
+  `app/(admin)/` (header propio, sin el shell de la app), guarda doble
+  sesión+`CURSADA_ADMIN_ID` con 404 para el resto, datos por
+  `lib/admin-metricas.ts` (nunca contenido de notas — solo counts, fechas y
+  nombres de materia), cálculos puros con tests en `lib/admin-calculos.ts`, y
+  seed sintético (`lib/admin-demo.ts`) para dev sin Supabase, con badge "demo".
+  Las adaptaciones respecto del prototipo (estados por umbral de
+  `ultima_visita`, "Materias con más notas" en lugar de "Pantallas más usadas",
+  sin dispositivo/versión) están todas en el spec §2, con motivo.
 
 ### Lo implementado del paquete nuevo (17/08)
 
