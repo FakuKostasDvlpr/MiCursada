@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { CerrarSesion } from '@/components/cerrar-sesion';
 import { IconoGrafo } from '@/components/icono-grafo';
-import { INSTITUTO, SEDE_Y_TURNO } from '@/lib/instituto';
+import { INSTITUTO } from '@/lib/instituto';
 
 const ITEMS = [
   { href: '/', label: 'Hoy', Icono: Moon },
@@ -22,6 +22,10 @@ type Props = {
   avatarUrl?: string | null;
   /** Carrera de la persona; INSTITUTO.carrera es solo el respaldo (ver lib/instituto.ts). */
   carrera?: string | null;
+  /** Sede real del aula virtual; la constante es solo el respaldo. */
+  sede?: string | null;
+  /** Turno derivado de los horarios reales; la constante es solo el respaldo. */
+  turno?: string | null;
 };
 
 /**
@@ -29,7 +33,14 @@ type Props = {
  * No se muestra en /login. (/perfil dejó de ser especial: se abre como modal
  * interceptado y el shell queda visible atrás.)
  */
-export function Sidebar({ nombre, iniciales, avatarUrl = null, carrera = null }: Props) {
+export function Sidebar({
+  nombre,
+  iniciales,
+  avatarUrl = null,
+  carrera = null,
+  sede = null,
+  turno = null,
+}: Props) {
   const pathname = usePathname();
   if (pathname.startsWith('/login')) return null;
 
@@ -53,7 +64,7 @@ export function Sidebar({ nombre, iniciales, avatarUrl = null, carrera = null }:
         <div className="mt-[10px] truncate text-sm font-extrabold tracking-[-0.01em]">
           {carrera ?? INSTITUTO.carrera}
         </div>
-        <div className="kicker mt-px truncate text-[9.5px]">{SEDE_Y_TURNO}</div>
+        <div className="kicker mt-px truncate text-[9.5px]">{`${sede ?? INSTITUTO.sede} · ${turno ?? INSTITUTO.turno}`}</div>
       </div>
 
       <nav className="mt-[26px] flex flex-col gap-1">

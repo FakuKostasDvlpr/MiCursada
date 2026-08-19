@@ -14,9 +14,11 @@ type Props = {
   perfil: Perfil | null;
   usuario: string;
   conCuenta: boolean;
+  /** Turno derivado de los horarios reales (lib/cursada.ts turnoDesdeMaterias). */
+  turno?: string | null;
 };
 
-export function PerfilModal({ perfil, usuario, conCuenta }: Props) {
+export function PerfilModal({ perfil, usuario, conCuenta, turno = null }: Props) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -29,7 +31,13 @@ export function PerfilModal({ perfil, usuario, conCuenta }: Props) {
 
   return (
     <Modal abierto titulo="Tu perfil" onCerrar={cerrar}>
-      <PerfilVista perfil={perfil} usuario={usuario} conCuenta={conCuenta} alCerrar={cerrar} />
+      <PerfilVista
+        perfil={perfil}
+        usuario={usuario}
+        conCuenta={conCuenta}
+        alCerrar={cerrar}
+        turno={turno}
+      />
     </Modal>
   );
 }

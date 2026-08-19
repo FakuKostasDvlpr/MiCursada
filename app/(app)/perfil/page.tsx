@@ -1,12 +1,17 @@
 import { PerfilVista } from '@/components/perfil-vista';
+import { turnoDesdeMaterias } from '@/lib/cursada';
 import { leerCredenciales } from '@/lib/moodle/credenciales';
-import { getPerfil } from '@/lib/queries';
+import { getMaterias, getPerfil } from '@/lib/queries';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 
 export const dynamic = 'force-dynamic';
 
 export default async function PaginaPerfil() {
-  const [perfil, cred] = await Promise.all([getPerfil(), leerCredenciales()]);
+  const [perfil, cred, materias] = await Promise.all([
+    getPerfil(),
+    leerCredenciales(),
+    getMaterias(),
+  ]);
   // Del archivo de credenciales solo sale el usuario: el token NUNCA sale de ahí.
   const usuario = cred?.usuario ?? '';
 
@@ -18,7 +23,12 @@ export default async function PaginaPerfil() {
           {perfil?.nombre || 'Tu cursada'}
         </h1>
       </div>
-      <PerfilVista perfil={perfil} usuario={usuario} conCuenta={supabaseConfigurado()} />
+      <PerfilVista
+        perfil={perfil}
+        usuario={usuario}
+        conCuenta={supabaseConfigurado()}
+        turno={turnoDesdeMaterias(materias)}
+      />
     </main>
   );
 }

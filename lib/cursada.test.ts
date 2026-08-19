@@ -15,6 +15,7 @@ import {
   MIN_ANTES_ASISTENCIA,
   badgeLlegada,
   MIN_APURATE,
+  turnoDesdeMaterias,
 } from '@/lib/cursada';
 
 const TZ = 'America/Argentina/Buenos_Aires';
@@ -444,5 +445,52 @@ describe('badgeLlegada', () => {
     if (!prox) throw new Error('sin próxima clase');
     expect(prox.offsetDias).toBe(1);
     expect(badgeLlegada(prox, ahora)).toBeNull();
+  });
+});
+
+describe('turnoDesdeMaterias', () => {
+  const materia = (horarios: { dia: 1 | 2 | 3; inicio: string; fin: string }[]) =>
+    ({
+      id: 'curso:1',
+      nombre: 'X',
+      profe: '',
+      aula: '',
+      color: '#38bdf8',
+      source: 'moodle',
+      horarios: horarios.map((h, i) => ({ id: `h${i}`, materiaId: 'curso:1', ...h })),
+      bloques: [],
+      archivos: [],
+    }) as unknown as Materia;
+
+  it('cursada de 19 a 23 es turno noche', () => {
+    expect(
+      turnoDesdeMaterias([materia([{ dia: 1, inicio: '19:00', fin: '23:00' }])])
+    ).toBe('Turno noche');
+  });
+
+  it('cursada de tarde y de mañana', () => {
+    expect(turnoDesdeMaterias([materia([{ dia: 1, inicio: '14:00', fin: '17:00' }])])).toBe(
+      'Turno tarde'
+    );
+    expect(turnoDesdeMaterias([materia([{ dia: 1, inicio: '08:00', fin: '12:00' }])])).toBe(
+      'Turno mañana'
+    );
+  });
+
+  it('una clase suelta a contraturno no cambia el cartel', () => {
+    expect(
+      turnoDesdeMaterias([
+        materia([
+          { dia: 1, inicio: '19:00', fin: '23:00' },
+          { dia: 2, inicio: '19:00', fin: '23:00' },
+          { dia: 3, inicio: '09:00', fin: '11:00' },
+        ]),
+      ])
+    ).toBe('Turno noche');
+  });
+
+  it('sin horarios devuelve null (la UI cae a la constante)', () => {
+    expect(turnoDesdeMaterias([materia([])])).toBeNull();
+    expect(turnoDesdeMaterias([])).toBeNull();
   });
 });

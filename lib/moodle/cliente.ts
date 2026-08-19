@@ -24,6 +24,9 @@ import { sinToken } from './normalizar';
 
 export const FUNCIONES_PERMITIDAS = [
   'core_webservice_get_site_info',
+  // El propio perfil del alumno: sede (institution / custom field "1-Sede") y
+  // carrera. Solo lectura, y solo se pide el userid de la credencial.
+  'core_user_get_users_by_field',
   'core_enrol_get_users_courses',
   'core_course_get_contents',
   'core_calendar_get_action_events_by_timesort',

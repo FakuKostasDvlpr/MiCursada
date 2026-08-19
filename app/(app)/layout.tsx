@@ -4,7 +4,7 @@ import { Contenedor } from '@/components/contenedor';
 import { Logro } from '@/components/logro';
 import { Sidebar } from '@/components/sidebar';
 import { Toast } from '@/components/toast';
-import { iniciales } from '@/lib/cursada';
+import { iniciales, turnoDesdeMaterias } from '@/lib/cursada';
 import { getMaterias, getPerfil } from '@/lib/queries';
 import { exigirSesion } from '@/lib/sesion-actual';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
@@ -57,6 +57,8 @@ export default async function LayoutApp({
           iniciales={iniciales(perfil?.nombre ?? '')}
           avatarUrl={perfil?.avatarUrl ?? null}
           carrera={perfil?.carrera ?? null}
+          sede={perfil?.sede ?? null}
+          turno={turnoDesdeMaterias(materias)}
         />
         <Contenedor>{children}</Contenedor>
         <BottomNav />

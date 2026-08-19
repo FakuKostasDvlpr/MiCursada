@@ -15,7 +15,7 @@ import { type Avatar, AvatarPicker, crearAvatarBlob } from '@/components/kokonut
 import { CerrarSesion } from '@/components/cerrar-sesion';
 import { Modal } from '@/components/modal';
 import { iniciales } from '@/lib/cursada';
-import { INSTITUTO, SEDE_Y_TURNO } from '@/lib/instituto';
+import { INSTITUTO } from '@/lib/instituto';
 import type { Perfil } from '@/lib/types';
 
 type Props = {
@@ -29,9 +29,11 @@ type Props = {
    * navegar a Hoy. Sin este prop (la página completa) navega como siempre.
    */
   alCerrar?: () => void;
+  /** Turno derivado de los horarios reales (lib/cursada.ts turnoDesdeMaterias). */
+  turno?: string | null;
 };
 
-export function PerfilVista({ perfil, usuario, conCuenta, alCerrar }: Props) {
+export function PerfilVista({ perfil, usuario, conCuenta, alCerrar, turno = null }: Props) {
   const router = useRouter();
   const inputFoto = useRef<HTMLInputElement>(null);
 
@@ -117,7 +119,15 @@ export function PerfilVista({ perfil, usuario, conCuenta, alCerrar }: Props) {
     { label: 'Nombre', valor: nombre || 'Sin nombre', mono: false },
     { label: 'Carrera', valor: perfil?.carrera ?? INSTITUTO.carrera, mono: false },
     { label: 'Usuario', valor: usuario || '—', mono: true },
-    { label: 'Instituto', valor: `${perfil?.instituto ?? INSTITUTO.nombre} · ${SEDE_Y_TURNO}`, mono: false },
+    {
+      label: 'Instituto',
+      // Sede real del aula virtual y turno derivado de los horarios; las
+      // constantes de lib/instituto son solo el respaldo del primer ingreso.
+      valor: `${perfil?.instituto ?? INSTITUTO.nombre} · ${perfil?.sede ?? INSTITUTO.sede} · ${
+        turno ?? INSTITUTO.turno
+      }`,
+      mono: false,
+    },
   ];
 
   return (

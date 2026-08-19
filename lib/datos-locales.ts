@@ -269,10 +269,12 @@ export const bloquesArchivoSchema = z.record(z.string(), z.array(bloqueLocalSche
 export type BloqueLocal = z.infer<typeof bloqueLocalSchema>;
 export type BloquesArchivo = z.infer<typeof bloquesArchivoSchema>;
 
-/** { nombre, instituto, avatarUrl } — el perfil del usuario en modo local. */
+/** { nombre, instituto, sede, avatarUrl } — el perfil del usuario en modo local. */
 export const perfilArchivoSchema = z.object({
   nombre: z.string(),
   instituto: z.string().nullable().default(null),
+  /** Sede real del aula virtual; null hasta el primer login que la trae. */
+  sede: z.string().nullable().default(null),
   avatarUrl: z.string().nullable().default(null),
 });
 
@@ -751,6 +753,7 @@ export async function leerPerfilLocal(): Promise<Perfil | null> {
     nombre: parsed.data.nombre,
     carrera: null,
     instituto: parsed.data.instituto,
+    sede: parsed.data.sede,
     avatarUrl: parsed.data.avatarUrl,
     consentimientoEn: null,
   };
@@ -762,12 +765,15 @@ export async function leerPerfilLocal(): Promise<Perfil | null> {
 export async function escribirPerfilLocal(perfil: {
   nombre: string;
   instituto: string;
+  /** `undefined` conserva la sede guardada; `null` la borra explícitamente. */
+  sede?: string | null;
   avatarUrl?: string;
 }): Promise<void> {
   const previo = await leerPerfilLocal();
   await escribirJson(rutaDatos('perfil'), {
     nombre: perfil.nombre,
     instituto: perfil.instituto || null,
+    sede: perfil.sede !== undefined ? perfil.sede : (previo?.sede ?? null),
     avatarUrl: perfil.avatarUrl ?? previo?.avatarUrl ?? null,
   });
 }

@@ -382,6 +382,7 @@ describe('perfil.json', () => {
       carrera: null,
       instituto: null,
       avatarUrl: null,
+      sede: null,
       consentimientoEn: null,
     });
 
@@ -401,6 +402,7 @@ describe('perfil.json', () => {
       carrera: null,
       instituto: 'ORT',
       avatarUrl: '/api/avatar?v=1',
+      sede: null,
       consentimientoEn: null,
     });
   });

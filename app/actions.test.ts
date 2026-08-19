@@ -313,6 +313,7 @@ describe('perfil (local)', () => {
       carrera: null,
       instituto: 'ORT',
       avatarUrl: null,
+      sede: null,
       consentimientoEn: null,
     });
   });
@@ -333,6 +334,7 @@ describe('perfil (local)', () => {
       carrera: null,
       instituto: 'ORT',
       avatarUrl: '/api/avatar?v=1',
+      sede: null,
       consentimientoEn: null,
     });
   });

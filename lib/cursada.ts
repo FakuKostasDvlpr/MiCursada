@@ -336,3 +336,22 @@ export function fechaLargaHoy(ahora: Date): string {
   const local = enBA(ahora);
   return `${nombreDia(local.getDay())} ${local.getDate()} de ${MESES[local.getMonth()] ?? ''}`;
 }
+
+/**
+ * Turno derivado de los horarios REALES de la persona: el aula virtual no
+ * expone el turno en ningún campo, pero los horarios sí dicen cuándo cursa.
+ * Se decide por la mediana de los inicios (una clase suelta a contraturno no
+ * te cambia el cartel). Sin horarios devuelve null: la UI cae a la constante
+ * de lib/instituto.
+ */
+export function turnoDesdeMaterias(materias: Materia[]): string | null {
+  const inicios = materias
+    .flatMap((m) => m.horarios)
+    .map((h) => h.inicio)
+    .sort();
+  const medio = inicios[Math.floor(inicios.length / 2)];
+  if (!medio) return null;
+  if (medio >= '18:00') return 'Turno noche';
+  if (medio >= '13:00') return 'Turno tarde';
+  return 'Turno mañana';
+}

@@ -29,7 +29,7 @@ import {
 } from '@/lib/moodle/credenciales';
 import { guardarCredencialDb } from '@/lib/moodle/credenciales-db';
 import { pedirToken } from '@/lib/moodle/login';
-import { obtenerSiteInfo } from '@/lib/moodle/plan';
+import { obtenerSedeYCarrera, obtenerSiteInfo } from '@/lib/moodle/plan';
 import { getAvisos, getMaterias } from '@/lib/queries';
 import { abrirSesion, cerrarSesionActual, hayAcceso, usuarioActual } from '@/lib/sesion-actual';
 import { adminClient } from '@/lib/supabase/admin';
@@ -120,6 +120,16 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
     return { ok: false, error: ERROR_NO_HABILITADO };
   }
 
+  // La sede real del alumno (custom field del perfil de Moodle). Best-effort:
+  // si la instancia no expone la función, se entra igual y la UI cae a la
+  // constante de lib/instituto.
+  let sede: string | null = null;
+  try {
+    sede = (await obtenerSedeYCarrera({ ...cred, userid: site.userid })).sede;
+  } catch (e) {
+    loguear('iniciarSesion (sede)', e);
+  }
+
   if (supabaseConfigurado()) {
     try {
       const userId = await asegurarUsuarioSombra(site.userid, site.fullname);
@@ -135,6 +145,7 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
         .from('perfiles')
         .update({
           instituto: site.sitename.trim(),
+          ...(sede ? { sede } : {}),
           ultima_visita: new Date().toISOString(),
         })
         .eq('user_id', userId)
@@ -177,8 +188,13 @@ export async function iniciarSesion(usuario: string, password: string): Promise<
     const perfil = await leerPerfilLocal();
     const nombre = perfil?.nombre?.trim() || site.fullname;
     const instituto = site.sitename.trim() || perfil?.instituto || '';
-    if (nombre !== perfil?.nombre || instituto !== (perfil?.instituto ?? '')) {
-      await escribirPerfilLocal({ nombre, instituto });
+    const sedeLocal = sede ?? perfil?.sede ?? null;
+    if (
+      nombre !== perfil?.nombre ||
+      instituto !== (perfil?.instituto ?? '') ||
+      sedeLocal !== (perfil?.sede ?? null)
+    ) {
+      await escribirPerfilLocal({ nombre, instituto, sede: sedeLocal });
     }
   } catch (e) {
     loguear('iniciarSesion (perfil)', e); // no es motivo para no dejarte entrar

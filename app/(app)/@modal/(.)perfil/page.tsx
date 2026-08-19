@@ -1,6 +1,7 @@
 import { PerfilModal } from '@/components/perfil-modal';
+import { turnoDesdeMaterias } from '@/lib/cursada';
 import { leerCredenciales } from '@/lib/moodle/credenciales';
-import { getPerfil } from '@/lib/queries';
+import { getMaterias, getPerfil } from '@/lib/queries';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
 
 export const dynamic = 'force-dynamic';
@@ -12,8 +13,19 @@ export const dynamic = 'force-dynamic';
  * datos, misma vista, otra cáscara.
  */
 export default async function PerfilInterceptado() {
-  const [perfil, cred] = await Promise.all([getPerfil(), leerCredenciales()]);
+  const [perfil, cred, materias] = await Promise.all([
+    getPerfil(),
+    leerCredenciales(),
+    getMaterias(),
+  ]);
   // Del archivo de credenciales solo sale el usuario: el token NUNCA sale de ahí.
   const usuario = cred?.usuario ?? '';
-  return <PerfilModal perfil={perfil} usuario={usuario} conCuenta={supabaseConfigurado()} />;
+  return (
+    <PerfilModal
+      perfil={perfil}
+      usuario={usuario}
+      conCuenta={supabaseConfigurado()}
+      turno={turnoDesdeMaterias(materias)}
+    />
+  );
 }

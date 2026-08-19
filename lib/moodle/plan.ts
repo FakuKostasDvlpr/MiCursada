@@ -58,6 +58,7 @@ import {
   type SeccionCurso,
   type SiteInfo,
   type UrlModulo,
+  perfilesUsuarioSchema,
 } from './schemas';
 
 // ─── cursos ──────────────────────────────────────────────────────────────────
@@ -657,6 +658,29 @@ export function avisosDesdeEventos(
 
 export async function obtenerSiteInfo(cred?: Credencial): Promise<SiteInfo> {
   return siteInfoSchema.parse(await call('core_webservice_get_site_info', {}, cred));
+}
+
+/** Sede y carrera del alumno, como los declara el aula virtual. */
+export type SedeYCarrera = { sede: string | null; carreraCodigo: string | null };
+
+/**
+ * El propio perfil del alumno en el aula virtual. La sede viene en el custom
+ * field "1-Sede" (con `institution` de respaldo) y la carrera en "2-Carrera"
+ * (`department` de respaldo). Si la instancia no expone la función o los
+ * campos, devuelve nulls: quien llama cae a las constantes de lib/instituto.
+ */
+export async function obtenerSedeYCarrera(cred: Credencial): Promise<SedeYCarrera> {
+  const filas = perfilesUsuarioSchema.parse(
+    await call('core_user_get_users_by_field', { field: 'id', 'values[0]': cred.userid }, cred)
+  );
+  const yo = filas.find((f) => f.id === cred.userid) ?? filas[0];
+  if (!yo) return { sede: null, carreraCodigo: null };
+  const campo = (shortname: string) =>
+    yo.customfields?.find((c) => c.shortname === shortname)?.value.trim() || null;
+  return {
+    sede: campo('1Sede') ?? (yo.institution?.trim() || null),
+    carreraCodigo: campo('2Carrera') ?? (yo.department?.trim() || null),
+  };
 }
 
 export async function obtenerCursos(cred: Credencial): Promise<Curso[]> {

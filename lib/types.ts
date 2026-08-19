@@ -229,6 +229,12 @@ export type Perfil = {
   /** Constante de lib/instituto.ts (la API del aula virtual no la expone); null en modo local. */
   carrera: string | null;
   instituto: string | null;
+  /**
+   * Sede real del alumno (custom field "1-Sede" del perfil de Moodle). Se
+   * refresca al entrar; null hasta el primer login que la trae — ahí la UI cae
+   * a la constante de lib/instituto.
+   */
+  sede: string | null;
   avatarUrl: string | null;
   /** ISO de cuándo aceptó el consentimiento del primer ingreso; null en modo local (no aplica). */
   consentimientoEn: string | null;

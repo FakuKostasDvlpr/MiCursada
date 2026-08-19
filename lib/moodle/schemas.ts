@@ -45,6 +45,20 @@ export const siteInfoSchema = loose({
   functions: z.array(loose({ name: z.string(), version: z.string() })),
 });
 
+// 1b. core_user_get_users_by_field — el propio perfil del alumno. La sede
+// viene en `institution` y (más confiable) en el custom field "1-Sede";
+// la carrera en `department` / "2-Carrera", como código corto ("ASC").
+export const perfilesUsuarioSchema = z.array(
+  loose({
+    id: z.number(),
+    institution: z.string().optional(),
+    department: z.string().optional(),
+    customfields: z
+      .array(loose({ shortname: z.string(), value: z.string() }))
+      .optional(),
+  })
+);
+
 // 2. core_enrol_get_users_courses — array plano de cursos
 export const cursoSchema = loose({
   id: z.number(),
@@ -306,6 +320,7 @@ export const cuestionariosSchema = loose({
 /** Mapa función → schema, para validar genéricamente. */
 export const schemasPorFuncion: Record<FuncionMoodle, z.ZodType> = {
   core_webservice_get_site_info: siteInfoSchema,
+  core_user_get_users_by_field: perfilesUsuarioSchema,
   core_enrol_get_users_courses: cursosSchema,
   core_course_get_contents: contenidosCursoSchema,
   core_calendar_get_action_events_by_timesort: eventosCalendarioSchema,
