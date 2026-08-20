@@ -21,11 +21,18 @@ type Props = {
   encabezado?: React.ReactNode;
 };
 
-/** Clases del panel por variante de ancho (estáticas: Tailwind no arma strings). */
+/**
+ * Clases del panel por variante de ancho (estáticas: Tailwind no arma strings).
+ *
+ * El padding de abajo le suma `env(safe-area-inset-bottom)`: como sheet, el
+ * panel se apoya en el borde del viewport, y en un teléfono con barra de gestos
+ * el último botón quedaba justo debajo de ella. De 641px para arriba el modal
+ * está centrado y flotando, así que ahí vuelve al padding del handoff.
+ */
 const PANEL: Record<'estandar' | 'card', string> = {
   estandar:
-    'max-h-[88dvh] rounded-t-[20px] p-5 pb-[30px] min-[641px]:w-[440px] min-[641px]:rounded-2xl min-[641px]:pb-5',
-  card: 'max-h-[92dvh] rounded-t-[20px] p-[24px_26px_32px] min-[641px]:w-[580px] min-[641px]:max-h-[86dvh] min-[641px]:rounded-2xl',
+    'max-h-[88dvh] rounded-t-[20px] p-5 pb-[calc(30px+env(safe-area-inset-bottom))] min-[641px]:w-[440px] min-[641px]:rounded-2xl min-[641px]:pb-5',
+  card: 'max-h-[92dvh] rounded-t-[20px] p-[24px_26px_32px] pb-[calc(32px+env(safe-area-inset-bottom))] min-[641px]:w-[580px] min-[641px]:max-h-[86dvh] min-[641px]:rounded-2xl min-[641px]:pb-8',
 };
 
 /**

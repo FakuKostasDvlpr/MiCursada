@@ -30,6 +30,19 @@ function altoCuerpo(fase: Fase): number {
   return 118;
 }
 
+/**
+ * Clases de una capa del cuerpo de la card A. La capa ACTIVA queda en el flujo
+ * (`relative`) y es la que le da el alto al cuerpo; las demás se superponen
+ * absolutas para que el cruce siga siendo un relevo y no un salto.
+ *
+ * Con las tres absolutas el contenedor medía 0 de alto propio y todo dependía
+ * del `minHeight` fijo de `altoCuerpo()`: un nombre largo que envolvía a dos
+ * líneas (habitual a 360px de ancho) se derramaba fuera de la card. Así
+ * `altoCuerpo()` pasa a ser un piso y no un techo.
+ */
+const capaClase = (activa: boolean) =>
+  activa ? 'capa-entrada relative' : 'capa-entrada absolute inset-x-0 top-0';
+
 /** ¿El error apunta a lo que se tipeó, o es un problema de conexión? */
 const esDeCredenciales = (mensaje: string) =>
   /incorrect|poné tu usuario|bloqueado|otra cuenta/i.test(mensaje);
@@ -118,6 +131,8 @@ export function LoginEntrada() {
 
   const colapsado = COLAPSADO.includes(fase);
   const verFormulario = !colapsado;
+  const verIdentidad =
+    fase === 'form' || fase === 'cargando' || fase === 'check' || fase === 'error';
   const bordeCampo = camposMal && fase === 'error' ? '#fb7185' : 'var(--bor)';
 
   return (
@@ -131,7 +146,11 @@ export function LoginEntrada() {
     >
       {/* --- Card A: identidad. Nunca se desmonta; su cuerpo releva tres capas. --- */}
       <div
-        className={`card-in transicion-card mx-auto flex w-full basis-0 flex-col rounded-[20px] border border-bor bg-sup px-[30px] ${
+        // basis-0 SOLO en desktop: ahí la fila es `flex-row` y `flex-basis` es
+        // el ancho, que es lo que se quiere repartir entre las dos cards. En
+        // móvil la fila es `flex-col` y `flex-basis: 0` pasa a ser el ALTO — la
+        // card queda a altura cero y se apoya solo en su mínimo automático.
+        className={`card-in transicion-card mx-auto flex w-full flex-col rounded-[20px] border border-bor bg-sup px-[30px] min-[641px]:basis-0 ${
           colapsado ? 'justify-center py-[22px]' : 'py-[34px]'
         }`}
         style={{ flexGrow: 1.05, maxWidth: colapsado ? 620 : undefined }}
@@ -155,9 +174,9 @@ export function LoginEntrada() {
         >
           {/* Capa 1 — identidad */}
           <div
-            className="capa-entrada absolute inset-x-0 top-0"
+            className={capaClase(verIdentidad)}
             style={
-              fase === 'form' || fase === 'cargando' || fase === 'check' || fase === 'error'
+              verIdentidad
                 ? { opacity: 1, transform: 'none', filter: 'none' }
                 : {
                     opacity: 0,
@@ -185,7 +204,7 @@ export function LoginEntrada() {
           {/* Capa 2 — trayendo los datos */}
           <div
             aria-live="polite"
-            className="capa-entrada absolute inset-x-0 top-0"
+            className={capaClase(fase === 'datos')}
             style={
               fase === 'datos'
                 ? { opacity: 1, transform: 'none', filter: 'none' }
@@ -203,7 +222,9 @@ export function LoginEntrada() {
               <span aria-hidden className="dot-pulso h-[6px] w-[6px] rounded-full bg-acc" />
               <span className="kicker">Trayendo tus datos del aula virtual</span>
             </div>
-            <div className="mt-2 text-[26px] leading-[1.2] font-extrabold tracking-[-0.02em]">
+            {/* break-words: un apellido largo no tiene dónde cortar y a 320px
+                de ancho se salía de la card. */}
+            <div className="mt-2 text-[26px] leading-[1.2] font-extrabold tracking-[-0.02em] break-words">
               {nombre}
             </div>
             <div className="mt-[7px] font-mono text-[13px] text-tx2">{SEDE_Y_TURNO}</div>
@@ -252,7 +273,7 @@ export function LoginEntrada() {
 
           {/* Capa 3 — abriendo */}
           <div
-            className="capa-entrada absolute inset-x-0 top-0 grid place-items-center"
+            className={`${capaClase(fase === 'abriendo')} grid place-items-center`}
             style={
               fase === 'abriendo'
                 ? { opacity: 1, transform: 'none' }
@@ -268,10 +289,25 @@ export function LoginEntrada() {
         </div>
       </div>
 
-      {/* --- Card B: formulario. Colapsa animando flex-grow, no flex-basis. --- */}
+      {/* --- Card B: formulario. En desktop colapsa animando flex-grow (no
+          flex-basis); en móvil, cerrando su max-height. --- */}
       <div
-        className={`card-in transicion-card w-full basis-0 overflow-hidden rounded-[20px] border-bor bg-sup ${
-          verFormulario ? 'border px-[26px] py-[30px]' : 'border-0 px-0 py-[30px]'
+        // Ojo con `basis-0` acá: en móvil la fila es `flex-col`, así que
+        // `flex-basis` es el ALTO. Esta card además tiene `overflow-hidden`, y
+        // eso hace que su mínimo automático sea 0 en vez del alto del contenido
+        // (a diferencia de la card A, que sin overflow se salva sola). Con las
+        // dos cosas juntas la card se caía a la altura del padding y el
+        // formulario entero —usuario, contraseña y "Entrar"— quedaba recortado:
+        // desde un teléfono no había con qué entrar. De 641px para arriba
+        // `flex-basis` vuelve a ser el ancho y `basis-0` es correcto.
+        //
+        // El colapso de móvil lo hace `max-h-0` (transicionado en
+        // `.transicion-card`), que es el equivalente vertical del flex-grow que
+        // usa desktop.
+        className={`card-in transicion-card w-full overflow-hidden rounded-[20px] border-bor bg-sup min-[641px]:basis-0 ${
+          verFormulario
+            ? 'border px-[26px] py-[30px] max-[640px]:max-h-[1200px]'
+            : 'border-0 px-0 py-[30px] max-[640px]:max-h-0 max-[640px]:py-0'
         }`}
         aria-hidden={!verFormulario}
         style={{
@@ -280,13 +316,26 @@ export function LoginEntrada() {
           transform: verFormulario ? 'none' : 'scale(.96)',
         }}
       >
-        {/* Piso de ancho para el contenido: al colapsar, la card se va a ancho
-            ~0 pero sigue contando para el ALTO de la fila. Sin este piso el
-            formulario se reacomoda en una columna larguísima y la card A, que
-            está en items-stretch, se estira hasta el alto del viewport. Con el
-            piso el contenido no se reacomoda: se recorta (overflow-hidden) y la
-            card A no cambia de tamaño, que es lo que pide el handoff. */}
-        <div className="min-w-[300px]">
+        {/* Piso de ancho para el contenido MIENTRAS LA CARD SE CIERRA: al
+            colapsar, la card se va a ancho ~0 pero sigue contando para el ALTO
+            de la fila. Sin el piso el formulario se reacomoda en una columna
+            larguísima y la card A, que está en items-stretch, se estira hasta el
+            alto del viewport. Con el piso el contenido no se reacomoda: se
+            recorta (overflow-hidden) y la card A no cambia de tamaño, que es lo
+            que pide el handoff.
+
+            Dos condiciones, y las dos importan:
+
+            - Solo cuando `colapsado`. Como piso permanente recortaba el
+              formulario EN REPOSO en toda pantalla donde la card mide menos de
+              300px de ancho útil: de 641px a ~790px (tablet en vertical) la card
+              va de 232 a 300px, así que el borde derecho del campo y del botón
+              quedaba cortado. En reposo no hace falta ningún piso.
+            - Solo de 641px para arriba, que es donde el colapso es HORIZONTAL.
+              En móvil la fila es `flex-col` y la card se cierra en alto
+              (max-h-0), así que un piso de ancho no aporta nada y, de hecho,
+              recortaba el formulario en todo teléfono de menos de 390px. */}
+        <div className={colapsado ? 'min-[641px]:min-w-[300px]' : undefined}>
           <div className="min-[641px]:hidden">
             <span className="inline-flex items-center rounded-xl bg-white px-3 py-2">
               <Image
@@ -312,6 +361,7 @@ export function LoginEntrada() {
             <div className="relative">
               <input
                 id="usuario"
+                name="usuario"
                 type="text"
                 value={usuario}
                 onChange={(e) => setUsuario(e.target.value)}
@@ -319,8 +369,13 @@ export function LoginEntrada() {
                 autoCapitalize="off"
                 autoCorrect="off"
                 spellCheck={false}
+                enterKeyHint="next"
                 disabled={fase !== 'form' && fase !== 'error'}
-                className="min-h-12 w-full rounded-xl border bg-bg pr-10 pl-[14px] text-[15px] text-tx transition-colors duration-[250ms]"
+                // 16px en móvil, no 15: Safari en iOS le hace zoom al viewport
+                // cuando enfocás un input de menos de 16px, y la pantalla queda
+                // ampliada y corrida justo al ir a escribir. De 641px para
+                // arriba vuelve a los 15px del handoff.
+                className="min-h-12 w-full rounded-xl border bg-bg pr-10 pl-[14px] text-[16px] text-tx transition-colors duration-[250ms] min-[641px]:text-[15px]"
                 style={{ borderColor: bordeCampo }}
               />
               {camposMal && fase === 'error' && <EquisError />}
@@ -334,12 +389,15 @@ export function LoginEntrada() {
             <div className="relative">
               <input
                 id="password"
+                name="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
+                enterKeyHint="go"
                 disabled={fase !== 'form' && fase !== 'error'}
-                className="min-h-12 w-full rounded-xl border bg-bg pr-10 pl-[14px] text-[15px] text-tx transition-colors duration-[250ms]"
+                // Ver el input de usuario: 16px en móvil para que iOS no zoomee.
+                className="min-h-12 w-full rounded-xl border bg-bg pr-10 pl-[14px] text-[16px] text-tx transition-colors duration-[250ms] min-[641px]:text-[15px]"
                 style={{ borderColor: bordeCampo }}
               />
               {camposMal && fase === 'error' && <EquisError />}

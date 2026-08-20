@@ -22,7 +22,10 @@ export function Consentimiento() {
       role="dialog"
       aria-modal="true"
       aria-labelledby="titulo-privacidad"
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-scrim px-[18px] py-[30px] backdrop-blur-[10px]"
+      // El padding vertical le suma env(safe-area-inset-*): al ser `fixed` esta
+      // capa se apoya en el borde del viewport y no hereda el despeje del notch
+      // que globals.css le pone al body.
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-scrim px-[18px] py-[30px] pt-[calc(30px+env(safe-area-inset-top))] pb-[calc(30px+env(safe-area-inset-bottom))] backdrop-blur-[10px]"
     >
       <div className="card-in my-auto w-full max-w-[560px] rounded-[20px] border border-bor bg-sup px-[26px] py-[30px]">
         <div className="kicker">Un paso más</div>
