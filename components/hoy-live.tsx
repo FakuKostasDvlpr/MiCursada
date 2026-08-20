@@ -1,7 +1,10 @@
 'use client';
 
+import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useOptimistic, useState, useTransition } from 'react';
+import { toggleAviso } from '@/app/actions';
+import { AvisoModal } from '@/components/aviso-modal';
 import {
   IndicadorAula,
   PanelAulaVirtual,
@@ -24,6 +27,8 @@ import {
   statsBento,
   textoEstado,
 } from '@/lib/cursada';
+import type { ResumenNota } from '@/lib/aviso-nota';
+import { lanzarToast } from '@/lib/toast';
 import type { Aviso, Materia } from '@/lib/types';
 
 /** 'YYYY-MM-DD' → 'dd/mm'. */
@@ -49,6 +54,12 @@ type Props = {
   inicialIso: string;
   /** ISO de la última sincronización con el aula virtual, o null si nunca corrió. */
   syncIso?: string | null;
+  /**
+   * Resumen de la nota que originó cada aviso, por id de aviso. Se resuelve en
+   * el server: el cliente no necesita los bloques de todas las materias para
+   * pintar el modal de detalle.
+   */
+  notas?: Record<string, ResumenNota>;
 };
 
 /**
@@ -65,9 +76,19 @@ export function HoyLive({
   instituto = null,
   inicialIso,
   syncIso = null,
+  notas = {},
 }: Props) {
   const [ahora, setAhora] = useState(() => new Date(inicialIso));
   const [panel, setPanel] = useState(false);
+  /** Id del aviso cuyo modal de detalle está abierto, o null. */
+  const [avisoVisto, setAvisoVisto] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+  // Los avisos que se acaban de marcar hechos, para que la fila desaparezca
+  // antes de que el server responda. Misma mecánica que `/avisos`.
+  const [hechos, marcarOptimista] = useOptimistic<string[], string>(
+    [],
+    (prev, id) => [...prev, id]
+  );
   const { estado, clave, refrescar } = useAulaVirtual();
 
   useEffect(() => {
@@ -80,9 +101,28 @@ export function HoyLive({
   const badge = prox ? badgeLlegada(prox, ahora) : null;
   const hoy = clasesDeHoy(materias, ahora);
   const stats = statsBento(materias, avisos, ahora);
-  const proximos = avisos.filter((a) => !a.hecho).slice(0, 3);
+  const proximos = avisos.filter((a) => !a.hecho && !hechos.includes(a.id)).slice(0, 3);
   const materiaDe = (id: string | null) => materias.find((m) => m.id === id) ?? null;
   const detalles = detallesAula(estado, ahora, syncIso);
+
+  /**
+   * Marca el aviso como hecho. La fila sale de la lista al instante (Hoy solo
+   * muestra pendientes) y el toast confirma: sin él la fila desaparecería sin
+   * explicación. El prototipo no lo dispara — el README del handoff sí lo pide,
+   * y acá hace falta más que allá porque la lista es de solo tres.
+   */
+  const marcarHecho = (id: string) => {
+    setAvisoVisto(null);
+    startTransition(async () => {
+      marcarOptimista(id);
+      await toggleAviso(id, true);
+      lanzarToast('Aviso marcado como hecho', 'ok');
+    });
+  };
+
+  const abierto = proximos.find((a) => a.id === avisoVisto) ?? null;
+  const materiaAbierta = abierto ? materiaDe(abierto.materiaId) : null;
+  const notaAbierta = abierto ? (notas[abierto.id] ?? null) : null;
 
   return (
     <>
@@ -254,43 +294,78 @@ export function HoyLive({
             </div>
           ) : (
             <div className="flex flex-col gap-[6px]">
+              {/* El prototipo mete el chevron (un span role="button") ADENTRO del
+                  botón de la fila y le pone stopPropagation. Acá los dos
+                  controles son hermanos: un interactivo dentro de otro es HTML
+                  inválido y no se puede tabular. */}
               {proximos.map((a) => {
                 const materia = materiaDe(a.materiaId);
                 const estado = estadoAviso(a, ahora);
                 return (
-                  <Link
+                  <div
                     key={a.id}
-                    href="/avisos"
-                    className="flex min-h-[52px] items-center gap-3 rounded-xl border border-bor bg-bg px-3 py-2 !text-tx"
+                    className="flex min-h-[52px] items-center gap-3 rounded-xl border border-bor bg-bg px-3 py-2"
                   >
-                    <span
-                      aria-hidden
-                      className="h-5 w-5 shrink-0 rounded-full border-2 border-bor2"
-                    />
-                    <span className="block min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">{a.titulo}</span>
-                      <span className="mt-[3px] flex items-center gap-[6px]">
-                        <span
-                          aria-hidden
-                          className="h-[6px] w-[6px] rounded-full"
-                          style={{ background: materia?.color ?? '#64748b' }}
-                        />
-                        <span className="text-xs text-tx3">{materia?.nombre ?? 'General'}</span>
-                      </span>
-                    </span>
-                    <span
-                      className={`font-mono text-xs whitespace-nowrap ${
-                        estado === 'vencido'
-                          ? 'text-vencido'
-                          : estado === 'hoy'
-                            ? 'text-acc'
-                            : 'text-tx3'
-                      }`}
+                    <button
+                      type="button"
+                      onClick={() => marcarHecho(a.id)}
+                      aria-label={`Marcar "${a.titulo}" como hecho`}
+                      className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left text-tx"
                     >
-                      {ddmm(a.fecha)}
-                      {estado === 'vencido' ? ' · vencido' : estado === 'hoy' ? ' · hoy' : ''}
-                    </span>
-                  </Link>
+                      <span
+                        aria-hidden
+                        className="h-5 w-5 shrink-0 rounded-full border-2 border-bor2"
+                      />
+                      <span className="block min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{a.titulo}</span>
+                        {/* El nombre TRUNCA. En el prototipo no hace falta porque
+                            su demo usa nombres cortos; los del aula virtual son
+                            del tipo "Taller de Herramientas de Programación –
+                            Plan 2 años 2°Semestre 2026" y envolvían en tres
+                            líneas: la fila medía 89px en vez de los 52 del
+                            handoff. */}
+                        <span className="mt-[3px] flex min-w-0 items-center gap-[6px]">
+                          <span
+                            aria-hidden
+                            className="h-[6px] w-[6px] shrink-0 rounded-full"
+                            style={{ background: materia?.color ?? '#64748b' }}
+                          />
+                          <span className="min-w-0 truncate text-xs text-tx3">
+                            {materia?.nombre ?? 'General'}
+                          </span>
+                        </span>
+                      </span>
+                      <span
+                        className={`font-mono text-xs whitespace-nowrap ${
+                          estado === 'vencido'
+                            ? 'text-vencido'
+                            : estado === 'hoy'
+                              ? 'text-acc'
+                              : 'text-tx3'
+                        }`}
+                      >
+                        {ddmm(a.fecha)}
+                        {estado === 'vencido' ? ' · vencido' : estado === 'hoy' ? ' · hoy' : ''}
+                      </span>
+                    </button>
+                    {/* El cuadrado que se ve mide 32px (handoff); el área
+                        tocable es de 44px y se come el padding de la fila con
+                        el margen negativo, así la fila no crece. */}
+                    <button
+                      type="button"
+                      onClick={() => setAvisoVisto(a.id)}
+                      aria-label="Ver detalle del aviso"
+                      title="Ver detalle"
+                      className="-my-[6px] grid h-11 w-11 shrink-0 cursor-pointer place-items-center"
+                    >
+                      <span
+                        aria-hidden
+                        className="grid h-8 w-8 place-items-center rounded-[9px] border border-bor text-tx3"
+                      >
+                        <ChevronRight size={14} strokeWidth={2} />
+                      </span>
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -309,6 +384,25 @@ export function HoyLive({
             Sincronizado con el aula virtual · {hace(syncIso, ahora)}
           </span>
         </button>
+      )}
+
+      {abierto && (
+        <AvisoModal
+          abierto
+          titulo={abierto.titulo}
+          fecha={abierto.fecha}
+          estado={estadoAviso(abierto, ahora)}
+          materiaNombre={materiaAbierta?.nombre ?? 'General'}
+          materiaColor={materiaAbierta?.color ?? '#64748b'}
+          nota={notaAbierta}
+          notaHref={
+            notaAbierta && abierto.materiaId && abierto.notaId
+              ? `/materias/${abierto.materiaId}?nota=${abierto.notaId}`
+              : null
+          }
+          onCerrar={() => setAvisoVisto(null)}
+          onHecho={() => marcarHecho(abierto.id)}
+        />
       )}
 
       <PanelAulaVirtual

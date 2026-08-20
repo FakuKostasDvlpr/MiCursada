@@ -17,7 +17,12 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { sincronizarAhora } from '@/app/actions-moodle';
-import { escribirPerfilLocal, getDatosLocales, leerPerfilLocal } from '@/lib/datos-locales';
+import {
+  escribirPerfilLocal,
+  getDatosLocales,
+  leerPerfilLocal,
+  marcarOnboardingLocal,
+} from '@/lib/datos-locales';
 import { registrarEvento } from '@/lib/eventos';
 import { sanitizar } from '@/lib/moodle/cliente';
 import {
@@ -350,4 +355,43 @@ export async function aceptarConsentimiento(): Promise<void> {
   // datos recién bajados, no el estado vacío de antes de aceptar.
   revalidatePath('/', 'layout');
   redirect('/');
+}
+
+/**
+ * Marca el onboarding de 3 pasos como visto (spec `specs/onboarding-y-salida`
+ * R1.4). El prototipo no persiste nada y lo muestra en cada login; acá va una
+ * sola vez por persona, y en el backend — no en `localStorage`, que se
+ * perdería al cambiar de dispositivo.
+ *
+ * Chequea el acceso por su cuenta: es un POST, no pasa por el layout de (app).
+ * NO exige consentimiento: el overlay del onboarding recién se monta cuando ya
+ * consentiste, y este write no toca datos de la cursada.
+ *
+ * No redirige y **no tira**: si el write falla, el overlay se cierra igual en
+ * el cliente y a lo sumo el onboarding vuelve a salir una vez. Dejar a alguien
+ * encerrado en la presentación de la app es peor que mostrarla dos veces.
+ */
+export async function terminarOnboarding(): Promise<void> {
+  if (!(await hayAcceso())) return;
+  const ahora = new Date().toISOString();
+
+  if (!supabaseConfigurado()) {
+    try {
+      await marcarOnboardingLocal(ahora);
+    } catch (e) {
+      loguear('terminarOnboarding (local)', e);
+    }
+    revalidatePath('/', 'layout');
+    return;
+  }
+
+  const u = await usuarioActual();
+  if (!u) return;
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('perfiles')
+    .update({ onboarding_en: ahora })
+    .eq('user_id', u.userId);
+  if (error) loguear('terminarOnboarding', error);
+  revalidatePath('/', 'layout');
 }

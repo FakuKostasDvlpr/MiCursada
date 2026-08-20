@@ -150,11 +150,19 @@ export async function getPerfil(): Promise<Perfil | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('perfiles')
-    .select('nombre, carrera, instituto, sede, avatar_url, consentimiento_en')
+    .select('nombre, carrera, instituto, sede, avatar_url, consentimiento_en, onboarding_en')
     .maybeSingle();
 
   if (error) {
-    console.error('getPerfil:', error);
+    // Los campos del PostgrestError se listan a mano: pasado como objeto se
+    // serializa a `{}` cruzando el borde RSC y el overlay de Next mostraba
+    // "getPerfil: {}", que no dice nada. El caso típico acá es una columna del
+    // select que la base todavía no tiene (falta correr una migración).
+    console.error(
+      `getPerfil: ${error.code ?? 'sin código'} — ${error.message}${
+        error.hint ? ` (hint: ${error.hint})` : ''
+      }`
+    );
     throw error;
   }
   if (!data) return null;
@@ -165,6 +173,7 @@ export async function getPerfil(): Promise<Perfil | null> {
     sede: string | null;
     avatar_url: string | null;
     consentimiento_en: string | null;
+    onboarding_en: string | null;
   };
   return {
     nombre: row.nombre,
@@ -173,6 +182,7 @@ export async function getPerfil(): Promise<Perfil | null> {
     sede: row.sede,
     avatarUrl: row.avatar_url,
     consentimientoEn: row.consentimiento_en,
+    onboardingEn: row.onboarding_en,
   };
 }
 

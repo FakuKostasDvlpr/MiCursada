@@ -384,6 +384,7 @@ describe('perfil.json', () => {
       avatarUrl: null,
       sede: null,
       consentimientoEn: null,
+      onboardingEn: null,
     });
 
     await escribirPerfilLocal({ nombre: 'Facu', instituto: 'ORT' });
@@ -404,6 +405,7 @@ describe('perfil.json', () => {
       avatarUrl: '/api/avatar?v=1',
       sede: null,
       consentimientoEn: null,
+      onboardingEn: null,
     });
   });
 });

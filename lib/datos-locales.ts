@@ -269,13 +269,15 @@ export const bloquesArchivoSchema = z.record(z.string(), z.array(bloqueLocalSche
 export type BloqueLocal = z.infer<typeof bloqueLocalSchema>;
 export type BloquesArchivo = z.infer<typeof bloquesArchivoSchema>;
 
-/** { nombre, instituto, sede, avatarUrl } — el perfil del usuario en modo local. */
+/** { nombre, instituto, sede, avatarUrl, onboardingEn } — el perfil en modo local. */
 export const perfilArchivoSchema = z.object({
   nombre: z.string(),
   instituto: z.string().nullable().default(null),
   /** Sede real del aula virtual; null hasta el primer login que la trae. */
   sede: z.string().nullable().default(null),
   avatarUrl: z.string().nullable().default(null),
+  /** ISO de cuándo se terminó el onboarding; null = todavía no se vio. */
+  onboardingEn: z.string().nullable().default(null),
 });
 
 export type PerfilArchivo = z.infer<typeof perfilArchivoSchema>;
@@ -756,6 +758,7 @@ export async function leerPerfilLocal(): Promise<Perfil | null> {
     sede: parsed.data.sede,
     avatarUrl: parsed.data.avatarUrl,
     consentimientoEn: null,
+    onboardingEn: parsed.data.onboardingEn,
   };
 }
 
@@ -768,6 +771,8 @@ export async function escribirPerfilLocal(perfil: {
   /** `undefined` conserva la sede guardada; `null` la borra explícitamente. */
   sede?: string | null;
   avatarUrl?: string;
+  /** `undefined` conserva la marca de onboarding guardada. */
+  onboardingEn?: string | null;
 }): Promise<void> {
   const previo = await leerPerfilLocal();
   await escribirJson(rutaDatos('perfil'), {
@@ -775,6 +780,22 @@ export async function escribirPerfilLocal(perfil: {
     instituto: perfil.instituto || null,
     sede: perfil.sede !== undefined ? perfil.sede : (previo?.sede ?? null),
     avatarUrl: perfil.avatarUrl ?? previo?.avatarUrl ?? null,
+    onboardingEn:
+      perfil.onboardingEn !== undefined ? perfil.onboardingEn : (previo?.onboardingEn ?? null),
+  });
+}
+
+/**
+ * Marca el onboarding como visto en datos/perfil.json, conservando todo lo
+ * demás. Si el archivo todavía no existe (nunca hubo login), lo crea con el
+ * nombre vacío: el próximo login lo completa vía `sincronizarInstitutoLocal`.
+ */
+export async function marcarOnboardingLocal(iso: string): Promise<void> {
+  const previo = await leerPerfilLocal();
+  await escribirPerfilLocal({
+    nombre: previo?.nombre ?? '',
+    instituto: previo?.instituto ?? '',
+    onboardingEn: iso,
   });
 }
 

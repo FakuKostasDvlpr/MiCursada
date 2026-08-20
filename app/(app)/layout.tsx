@@ -3,6 +3,7 @@ import { BottomNav } from '@/components/bottom-nav';
 import { Consentimiento } from '@/components/consentimiento';
 import { Contenedor } from '@/components/contenedor';
 import { Logro } from '@/components/logro';
+import { Onboarding } from '@/components/onboarding';
 import { Sidebar } from '@/components/sidebar';
 import { Toast } from '@/components/toast';
 import { materiasAvisables } from '@/lib/aviso-presente';
@@ -48,12 +49,18 @@ export default async function LayoutApp({
   );
 
   const faltaConsentir = supabaseConfigurado() && !perfil?.consentimientoEn;
+  // El onboarding va DESPUÉS del consentimiento y nunca a la vez: dos overlays
+  // con blur uno arriba del otro no se leen (spec `onboarding-y-salida` A3).
+  // Pide un perfil existente: sin él todavía no hay dónde escribir el flag y el
+  // overlay volvería a salir en cada request.
+  const faltaOnboarding = !faltaConsentir && !!perfil && !perfil.onboardingEn;
+  const tapado = faltaConsentir || faltaOnboarding;
 
   return (
     <>
       {/* aria-hidden + inert: lo de atrás es decorado mientras el aviso está arriba.
           El logro y el toast van adentro: si falta consentir tampoco tienen que sonar. */}
-      <div aria-hidden={faltaConsentir || undefined} inert={faltaConsentir || undefined}>
+      <div aria-hidden={tapado || undefined} inert={tapado || undefined}>
         <Sidebar
           nombre={perfil?.nombre ?? ''}
           iniciales={iniciales(perfil?.nombre ?? '')}
@@ -72,6 +79,7 @@ export default async function LayoutApp({
       </div>
       {modal}
       {faltaConsentir ? <Consentimiento /> : null}
+      {faltaOnboarding ? <Onboarding /> : null}
     </>
   );
 }

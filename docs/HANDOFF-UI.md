@@ -160,6 +160,29 @@ Casos concretos de esta sesión donde el README mentía o se quedaba corto:
   Las adaptaciones respecto del prototipo (estados por umbral de
   `ultima_visita`, "Materias con más notas" en lugar de "Pantallas más usadas",
   sin dispositivo/versión) están todas en el spec §2, con motivo.
+- **19/08 (`Mi Cursada - App de estudio (8)/design_handoff_onboarding_sesion/`)**
+  — onboarding de 3 pasos + loader de anillos, modal de cierre de sesión y
+  chevron + modal grande de aviso en la card de Hoy: **implementado el
+  19/08** (spec en `specs/onboarding-y-salida/spec.md`).
+
+  Tres cosas que conviene saber:
+
+  1. **Queda un paso a mano: aplicar `supabase/migrations/0005_perfiles_onboarding.sql`.**
+     Sin eso, en modo Supabase `getPerfil()` pide `onboarding_en` y todo `(app)`
+     devuelve 500. La verificación en navegador se hizo íntegra en modo local
+     aislado, así que este camino **no se vio corriendo con Postgres**.
+  2. **Este paquete cierra el R7 de `specs/avisos-vinculados`** (el modal grande
+     de aviso), que estaba specado y sin implementar desde el 17/08 — en su
+     lugar se había hecho el snippet inline de `components/nota-aviso.tsx`. El
+     modal ahora existe en `components/aviso-modal.tsx` y lo abre el chevron de
+     Hoy. **En `/avisos` y en la tab Avisos de la materia sigue estando solo el
+     snippet**: sumarles el chevron quedó fuera de alcance (el handoff §3 es la
+     card de Hoy).
+  3. El onboarding se muestra **una sola vez por persona**, no en cada login
+     como el prototipo — decisión del usuario, flag en `perfiles.onboarding_en`
+     / `datos/perfil.json → onboardingEn`. Nada en `localStorage`. **No hay
+     forma de volver a verlo**: si se quiere, va un botón en `/manual` que
+     ponga el flag en `null` (§6).
 
 ### Lo implementado del paquete nuevo (17/08)
 
@@ -235,6 +258,14 @@ y dejar solo la carpeta.
 - El subtítulo de la secuencia de entrada dice `SEDE_Y_TURNO`
   ("Almagro · Turno noche"); el prototipo dice "Turno noche · Lun a Sáb
   18:10–21:30". Es una constante de `lib/instituto.ts`, se dejó a propósito.
+- **Aplicar `supabase/migrations/0005_perfiles_onboarding.sql`** (19/08). Es lo
+  único que le falta al onboarding para funcionar en modo Supabase.
+- **Volver a ver el onboarding a pedido**: hoy, una vez visto, no hay forma de
+  mostrarlo de nuevo. Un botón en `/manual` que ponga `onboarding_en` en `null`
+  lo resuelve, pero no se implementó (no lo pedía el handoff).
+- **El chevron + modal grande de aviso solo está en Hoy** (19/08). En `/avisos`
+  y en la tab Avisos de la materia sigue el snippet inline. Si se quiere
+  consistencia, `components/aviso-modal.tsx` ya es reusable.
 
 ---
 

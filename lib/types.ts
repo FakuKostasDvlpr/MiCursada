@@ -248,4 +248,11 @@ export type Perfil = {
   avatarUrl: string | null;
   /** ISO de cuándo aceptó el consentimiento del primer ingreso; null en modo local (no aplica). */
   consentimientoEn: string | null;
+  /**
+   * ISO de cuándo terminó (o salteó) el onboarding de 3 pasos. `null` = todavía
+   * no lo vio, así que el overlay se muestra. El prototipo no persiste nada y lo
+   * muestra en cada login; acá va una sola vez por persona (spec
+   * `onboarding-y-salida` A1).
+   */
+  onboardingEn: string | null;
 };

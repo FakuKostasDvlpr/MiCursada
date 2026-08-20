@@ -361,6 +361,92 @@ html[data-tema="claro"] {
    ya no compiten por el mismo lugar: no hace falta correr ninguno cuando
    aparecen los dos juntos. */
 
+/* --- Onboarding + loader (handoff design_handoff_onboarding_sesion) --- */
+
+/* onbPasoIn: la card del paso entra desde la derecha, desenfocada. Se remonta
+   por `key` en cada cambio de paso para que la animación vuelva a correr. */
+@keyframes onb-paso-in {
+  0% {
+    opacity: 0;
+    transform: translateX(26px) scale(0.97);
+    filter: blur(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+.onb-paso-in {
+  animation: onb-paso-in 0.5s cubic-bezier(0.22, 0.8, 0.3, 1) both;
+}
+
+/* shimmerTxt: la franja de luz que barre el título del loader y el texto de la
+   tarea en curso. El degradado es el fondo del texto (background-clip: text),
+   así que lo que se mueve es `background-position`. */
+@keyframes shimmer-txt {
+  0% {
+    background-position: 150% 0;
+  }
+  100% {
+    background-position: -50% 0;
+  }
+}
+
+.shimmer-txt {
+  background: linear-gradient(90deg, var(--tx3) 0%, var(--tx) 50%, var(--tx3) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer-txt 1.6s linear infinite;
+}
+
+/* La tarea en curso barre más rápido que el título. */
+.shimmer-txt-rapido {
+  animation-duration: 1.3s;
+}
+
+/* Los dos anillos del loader: un conic-gradient recortado a aro fino con una
+   máscara radial. El interno gira al revés, con su propio keyframe en vez de
+   `animation-direction` (que en un `style` inline se pisa con el shorthand). */
+@keyframes girar-inv {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+.anillo-ext {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(251, 191, 36, 0.15) 120deg,
+    #fbbf24 320deg,
+    transparent 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  animation: girar 1.15s linear infinite;
+}
+
+.anillo-int {
+  background: conic-gradient(
+    from 180deg,
+    transparent 0deg,
+    rgba(56, 189, 248, 0.12) 140deg,
+    #38bdf8 310deg,
+    transparent 360deg
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 2.5px),
+    #000 calc(100% - 2.5px)
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2.5px));
+  animation: girar-inv 1.7s linear infinite;
+}
+
 /* Transiciones de la secuencia de entrada. Van en clases (y no inline) para que
    el bloque de reduced-motion de abajo pueda apagarlas todas de una. */
 .transicion-card {
@@ -430,6 +516,27 @@ html[data-tema="claro"] {
   /* El number-flow deja de rodar: el dígito correcto ya está en su lugar. */
   .cifra-tira {
     transition: none;
+  }
+
+  /* La card del paso aparece sin deslizarse ni desenfocarse. */
+  .onb-paso-in {
+    animation: none;
+  }
+
+  /* El shimmer quieto sería un degradado fijo sobre texto transparente: no se
+     lee. Sin movimiento, el texto vuelve a ser texto. */
+  .shimmer-txt {
+    animation: none;
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: var(--tx);
+  }
+
+  /* Los anillos quedan quietos: el aro ámbar sigue marcando que algo pasa. */
+  .anillo-ext,
+  .anillo-int {
+    animation: none;
   }
 }
 

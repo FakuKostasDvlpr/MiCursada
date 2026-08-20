@@ -4,6 +4,7 @@
 // más (`notaId`). El título sale del texto de la nota, recortado, porque una
 // nota puede ser un párrafo entero y el aviso es una fila de una línea.
 
+import type { EstadoAviso } from '@/lib/cursada';
 import type { Bloque, EstadoBloque, TipoBloque } from '@/lib/types';
 
 /** Largo máximo del título antes de recortar. */
@@ -34,6 +35,31 @@ const ESTADO_NOTA: Record<EstadoBloque, { nombre: string; color: string }> = {
   proceso: { nombre: 'en proceso', color: '#38bdf8' },
   listo: { nombre: 'listo', color: '#34d399' },
 };
+
+/**
+ * Badge de estado del modal grande de aviso (spec `onboarding-y-salida` R7.5).
+ * El orden de precedencia lo define `estadoAviso()`: `hecho` gana siempre, y
+ * la comparación de fechas ya viene hecha en Buenos Aires.
+ *
+ * El color va como token CSS donde existe (`--acc`, `--vencido`, `--tx2`) y
+ * como hex solo el verde, que no tiene variable.
+ */
+const BADGE_AVISO: Record<EstadoAviso, { texto: string; color: string }> = {
+  hecho: { texto: 'Hecho', color: '#34d399' },
+  vencido: { texto: 'Vencido', color: 'var(--vencido)' },
+  hoy: { texto: 'Vence hoy', color: 'var(--acc)' },
+  pendiente: { texto: 'Pendiente', color: 'var(--tx2)' },
+};
+
+export const badgeAviso = (estado: EstadoAviso): { texto: string; color: string } =>
+  BADGE_AVISO[estado];
+
+/** 'YYYY-MM-DD' → 'dd/mm/yyyy', el formato largo del modal (R7.4). */
+export function fechaLargaAviso(fecha: string): string {
+  const [a, m, d] = fecha.split('-');
+  if (!a || !m || !d) return fecha;
+  return `${d}/${m}/${a}`;
+}
 
 export type ResumenNota = {
   texto: string;

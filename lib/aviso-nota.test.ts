@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { LARGO_TITULO, resumenNota, tituloDesdeNota } from './aviso-nota';
+import {
+  LARGO_TITULO,
+  badgeAviso,
+  fechaLargaAviso,
+  resumenNota,
+  tituloDesdeNota,
+} from './aviso-nota';
 
 describe('tituloDesdeNota', () => {
   it('usa el texto de la nota tal cual cuando entra', () => {
@@ -52,5 +58,25 @@ describe('resumenNota', () => {
   it('una nota sin texto muestra "Sin título"', () => {
     const r = resumenNota({ ...base, texto: '   ', tipo: 'texto', estado: 'pendiente', hecho: false });
     expect(r.texto).toBe('Sin título');
+  });
+});
+
+describe('badgeAviso', () => {
+  it('nombra y pinta cada estado como el handoff', () => {
+    expect(badgeAviso('hecho')).toEqual({ texto: 'Hecho', color: '#34d399' });
+    expect(badgeAviso('vencido')).toEqual({ texto: 'Vencido', color: 'var(--vencido)' });
+    expect(badgeAviso('hoy')).toEqual({ texto: 'Vence hoy', color: 'var(--acc)' });
+    expect(badgeAviso('pendiente')).toEqual({ texto: 'Pendiente', color: 'var(--tx2)' });
+  });
+});
+
+describe('fechaLargaAviso', () => {
+  it('pasa el ISO a dd/mm/yyyy', () => {
+    expect(fechaLargaAviso('2026-08-19')).toBe('19/08/2026');
+  });
+
+  it('lo que no es un ISO vuelve tal cual, sin romperse', () => {
+    expect(fechaLargaAviso('')).toBe('');
+    expect(fechaLargaAviso('mañana')).toBe('mañana');
   });
 });

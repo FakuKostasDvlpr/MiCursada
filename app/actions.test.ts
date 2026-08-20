@@ -316,6 +316,7 @@ describe('perfil (local)', () => {
       avatarUrl: null,
       sede: null,
       consentimientoEn: null,
+      onboardingEn: null,
     });
   });
 
@@ -337,6 +338,7 @@ describe('perfil (local)', () => {
       avatarUrl: '/api/avatar?v=1',
       sede: null,
       consentimientoEn: null,
+      onboardingEn: null,
     });
   });
 });
