@@ -37,8 +37,15 @@ export default async function PaginaSemana() {
           "todavía no lo configuraste". */}
       <ArmarSemana materias={materias} />
 
-      {/* 1 columna en móvil, 2 en desktop (cards al tope de su fila). */}
-      <div className="mt-5 grid items-start gap-[10px] min-[641px]:grid-cols-[repeat(2,minmax(0,1fr))]">
+      {/* 1 columna en móvil, 2 en desktop (cards al tope de su fila).
+          `grid-cols-1` no es decorativo: sin declarar columnas, la grilla arma
+          una columna implícita de tamaño `auto`, y una pista `auto` se estira
+          hasta el max-content de su contenido. Con un nombre de materia largo
+          eso hacía la card de 623px adentro de una pantalla de 360, y la mitad
+          derecha —el horario incluido— quedaba cortada. `grid-cols-1` de
+          Tailwind es `minmax(0, 1fr)`, que es justo el piso de 0 que le faltaba
+          (el mismo que ya traía la versión de dos columnas). */}
+      <div className="mt-5 grid grid-cols-1 items-start gap-[10px] min-[641px]:grid-cols-[repeat(2,minmax(0,1fr))]">
         {dias.map((d) => {
           const clases = clasesDeDia(materias, d.dia);
           return (

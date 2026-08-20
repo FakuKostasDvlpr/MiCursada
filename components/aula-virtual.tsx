@@ -146,7 +146,13 @@ export function IndicadorAula({ clave, nombre, detalles, onAbrirPanel }: Indicad
   const resumen = clave === 'activo' && nombre ? `${TITULO.activo} · ${nombre}` : TITULO[clave];
 
   return (
-    <div ref={cont} className="relative shrink-0">
+    // `relative` solo de 641px para arriba. En móvil el wrapper queda `static`
+    // a propósito, así el popover de abajo se ancla al <header> (que sí es
+    // relative) en vez de a este botón de 40px: colgado del botón, con el
+    // interruptor de tema y el avatar a su derecha, su borde derecho cae a unos
+    // 130px del borde de la página, y 252px de ancho lo mandaban 40px afuera de
+    // la pantalla por la izquierda.
+    <div ref={cont} className="shrink-0 min-[641px]:relative">
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
@@ -170,7 +176,10 @@ export function IndicadorAula({ clave, nombre, detalles, onAbrirPanel }: Indicad
         <div
           role="dialog"
           aria-label="Estado del aula virtual"
-          className="absolute top-[48px] right-0 z-50 w-[252px] rounded-[14px] border border-bor bg-sup p-[14px] text-left"
+          // El max-w es el cinturón de seguridad para pantallas muy angostas:
+          // el ancho del contenido es el viewport menos los 18px de padding de
+          // cada lado que pone el contenedor de página.
+          className="absolute top-[48px] right-0 z-50 w-[252px] max-w-[calc(100vw-36px)] rounded-[14px] border border-bor bg-sup p-[14px] text-left"
         >
           <div className="flex items-start gap-2">
             <span
@@ -237,8 +246,11 @@ export function PanelAulaVirtual({
   );
 }
 
+// 16px en móvil y 15 de 641px para arriba: Safari en iOS le hace zoom al
+// viewport cuando enfocás un input de menos de 16px, y el sheet queda ampliado y
+// corrido justo al ir a escribir la contraseña. Mismo criterio que el login.
 const claseInput =
-  'w-full min-h-[46px] rounded-xl border border-bor bg-bg px-[14px] text-[15px] text-tx';
+  'w-full min-h-[46px] rounded-xl border border-bor bg-bg px-[14px] text-[16px] text-tx min-[641px]:text-[15px]';
 const claseLabel = 'kicker mb-[7px] block';
 
 /**

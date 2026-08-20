@@ -126,8 +126,17 @@ export function HoyLive({
 
   return (
     <>
-      <header className="flex items-start gap-[10px]">
-        <div className="min-w-0 flex-1">
+      {/* `relative` para que el popover del aula virtual pueda anclarse al
+          header en móvil: colgado del botón (que tiene el tema y el avatar a su
+          derecha) se le iba de la pantalla por la izquierda.
+
+          En móvil los tres controles se van a su propia fila. Los tres juntos
+          miden unos 180px con los gaps, y en una pantalla de 360 (324 de ancho
+          útil) dejaban ~144px para el texto: el saludo y la fecha se partían en
+          tres líneas cada uno. Arriba de 641px el header sigue siendo una sola
+          fila, como en el handoff. */}
+      <header className="relative flex items-start gap-[10px] max-[640px]:flex-wrap max-[640px]:justify-end">
+        <div className="min-w-0 flex-1 max-[640px]:order-2 max-[640px]:w-full max-[640px]:flex-none">
           <Saludo nombre={nombre} />
           <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.015em]">
             {fechaLargaHoy(ahora)}
