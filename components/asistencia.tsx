@@ -22,7 +22,7 @@ type LinkProps = {
 };
 
 /** Link "Dar el presente": abre el módulo de asistencia en una pestaña nueva. */
-export function LinkPresente({ url, destacado, materia }: LinkProps) {
+function LinkPresente({ url, destacado, materia }: LinkProps) {
   return (
     <a
       href={url}
@@ -46,7 +46,7 @@ export function LinkPresente({ url, destacado, materia }: LinkProps) {
  * nueva. SIEMPRE secundario — el primario ámbar es el de asistencia. Cuando la
  * clase está en la ventana activa se acentúa el borde/texto, sin fondo.
  */
-export function LinkClase({ url, destacado, materia }: LinkProps) {
+function LinkClase({ url, destacado, materia }: LinkProps) {
   return (
     <a
       href={url}
@@ -76,7 +76,7 @@ type FilaProps = {
  * horario: cuando hay clase virtual, los datos van arriba y los botones abajo.
  * Con un solo botón se mantiene la fila de una línea.
  */
-export function FilaAsistencia({ materia, horario, estado }: FilaProps) {
+function FilaAsistencia({ materia, horario, estado }: FilaProps) {
   const dosBotones = Boolean(materia.asistenciaUrl && materia.claseUrl);
   return (
     <div

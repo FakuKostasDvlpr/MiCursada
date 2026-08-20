@@ -1,6 +1,10 @@
 // Log de eventos para métricas — SOLO SERVIDOR. Guarda el hash del usuario,
 // nunca contenido. Nunca rompe el flujo que lo llama.
 import { hashUsuario } from '@/lib/cifrado';
+// `eventos` es solo-servidor: sin policies para anon/authenticated y con revoke explícito, se
+// escribe siempre via service role. `usuario_hash` no es un campo de autorización, es un hash
+// para métricas.
+// react-doctor-disable-next-line react-doctor/supabase-client-owned-authz-field
 import { adminClient, adminConfigurado } from '@/lib/supabase/admin';
 
 export async function registrarEvento(

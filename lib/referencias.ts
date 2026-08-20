@@ -182,6 +182,9 @@ const plano = (s: string) =>
 export function buscarEnCatalogo(catalogo: ItemCurso[], consulta: string): ItemCurso[] {
   const q = plano(consulta.trim());
   if (!q) return catalogo;
+  // Es String.includes (búsqueda de substring sobre el texto que arma `plano`), no Array.includes:
+  // no hay lookup por igualdad que un Set pueda reemplazar.
+  // react-doctor-disable-next-line react-doctor/js-set-map-lookups
   return catalogo.filter((c) => plano(`${c.nombre} ${c.etiqueta} ${c.unidad}`).includes(q));
 }
 
@@ -283,7 +286,9 @@ export function catalogoRefs(entrada: EntradaCatalogo): ItemRef[] {
 export function buscarRefs(catalogo: ItemRef[], consulta: string, limite: number): ItemRef[] {
   const q = plano(consulta.trim());
   const filtrados = q
-    ? catalogo.filter((c) => plano(`${c.nombre} ${c.kind}`).includes(q))
+    ? // String.includes (substring), no Array.includes: un Set no aplica.
+      // react-doctor-disable-next-line react-doctor/js-set-map-lookups
+      catalogo.filter((c) => plano(`${c.nombre} ${c.kind}`).includes(q))
     : catalogo;
   return filtrados.slice(0, limite);
 }

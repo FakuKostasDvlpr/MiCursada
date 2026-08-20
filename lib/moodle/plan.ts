@@ -860,6 +860,10 @@ export interface CursoFallado {
 export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
   const site = await obtenerSiteInfo(cred);
 
+  // El orden es deliberado y paralelizar no ahorraría nada: la cola de lib/moodle/cliente.ts
+  // serializa TODAS las llamadas con 500 ms entre sí aunque el caller haga Promise.all. Además
+  // site_info es el handshake que valida el token: si falla, no queremos haber disparado nada más.
+  // react-doctor-disable-next-line react-doctor/server-sequential-independent-await
   const cursos = await obtenerCursosVigentes(cred);
 
   const materias: MateriaPlaneada[] = cursos.map((c) => ({
@@ -884,6 +888,10 @@ export async function construirPlan(cred: Credencial): Promise<PlanMoodle> {
     // puede voltear el sync entero: se anota y se sigue con los demás.
     let secciones: SeccionCurso[];
     try {
+      // Serialización deliberada: la cola del cliente espacia las llamadas 500 ms igual, así que
+      // Promise.all no ahorra tiempo, y sí perdería el corte temprano — con token inválido se
+      // encolarían todas las llamadas en vez de propagar en la primera.
+      // react-doctor-disable-next-line react-doctor/async-await-in-loop
       secciones = await obtenerContenidos(curso.id, cred);
     } catch (e) {
       // El token inválido no es "un curso que falló": van a fallar todos y hay
@@ -1035,6 +1043,15 @@ export type Snapshot = {
 export function armarSnapshot(plan: PlanMoodle, generado = new Date().toISOString()): Snapshot {
   const materiaPorCurso = new Map(plan.materias.map((m) => [m.cursoId, m.externalId]));
 
+  // Archivos agrupados por curso en una sola pasada: si no, cada materia
+  // recorría la lista entera de archivos del plan.
+  const archivosPorCurso = new Map<number, ArchivoPlaneado[]>();
+  for (const a of plan.archivos) {
+    const lista = archivosPorCurso.get(a.cursoId);
+    if (lista) lista.push(a);
+    else archivosPorCurso.set(a.cursoId, [a]);
+  }
+
   const materias: SnapshotMateria[] = plan.materias.map((m, i) => ({
     id: m.externalId,
     nombre: m.nombre,
@@ -1046,9 +1063,12 @@ export function armarSnapshot(plan: PlanMoodle, generado = new Date().toISOStrin
     ...(m.claseUrl ? { claseUrl: m.claseUrl } : {}),
     ...(m.secciones && m.secciones.length > 0 ? { secciones: m.secciones } : {}),
     horarios: [],
-    archivos: plan.archivos
-      .filter((a) => a.cursoId === m.cursoId)
-      .map((a) => ({ id: a.externalId, materiaId: m.externalId, nombre: a.nombre, url: a.url })),
+    archivos: (archivosPorCurso.get(m.cursoId) ?? []).map((a) => ({
+      id: a.externalId,
+      materiaId: m.externalId,
+      nombre: a.nombre,
+      url: a.url,
+    })),
     bloques: [],
   }));
 

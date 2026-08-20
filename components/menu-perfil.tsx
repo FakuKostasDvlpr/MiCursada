@@ -13,6 +13,7 @@
 // abrir el menú. "Ver mi perfil" adentro cubre esa navegación.
 
 import { User } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { CerrarSesion } from '@/components/cerrar-sesion';
@@ -70,8 +71,20 @@ export function MenuPerfil({ nombre, iniciales, avatarUrl = null, segunda = null
         }`}
       >
         {avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+          // 48×48 = h-12 w-12, el tamaño real del avatar del header.
+          // `unoptimized` solo para la URL relativa: en modo local el avatar lo
+          // sirve /api/avatar, que exige la cookie de sesión, y el optimizador
+          // de Next hace su propio fetch sin cookies (devolvería 401 y la foto
+          // se vería rota). Las URLs del bucket de Supabase son absolutas y
+          // públicas: esas sí se optimizan.
+          <Image
+            src={avatarUrl}
+            alt=""
+            width={48}
+            height={48}
+            unoptimized={avatarUrl.startsWith('/')}
+            className="h-full w-full object-cover"
+          />
         ) : (
           iniciales || <User size={18} strokeWidth={2} aria-hidden />
         )}

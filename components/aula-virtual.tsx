@@ -24,7 +24,6 @@ import {
 } from '@/app/actions-moodle';
 import { Rueda } from '@/components/cargando';
 import { Modal } from '@/components/modal';
-import { hace } from '@/lib/cursada';
 
 export type ClaveEstado = 'verificando' | 'activo' | 'vencido' | 'error' | 'sin';
 
@@ -43,37 +42,6 @@ const TITULO: Record<ClaveEstado, string> = {
   error: 'No pudimos verificar el aula virtual.',
   sin: 'Conectá tu aula virtual',
 };
-
-/** Fechas anteriores a 2000 son el placeholder del token por variable de entorno. */
-function fechaUtil(iso: string | undefined): boolean {
-  if (!iso) return false;
-  const d = new Date(iso);
-  return !Number.isNaN(d.getTime()) && d.getUTCFullYear() > 2000;
-}
-
-/** Nombre real del titular del token, si el estado ya lo verificó. */
-export function nombreAula(estado: EstadoToken | null): string | null {
-  return estado?.configurado ? (estado.nombre ?? null) : null;
-}
-
-/** Líneas de detalle del estado: verificación, generación y última sincronización. */
-export function detallesAula(
-  estado: EstadoToken | null,
-  ahora: Date,
-  syncIso: string | null
-): string[] {
-  const out: string[] = [];
-  if (estado?.configurado) {
-    if (fechaUtil(estado.verificadoEn)) out.push(`Verificado ${hace(estado.verificadoEn, ahora)}`);
-    // "guardado", no "generado": solo sabemos cuándo entró el token a la app.
-    // Si lo generaste en el aula virtual y lo pegaste, la fecha real es anterior.
-    if (fechaUtil(estado.guardadoEn)) out.push(`Token guardado ${hace(estado.guardadoEn, ahora)}`);
-  }
-  if (fechaUtil(syncIso ?? undefined)) {
-    out.push(`Datos sincronizados ${hace(syncIso as string, ahora)}`);
-  }
-  return out;
-}
 
 /**
  * Pide el estado del token al montar (verificación real contra Moodle) sin
@@ -168,6 +136,11 @@ export function IndicadorAula({ clave, nombre, detalles, onAbrirPanel }: Indicad
 
       {abierto && (
         <div
+          // Esto NO es un modal: es un popover anclado al botón de estado del header. `showModal()`
+          // lo sacaría del flujo para centrarlo en el viewport, le pondría backdrop y volvería
+          // inerte el resto de la app — rompería la posición y el cierre por pointerdown afuera.
+          // El primitivo nativo que corresponde acá es el atributo `popover`, no `<dialog>`.
+          // react-doctor-disable-next-line react-doctor/prefer-html-dialog
           role="dialog"
           aria-label="Estado del aula virtual"
           className="absolute top-[48px] right-0 z-50 w-[252px] rounded-[14px] border border-bor bg-sup p-[14px] text-left"

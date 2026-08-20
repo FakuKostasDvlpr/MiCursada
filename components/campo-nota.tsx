@@ -27,6 +27,12 @@ import type { Seccion } from '@/lib/types';
 /** Cuántas opciones del curso se listan de una en el menú de `@`. */
 const MAX_OPCIONES = 6;
 
+/** El textarea crece con su contenido: se mide el scrollHeight y se fija el alto. */
+const alto = (el: HTMLTextAreaElement) => {
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+};
+
 type Props = {
   valor: string;
   onCambio: (texto: string) => void;
@@ -55,35 +61,41 @@ export function CampoNota({
   autoFocus = false,
 }: Props) {
   const conRefs = tieneRefs(valor);
-  const [editando, setEditando] = useState(autoFocus || !conRefs);
+  // Lo único que se guarda es "la persona pidió editar". Que un bloque sin
+  // referencias sea siempre editable NO es estado: se deriva acá mismo. Antes
+  // era un efecto que corregía `editando` después de que cambiaba `valor`, y
+  // entre los dos renders se veía un instante el campo en modo lectura.
+  const [pidioEditar, setPidioEditar] = useState(autoFocus);
+  const editando = pidioEditar || !conRefs;
   const [mencion, setMencion] = useState<{ desde: number; hasta: number; consulta: string } | null>(
     null
   );
   const [elegida, setElegida] = useState(0);
-  const ref = useRef<HTMLTextAreaElement>(null);
+  const ref = useRef<HTMLTextAreaElement | null>(null);
   /** Cursor a reponer después de insertar una mención. */
   const cursorPendiente = useRef<number | null>(null);
 
-  // Un bloque sin referencias siempre es editable: si borrás la última cita,
-  // el campo se queda en modo edición en vez de volverse un div de golpe.
-  useEffect(() => {
-    if (!conRefs) setEditando(true);
-  }, [conRefs]);
-
   const ajustarAlto = () => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
+    if (ref.current) alto(ref.current);
   };
 
-  useEffect(() => {
-    if (editando) ajustarAlto();
-  }, [editando, valor]);
+  /**
+   * El alto arranca bien desde el primer frame del textarea, sin encadenar un
+   * efecto detrás del cambio de `editando`: cuando el nodo entra, se mide.
+   */
+  const montarTextarea = (el: HTMLTextAreaElement | null) => {
+    ref.current = el;
+    if (el) alto(el);
+  };
 
+  // `valor` puede crecer de golpe sin que nadie tipee (insertar una mención):
+  // ahí hay que remedir el alto y reponer el cursor. Un solo efecto para las
+  // dos cosas, las dos son sincronizar el DOM con el texto ya cambiado.
   useEffect(() => {
     const el = ref.current;
-    if (!el || cursorPendiente.current === null) return;
+    if (!el) return;
+    alto(el);
+    if (cursorPendiente.current === null) return;
     el.setSelectionRange(cursorPendiente.current, cursorPendiente.current);
     cursorPendiente.current = null;
   }, [valor]);
@@ -140,8 +152,17 @@ export function CampoNota({
         role="textbox"
         tabIndex={0}
         aria-label={etiqueta}
-        onClick={() => setEditando(true)}
-        onFocus={() => setEditando(true)}
+        onClick={() => setPidioEditar(true)}
+        onFocus={() => setPidioEditar(true)}
+        // No puede ser un <button>: adentro van los chips de referencia, que ya
+        // son <button> con su propio onClick, y un botón dentro de otro es HTML
+        // inválido. Con role/tabIndex el teclado entra igual (el foco solo ya
+        // abre el editor) y Enter/Espacio quedan explícitos.
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          setPidioEditar(true);
+        }}
         className={`min-w-0 flex-1 cursor-text whitespace-pre-wrap ${className}`}
       >
         {valor ? (
@@ -156,7 +177,7 @@ export function CampoNota({
   return (
     <div className="relative min-w-0 flex-1">
       <textarea
-        ref={ref}
+        ref={montarTextarea}
         value={valor}
         rows={1}
         autoFocus={autoFocus}
@@ -174,7 +195,7 @@ export function CampoNota({
           // El menú se cierra con un respiro: si el blur vino de tocar una
           // opción, el click todavía no llegó.
           setTimeout(() => setMencion(null), 120);
-          if (tieneRefs(e.target.value)) setEditando(false);
+          if (tieneRefs(e.target.value)) setPidioEditar(false);
         }}
         onInput={ajustarAlto}
         className={`w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-tx outline-none ${className}`}

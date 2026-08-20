@@ -11,6 +11,10 @@ import type { Credencial } from '@/lib/moodle/credenciales';
 import { armarSnapshot, construirPlan } from '@/lib/moodle/plan';
 import { grillaConsensuada, type FilaHorario } from '@/lib/horarios-comision';
 import { horariosSembrables, type HorarioSembrado } from '@/lib/plantilla-horarios';
+// El sync compartido escribe contenido de aula compartido (cursos, avisos_curso, archivo_refs)
+// para TODOS los inscriptos: por definición no es un write de un usuario acotable por auth.uid().
+// Corre siempre en servidor via service role; los usuarios solo tienen policy de select.
+// react-doctor-disable-next-line react-doctor/supabase-client-owned-authz-field
 import { adminClient } from '@/lib/supabase/admin';
 
 export const HORAS_FRESCO_COMPARTIDO = 6;

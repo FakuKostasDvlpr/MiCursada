@@ -161,6 +161,44 @@ type CuerpoConExtras = {
 };
 
 /**
+ * Parsea el body. Si no es JSON, error legible y SANITIZADO: el token nunca
+ * queda en el mensaje, ni cuando el server lo refleja en un HTML de error.
+ */
+function parsearJson(texto: string, fn: FuncionMoodle, status: number, token: string): unknown {
+  try {
+    return JSON.parse(texto);
+  } catch {
+    throw new Error(
+      `Respuesta no-JSON de ${fn} (HTTP ${status}): ${sanitizar(texto.slice(0, 300), token)}`
+    );
+  }
+}
+
+/**
+ * Trampa #1: los errores de Moodle vienen con HTTP 200 — hay que mirar el body.
+ * Tira MoodleError/TokenInvalido si el body trae un error, y loguea los
+ * `warnings[]` (trampa #8: pueden venir con contenido aunque salga bien).
+ */
+function chequearErrorDeBody(json: unknown, fn: FuncionMoodle, token: string): void {
+  if (json === null || typeof json !== 'object' || Array.isArray(json)) return;
+  const cuerpo = json as CuerpoConExtras;
+  if (
+    cuerpo.exception !== undefined ||
+    (cuerpo.errorcode !== undefined && cuerpo.message !== undefined)
+  ) {
+    if (cuerpo.errorcode === 'invalidtoken') throw new TokenInvalido(fn);
+    throw new MoodleError(
+      cuerpo.errorcode ?? 'desconocido',
+      sanitizar(cuerpo.message ?? 'sin mensaje', token),
+      fn
+    );
+  }
+  if (Array.isArray(cuerpo.warnings) && cuerpo.warnings.length > 0) {
+    console.warn(`[moodle] warnings en ${fn}:`, sanitizar(JSON.stringify(cuerpo.warnings), token));
+  }
+}
+
+/**
  * Única puerta de salida hacia Moodle. POST form-urlencoded a
  * `{url}/webservice/rest/server.php`.
  *
@@ -212,39 +250,17 @@ export async function call<T = unknown>(
       throw new Error(`No se pudo conectar con ${base}: ${msg}`);
     }
 
-    const texto = await res.text();
-    let json: unknown;
-    try {
-      json = JSON.parse(texto);
-    } catch {
-      throw new Error(
-        `Respuesta no-JSON de ${fn} (HTTP ${res.status}): ${sanitizar(texto.slice(0, 300), token)}`
-      );
+    // `fetch` NO rechaza en 4xx/5xx: resuelve igual. Sin chequear el status, un
+    // payload de error HTTP se podría tomar como respuesta exitosa.
+    if (!res.ok) {
+      // Moodle suele explicar el motivo en el body incluso con status de error:
+      // se interpreta igual que en el camino feliz (siempre sanitizado).
+      chequearErrorDeBody(parsearJson(await res.text(), fn, res.status, token), fn, token);
+      throw new Error(`Moodle respondió HTTP ${res.status} en ${fn}.`);
     }
 
-    // Trampa #1: los errores vienen con HTTP 200 — mirar el body, no res.ok.
-    if (json !== null && typeof json === 'object' && !Array.isArray(json)) {
-      const cuerpo = json as CuerpoConExtras;
-      if (
-        cuerpo.exception !== undefined ||
-        (cuerpo.errorcode !== undefined && cuerpo.message !== undefined)
-      ) {
-        if (cuerpo.errorcode === 'invalidtoken') throw new TokenInvalido(fn);
-        throw new MoodleError(
-          cuerpo.errorcode ?? 'desconocido',
-          sanitizar(cuerpo.message ?? 'sin mensaje', token),
-          fn
-        );
-      }
-      // Trampa #8: warnings[] puede venir con contenido aunque la llamada salga bien.
-      if (Array.isArray(cuerpo.warnings) && cuerpo.warnings.length > 0) {
-        console.warn(
-          `[moodle] warnings en ${fn}:`,
-          sanitizar(JSON.stringify(cuerpo.warnings), token)
-        );
-      }
-    }
-
+    const json = parsearJson(await res.text(), fn, res.status, token);
+    chequearErrorDeBody(json, fn, token);
     return json as T;
   });
 }

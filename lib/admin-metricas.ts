@@ -105,7 +105,12 @@ export async function metricasAdmin(ahora: Date): Promise<PanelAdmin> {
     // Avisos que le aplican: los de sus cursos (menos los marcados hechos) +
     // los manuales propios sin marcar.
     const hechos = hechosPorUsuario.get(userId) ?? new Set<string>();
-    const delCurso = [...idsCursos].flatMap((id) => avisosPorCurso.get(id) ?? []).filter((a) => !hechos.has(a.id));
+    const delCurso: { id: string; fecha: string }[] = [];
+    for (const id of idsCursos) {
+      for (const a of avisosPorCurso.get(id) ?? []) {
+        if (!hechos.has(a.id)) delCurso.push(a);
+      }
+    }
     const manuales = (avisosManuales.data ?? []).filter((a) => a.user_id === userId && !a.hecho);
     const fechas = [...delCurso.map((a) => a.fecha), ...manuales.map((a) => a.fecha as string)];
 

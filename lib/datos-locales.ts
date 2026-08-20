@@ -370,40 +370,39 @@ function armar(snapshot: z.infer<typeof snapshotSchema>, ov: Overlays): DatosLoc
 
       // Unidades del aula virtual: solo lectura (las regenera el sync). Las que
       // quedaron sin módulos no se muestran.
-      const secciones: Seccion[] = (m.secciones ?? [])
-        .map((s) => ({
-          nombre: s.nombre ?? '',
-          modulos: s.modulos.map(
-            (mo): ModuloCurso => ({
-              id: mo.id,
-              nombre: mo.nombre,
-              tipo: mo.tipo ?? '',
-              url: mo.url,
-              ...(mo.descripcion ? { descripcion: mo.descripcion } : {}),
-              ...(mo.html ? { html: mo.html } : {}),
-              ...(mo.enlace ? { enlace: mo.enlace } : {}),
-              ...(mo.video ? { video: mo.video } : {}),
-              ...(mo.archivos && mo.archivos.length > 0
-                ? {
-                    archivos: mo.archivos.map((a) => ({
-                      nombre: a.nombre,
-                      mime: a.mime ?? 'application/octet-stream',
-                      tamano: a.tamano ?? 0,
-                      ref: a.ref,
-                    })),
-                  }
-                : {}),
-              // `!== undefined` y NO `mo.hecho ? …` como los de arriba: `false`
-              // es un valor válido ("lo tenés pendiente") y con el patrón
-              // truthy se perdería, que es justo la mitad de la información.
-              ...(mo.hecho !== undefined ? { hecho: mo.hecho } : {}),
-              ...(mo.requisitos && mo.requisitos.length > 0
-                ? { requisitos: mo.requisitos }
-                : {}),
-            })
-          ),
-        }))
-        .filter((s) => s.modulos.length > 0);
+      const secciones: Seccion[] = [];
+      for (const s of m.secciones ?? []) {
+        const modulos = s.modulos.map(
+          (mo): ModuloCurso => ({
+            id: mo.id,
+            nombre: mo.nombre,
+            tipo: mo.tipo ?? '',
+            url: mo.url,
+            ...(mo.descripcion ? { descripcion: mo.descripcion } : {}),
+            ...(mo.html ? { html: mo.html } : {}),
+            ...(mo.enlace ? { enlace: mo.enlace } : {}),
+            ...(mo.video ? { video: mo.video } : {}),
+            ...(mo.archivos && mo.archivos.length > 0
+              ? {
+                  archivos: mo.archivos.map((a) => ({
+                    nombre: a.nombre,
+                    mime: a.mime ?? 'application/octet-stream',
+                    tamano: a.tamano ?? 0,
+                    ref: a.ref,
+                  })),
+                }
+              : {}),
+            // `!== undefined` y NO `mo.hecho ? …` como los de arriba: `false`
+            // es un valor válido ("lo tenés pendiente") y con el patrón
+            // truthy se perdería, que es justo la mitad de la información.
+            ...(mo.hecho !== undefined ? { hecho: mo.hecho } : {}),
+            ...(mo.requisitos && mo.requisitos.length > 0
+              ? { requisitos: mo.requisitos }
+              : {}),
+          })
+        );
+        if (modulos.length > 0) secciones.push({ nombre: s.nombre ?? '', modulos });
+      }
 
       return {
         id: m.id,

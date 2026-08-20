@@ -1,0 +1,21 @@
+{
+  "ignore": {
+    "files": [
+      ".next/**",
+      ".next-*/**",
+      "datos/**",
+      "graphify-out/**",
+      "design_handoff_mi_cursada*/**",
+      "*.dc.html",
+      "despliegue/**"
+    ]
+  },
+  "serverAuthFunctionNames": [
+    "hayAcceso",
+    "conUsuario",
+    "usuarioActual",
+    "exigirSesion",
+    "consintio",
+    "adminConfigurado"
+  ]
+}

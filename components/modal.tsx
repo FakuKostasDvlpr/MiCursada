@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 type Props = {
   abierto: boolean;
@@ -33,6 +33,15 @@ const PANEL: Record<'estandar' | 'card', string> = {
  * - ≤640px: sheet desde abajo, ancho 100%, radios 20px 20px 0 0, slide-up 280ms.
  * - >640px: centrado 440px (o 580px con `ancho="card"`), radio 16px.
  * Scrim var(--scrim) con fade 180ms; cierra con tap afuera, ✕ y Escape.
+ *
+ * Es un `<dialog>` nativo abierto con `showModal()`: de ahí salen gratis la
+ * semántica de diálogo, el foco atrapado adentro (con Tab no te vas a la app de
+ * atrás) y el resto del documento inerte. El scrim se sigue pintando en el
+ * propio `<dialog>` (que ocupa todo el viewport) y no en `::backdrop`, para
+ * conservar el fade del handoff; el backdrop nativo queda transparente.
+ *
+ * Escape lo cancela el navegador: se intercepta `cancel` para que el cierre lo
+ * maneje React (`onCerrar`) y no queden el DOM y el estado desincronizados.
  */
 export function Modal({
   abierto,
@@ -42,28 +51,31 @@ export function Modal({
   ancho = 'estandar',
   encabezado,
 }: Props) {
+  const dialogo = useRef<HTMLDialogElement>(null);
+
   useEffect(() => {
-    if (!abierto) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCerrar();
+    const d = dialogo.current;
+    if (!abierto || !d) return;
+    if (!d.open) d.showModal();
+    return () => {
+      if (d.open) d.close();
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [abierto, onCerrar]);
+  }, [abierto]);
 
   if (!abierto) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex animate-[scrim-in_180ms_ease-out] items-end justify-center bg-scrim min-[641px]:items-center min-[641px]:p-5"
-      onClick={onCerrar}
+    <dialog
+      ref={dialogo}
+      aria-label={titulo}
+      onCancel={(e) => {
+        e.preventDefault();
+        onCerrar();
+      }}
+      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none animate-[scrim-in_180ms_ease-out] items-end justify-center overflow-hidden bg-scrim p-0 text-tx backdrop:bg-transparent min-[641px]:items-center min-[641px]:p-5"
     >
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={titulo}
-        onClick={(e) => e.stopPropagation()}
-        className={`w-full animate-[sheet-up_280ms_cubic-bezier(.22,.8,.3,1)] overflow-y-auto border border-bor bg-sup min-[641px]:animate-[scrim-in_180ms_ease-out] motion-reduce:animate-none ${PANEL[ancho]}`}
+        className={`relative z-10 w-full animate-[sheet-up_280ms_cubic-bezier(.22,.8,.3,1)] overflow-y-auto border border-bor bg-sup min-[641px]:animate-[scrim-in_180ms_ease-out] motion-reduce:animate-none ${PANEL[ancho]}`}
       >
         {encabezado ?? (
           <div className="mb-[18px] flex items-center justify-between">
@@ -80,6 +92,21 @@ export function Modal({
         )}
         {children}
       </div>
-    </div>
+
+      {/* El "tap afuera cierra" es un botón de verdad y no un handler colgado
+          del <dialog>: la interacción vive en un elemento interactivo y el panel
+          deja de necesitar stopPropagation. Va DESPUÉS del panel en el DOM y
+          detrás por z-index, así el foco inicial de showModal() sigue cayendo
+          en lo primero del panel y no acá. `tabIndex={-1}` a propósito: es un
+          atajo de mouse redundante — el teclado cierra con Escape y con la ✕,
+          y un tab stop extra "Cerrar" solo agregaría ruido. */}
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={onCerrar}
+        aria-label="Cerrar"
+        className="absolute inset-0 z-0 cursor-default"
+      />
+    </dialog>
   );
 }

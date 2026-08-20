@@ -37,14 +37,28 @@ type Props = {
 };
 
 export function AdminPanel({ panel: inicial, actualizado: actualizadoInicial, demo }: Props) {
-  const [panel, setPanel] = useState(inicial);
-  const [actualizado, setActualizado] = useState(actualizadoInicial);
+  // Lo que trajo el ÚLTIMO refresco del cliente, o null si todavía no hubo
+  // ninguno. El dataset que se pinta se deriva: mientras no haya refresco manda
+  // la prop, así que si el server manda uno nuevo (revalidación, navegación) se
+  // ve al toque. Copiarla a estado con `useState(inicial)` la congelaba en la
+  // del primer render.
+  const [refrescado, setRefrescado] = useState<{
+    panel: PanelAdmin;
+    actualizado: string;
+  } | null>(null);
+  const panel = refrescado?.panel ?? inicial;
+  const actualizado = refrescado?.actualizado ?? actualizadoInicial;
   const [vivo, setVivo] = useState(true);
   const [falla, setFalla] = useState(false);
 
   const [filtro, setFiltro] = useState<'todos' | EstadoUsuario>('todos');
   const [busca, setBusca] = useState('');
-  const [selId, setSelId] = useState<string | null>(inicial.usuarios[0]?.id ?? null);
+  // `null` = nadie eligió todavía, y entonces se abre la primera del dataset de
+  // ahora. Envuelto en un objeto porque "cerrado a mano" también es una
+  // elección y tiene que poder distinguirse de "sin elegir".
+  const [elegido, setElegido] = useState<{ id: string | null } | null>(null);
+  const selId = elegido ? elegido.id : (panel.usuarios[0]?.id ?? null);
+  const setSelId = (id: string | null) => setElegido({ id });
 
   // El fetch en vuelo, para poder cancelarlo al desmontar o al apagar el vivo.
   const enVuelo = useRef<AbortController | null>(null);
@@ -52,8 +66,11 @@ export function AdminPanel({ panel: inicial, actualizado: actualizadoInicial, de
 
   // Quiénes ya estaban: lo que no esté acá en el próximo refresco es un alta.
   // Va en un ref y no en estado porque cambiarlo no tiene que re-renderizar
-  // (y `traer` depende de él sin querer rearmarse en cada tanda).
-  const conocidos = useRef<Set<string>>(new Set(inicial.usuarios.map((u) => u.id)));
+  // (y `traer` depende de él sin querer rearmarse en cada tanda). Se arma en el
+  // primer refresco y no en cada render: `useRef(new Set(…))` construía un Set
+  // por render para tirarlo enseguida.
+  const usuariosIniciales = useRef(inicial.usuarios);
+  const conocidos = useRef<Set<string> | null>(null);
   const [recienLlegados, setRecienLlegados] = useState<string[]>([]);
 
   const traer = useCallback(async () => {
@@ -65,12 +82,17 @@ export function AdminPanel({ panel: inicial, actualizado: actualizadoInicial, de
       if (!res.ok) throw new Error(String(res.status));
       const datos = (await res.json()) as PanelAdmin & { actualizado: string };
 
-      const nuevos = datos.usuarios.filter((u) => !conocidos.current.has(u.id));
-      for (const u of datos.usuarios) conocidos.current.add(u.id);
+      const yaEstaban = (conocidos.current ??= new Set(
+        usuariosIniciales.current.map((u) => u.id)
+      ));
+      const nuevos = datos.usuarios.filter((u) => !yaEstaban.has(u.id));
+      for (const u of datos.usuarios) yaEstaban.add(u.id);
       if (nuevos.length > 0) setRecienLlegados((v) => [...v, ...nuevos.map((u) => u.nombre)]);
 
-      setPanel({ generado: datos.generado, stats: datos.stats, usuarios: datos.usuarios });
-      setActualizado(datos.actualizado);
+      setRefrescado({
+        panel: { generado: datos.generado, stats: datos.stats, usuarios: datos.usuarios },
+        actualizado: datos.actualizado,
+      });
       setFalla(false);
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
@@ -249,7 +271,11 @@ export function AdminPanel({ panel: inicial, actualizado: actualizadoInicial, de
                 ))}
               </div>
             </div>
+            <label className="kicker mb-[7px] block text-[10px] text-tx3" htmlFor="admin-busca">
+              Búsqueda
+            </label>
             <input
+              id="admin-busca"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscá por nombre, usuario o carrera…"
@@ -404,6 +430,13 @@ function DetalleUsuario({ det, onCerrar }: { det: UsuarioPanel; onCerrar: () => 
         <div className="kicker mb-2 text-[10px] text-tx3">Actividad reciente</div>
         <div className="flex flex-col">
           {det.eventos.map((e, i) => (
+            // Un EventoPanel NO tiene id (lib/admin-calculos.ts: es {col, txt, hace}, texto
+            // ya formateado) y dos eventos pueden ser idénticos, así que no hay clave de
+            // contenido única. La lista es `det.eventos` renderizada tal cual, del más
+            // nuevo al más viejo: no se filtra, no se ordena y no se reordena en el
+            // cliente, y ninguna fila tiene estado ni foco propio. Además el aside lleva
+            // `key={det.id}`, así que cambiar de persona lo remonta entero.
+            // react-doctor-disable-next-line react-doctor/no-array-index-as-key
             <div key={i} className="flex gap-2.5 border-b border-bor py-[7px]">
               <span className="mt-[5px] h-[7px] w-[7px] flex-shrink-0 rounded-full" style={{ background: e.col }} aria-hidden />
               <span className="min-w-0 flex-1 text-[12.5px] leading-[1.45] text-tx2">{e.txt}</span>

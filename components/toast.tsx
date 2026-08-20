@@ -12,6 +12,15 @@ import { AlertTriangle, Check, Trash } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { EVENTO_TOAST, MS_TOAST, type Toast as DatosToast } from '@/lib/toast';
 
+// Un color y un icono por variante: verde confirma, rojo borra, ámbar avisa
+// que no se pudo. El ámbar es el mismo acento de la app. Va a nivel de módulo:
+// no depende de nada del render.
+const PINTA = {
+  ok: { borde: 'rgba(52,211,153,.5)', fondo: 'rgba(52,211,153,.15)', color: '#34d399' },
+  delete: { borde: 'rgba(251,113,133,.5)', fondo: 'rgba(251,113,133,.15)', color: '#fb7185' },
+  error: { borde: 'rgba(251,191,36,.5)', fondo: 'rgba(251,191,36,.15)', color: '#fbbf24' },
+} as const;
+
 export function Toast() {
   const [toast, setToast] = useState<DatosToast | null>(null);
   // Sube con cada toast: fuerza el remount del pill para que la animación de
@@ -37,13 +46,6 @@ export function Toast() {
 
   if (!toast) return null;
 
-  // Un color y un icono por variante: verde confirma, rojo borra, ámbar avisa
-  // que no se pudo. El ámbar es el mismo acento de la app.
-  const PINTA = {
-    ok: { borde: 'rgba(52,211,153,.5)', fondo: 'rgba(52,211,153,.15)', color: '#34d399' },
-    delete: { borde: 'rgba(251,113,133,.5)', fondo: 'rgba(251,113,133,.15)', color: '#fb7185' },
-    error: { borde: 'rgba(251,191,36,.5)', fondo: 'rgba(251,191,36,.15)', color: '#fbbf24' },
-  } as const;
   const pinta = PINTA[toast.variante];
 
   return (

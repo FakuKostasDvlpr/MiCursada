@@ -34,15 +34,14 @@ import {
   eliminarBloque,
 } from '@/app/actions';
 import { CampoNota } from '@/components/campo-nota';
+import { ChipRef, ModalCard } from '@/components/modal-card';
 import {
   COLOR_ESTADO,
-  ChipRef,
   MS_CONFIRMAR,
-  ModalCard,
   NOMBRE_ESTADO,
   ddmm,
   dominio,
-} from '@/components/modal-card';
+} from '@/components/modal-card-partes';
 import { CardRef, TextoConRefs } from '@/components/ref-curso';
 import { partirComando } from '@/lib/comandos-nota';
 import { EVENTO_NOTA_CREADA } from '@/lib/logro';
@@ -159,6 +158,19 @@ function textoCard(b: Bloque): string {
 
 // ---------------------------------------------------------------------------
 
+// Defaults de las props opcionales, a nivel de módulo: un `[]` literal como
+// default crea un array nuevo en cada render y hace re-correr los `useMemo`
+// que dependen de él (`catalogo`, `refs`) de gil.
+const SIN_SECCIONES: Seccion[] = [];
+const SIN_MATERIAS: { id: string; nombre: string; color: string }[] = [];
+const SIN_AVISOS: {
+  id: string;
+  titulo: string;
+  hecho: boolean;
+  fecha: string;
+  notaId?: string | null;
+}[] = [];
+
 type Props = {
   materiaId: string;
   bloques: Bloque[];
@@ -178,174 +190,20 @@ type Props = {
   onVerAvisos?: () => void;
 };
 
-export function NotasEditor({
-  materiaId,
-  bloques,
-  secciones = [],
-  materias = [],
-  avisos = [],
-  hoyIso,
-  onIrAModulo,
-  onVerAvisos,
-}: Props) {
-  const [items, setItems] = useState<Bloque[]>(bloques);
-  const [valor, setValor] = useState('');
-  const [error, setError] = useState('');
-  const [vista, setVista] = useState<Vista>('documento');
-  /** Card abierta en el modal de detalle. */
-  const [cardId, setCardId] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
-
-  const catalogo = useMemo(() => catalogoCurso(secciones), [secciones]);
-  const refs = useMemo(
-    () => catalogoRefs({ secciones, materias, materiaActualId: materiaId, avisos }),
-    [secciones, materias, materiaId, avisos]
-  );
-
+/**
+ * Guardado del texto de un bloque con debounce (~600ms). Es toda máquina de
+ * timers, así que vive afuera del componente: adentro solo se usan las puertas
+ * que devuelve. `enVuelo` cuenta las ediciones sin confirmar — mientras haya
+ * alguna, el estado local no se pisa con lo que manda el server.
+ */
+function useGuardadoTexto(
+  parche: (id: string, cambio: Partial<Bloque>) => void,
+  setError: (mensaje: string) => void
+) {
   /** Timers de debounce del texto, por bloque. */
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   /** Ediciones de texto sin confirmar: mientras haya, no pisamos con el server. */
   const enVuelo = useRef(0);
-  /**
-   * Columna del "+ Nueva card" que estamos esperando. `crearBloque` no devuelve
-   * el id, así que la card recién nacida se reconoce cuando el server revalida:
-   * es la última vacía de esa columna.
-   */
-  const nuevaEn = useRef<EstadoBloque | null>(null);
-
-  // El server manda bloques nuevos cada vez que una action revalida. Los
-  // adoptamos salvo que estemos en medio de una edición de texto.
-  useEffect(() => {
-    if (enVuelo.current === 0) setItems(bloques);
-
-    const estado = nuevaEn.current;
-    if (!estado) return;
-    const nueva = bloques
-      .filter((b) => b.tipo === 'tarea' && b.texto === '' && b.estado === estado)
-      .reduce<Bloque | null>((a, b) => (!a || b.orden > a.orden ? b : a), null);
-    if (!nueva) return;
-    nuevaEn.current = null;
-    setCardId(nueva.id);
-    // Nacer en "Listo" es nacer hecha, como al soltar una card ahí.
-    if (estado === 'listo' && !nueva.hecho) {
-      setItems((prev) => prev.map((b) => (b.id === nueva.id ? { ...b, hecho: true } : b)));
-      void actualizarBloque(nueva.id, { hecho: true });
-    }
-  }, [bloques]);
-
-  const parche = (id: string, cambio: Partial<Bloque>) =>
-    setItems((prev) => prev.map((b) => (b.id === id ? { ...b, ...cambio } : b)));
-
-  const correr = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>) => {
-    startTransition(async () => {
-      const resultado = await fn();
-      if (!resultado.ok) setError(resultado.error);
-    });
-  };
-
-  // --- Composer ---
-
-  // `/todo Traer el TP` se parte en comando ("todo") y contenido ("Traer el
-  // TP"). Antes el comando creaba el bloque VACÍO y había que rellenarlo
-  // abajo: se perdía lo que ya venías escribiendo y el foco saltaba fuera del
-  // input. Ahora el composer crea la nota terminada de una.
-  const slash = valor.startsWith('/') ? partirComando(valor) : null;
-  const menuAbierto = slash !== null;
-  const filtro = slash?.cmd ?? '';
-  // Como el prototipo: filtra por el comando Y por las palabras clave, así
-  // /kanban encuentra "Ver tablero" y /parrafo encuentra "Texto".
-  const opciones = menuAbierto
-    ? COMANDOS.filter((c) => c.cmd.includes(filtro) || c.claves.includes(filtro))
-    : [];
-
-  // --- Referencias del composer (`@`) ---
-  //
-  // El `@` no escribe nada en el texto: adjunta la cita al bloque que está por
-  // nacer (campo `ref`). Se muestra como chip arriba del input hasta que se
-  // crea el bloque.
-
-  const [refAdjunta, setRefAdjunta] = useState<ItemRef | null>(null);
-  /** Posición del cursor en el input, para saber si el `@` está pegado a él. */
-  const [cursor, setCursor] = useState(0);
-
-  const mencion = menuAbierto ? null : mencionEnCursor(valor, cursor);
-  const opcionesRef = mencion ? buscarRefs(refs, mencion.consulta, 7) : [];
-
-  /** Adjunta la cita y saca el `@…` del texto, conservando el resto. */
-  const elegirRefComposer = (item: ItemRef) => {
-    if (!mencion) return;
-    setRefAdjunta(item);
-    setValor(valor.slice(0, mencion.desde) + valor.slice(mencion.hasta));
-    setCursor(mencion.desde);
-  };
-
-  const agregar = (tipo: TipoBloque, texto = '', estado?: EstadoBloque, url?: string) => {
-    setError('');
-    setValor('');
-    const ref = refAdjunta?.ref;
-    setRefAdjunta(null);
-    correr(() =>
-      crearBloque(materiaId, {
-        tipo,
-        texto,
-        ...(url ? { url } : {}),
-        ...(estado ? { estado } : {}),
-        ...(ref ? { ref } : {}),
-      })
-    );
-    // El toast de logro vive en el layout (el hito cuenta las notas de toda la
-    // cursada, no las de esta materia). Un divisor no es una nota.
-    if (tipo !== 'divisor') {
-      window.dispatchEvent(new CustomEvent(EVENTO_NOTA_CREADA));
-    }
-  };
-
-  /**
-   * Ejecuta una opción del menú `/`: crear un bloque, o cambiar de vista.
-   *
-   * `contenido` es lo que se escribió después del comando. Un divisor no lo
-   * usa (es una línea, no tiene texto) y un link lo toma como URL, que es lo
-   * que uno pega después de `/link`.
-   */
-  const correrComando = (c: Comando, contenido = '') => {
-    if (c.vista) {
-      setValor('');
-      setVista(c.vista);
-      return;
-    }
-    if (!c.tipo) return;
-    if (c.tipo === 'divisor') return agregar('divisor');
-    if (c.tipo === 'link') return agregar('link', '', undefined, contenido);
-    agregar(c.tipo, contenido);
-  };
-
-  const enterComposer = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Escape') {
-      setValor('');
-      return;
-    }
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    if (menuAbierto) {
-      const primera = opciones[0];
-      if (primera) correrComando(primera, slash.resto);
-      return;
-    }
-    const texto = valor.trim();
-    if (texto) agregar('texto', texto);
-  };
-
-  const botonMas = () => {
-    if (menuAbierto) {
-      const primera = opciones[0];
-      if (primera) correrComando(primera, slash.resto);
-      return;
-    }
-    const texto = valor.trim();
-    if (texto) agregar('texto', texto);
-  };
-
-  // --- Guardado del texto con debounce ---
 
   const guardarTexto = (id: string, campos: { texto?: string; url?: string }) => {
     const timer = timers.current.get(id);
@@ -414,6 +272,103 @@ export function NotasEditor({
     guardarTexto(id, { texto });
   };
 
+  return { enVuelo, cancelarTexto, guardarBloque, flush, editarTexto };
+}
+
+export function NotasEditor({
+  materiaId,
+  bloques,
+  secciones = SIN_SECCIONES,
+  materias = SIN_MATERIAS,
+  avisos = SIN_AVISOS,
+  hoyIso,
+  onIrAModulo,
+  onVerAvisos,
+}: Props) {
+  const [items, setItems] = useState<Bloque[]>(bloques);
+  const [borrador, setBorrador] = useState<Borrador>(BORRADOR_VACIO);
+  const [error, setError] = useState('');
+  const [vista, setVista] = useState<Vista>('documento');
+  /** Card abierta en el modal de detalle. */
+  const [cardId, setCardId] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  const catalogo = useMemo(() => catalogoCurso(secciones), [secciones]);
+  const refs = useMemo(
+    () => catalogoRefs({ secciones, materias, materiaActualId: materiaId, avisos }),
+    [secciones, materias, materiaId, avisos]
+  );
+
+  /**
+   * Columna del "+ Nueva card" que estamos esperando. `crearBloque` no devuelve
+   * el id, así que la card recién nacida se reconoce cuando el server revalida:
+   * es la última vacía de esa columna.
+   */
+  const nuevaEn = useRef<EstadoBloque | null>(null);
+
+  const parche = (id: string, cambio: Partial<Bloque>) =>
+    setItems((prev) => prev.map((b) => (b.id === id ? { ...b, ...cambio } : b)));
+
+  const correr = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>) => {
+    startTransition(async () => {
+      const resultado = await fn();
+      if (!resultado.ok) setError(resultado.error);
+    });
+  };
+
+  const { enVuelo, cancelarTexto, guardarBloque, flush, editarTexto } = useGuardadoTexto(
+    parche,
+    setError
+  );
+
+  // El server manda bloques nuevos cada vez que una action revalida. Los
+  // adoptamos salvo que estemos en medio de una edición de texto.
+  useEffect(() => {
+    if (enVuelo.current === 0) setItems(bloques);
+
+    const estado = nuevaEn.current;
+    if (!estado) return;
+    const nueva = bloques
+      .filter((b) => b.tipo === 'tarea' && b.texto === '' && b.estado === estado)
+      .reduce<Bloque | null>((a, b) => (!a || b.orden > a.orden ? b : a), null);
+    if (!nueva) return;
+    nuevaEn.current = null;
+    setCardId(nueva.id);
+    // Nacer en "Listo" es nacer hecha, como al soltar una card ahí.
+    if (estado === 'listo' && !nueva.hecho) {
+      setItems((prev) => prev.map((b) => (b.id === nueva.id ? { ...b, hecho: true } : b)));
+      void actualizarBloque(nueva.id, { hecho: true });
+    }
+    // `enVuelo` es el ref del hook de guardado: su identidad no cambia, así que
+    // no vuelve a correr el efecto.
+  }, [bloques, enVuelo]);
+
+  // --- Crear un bloque ---
+
+  const crear = (
+    tipo: TipoBloque,
+    texto = '',
+    estado?: EstadoBloque,
+    url?: string,
+    ref?: ItemRef['ref']
+  ) => {
+    setError('');
+    correr(() =>
+      crearBloque(materiaId, {
+        tipo,
+        texto,
+        ...(url ? { url } : {}),
+        ...(estado ? { estado } : {}),
+        ...(ref ? { ref } : {}),
+      })
+    );
+    // El toast de logro vive en el layout (el hito cuenta las notas de toda la
+    // cursada, no las de esta materia). Un divisor no es una nota.
+    if (tipo !== 'divisor') {
+      window.dispatchEvent(new CustomEvent(EVENTO_NOTA_CREADA));
+    }
+  };
+
   // --- Acciones instantáneas ---
 
   const borrar = (id: string, mensaje: string) => {
@@ -454,81 +409,23 @@ export function NotasEditor({
     correr(() => actualizarBloque(id, { texto, url }));
   };
 
-  // --- Bitácora: agrupado por día + buscador ---
-
-  const [consulta, setConsulta] = useState('');
-  /** Solo los días que el usuario abrió/cerró a mano (el resto usa el default). */
-  const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
-
-  const grupos = useMemo(() => agruparPorDia(items, new Date()), [items]);
-
-  // --- Deep-link `?nota=<id>` (el click en un puntito del grafo) ---
-  //
-  // La nota puede estar dentro de un día colapsado, así que no alcanza con
-  // scrollear: primero hay que abrir su grupo. El resaltado se apaga solo —
-  // es para encontrarla con la vista, no un estado de selección.
-  const notaFoco = useSearchParams().get('nota');
-  const [destacada, setDestacada] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!notaFoco) return;
-    const grupo = grupos.find((g) => g.bloques.some((b) => b.id === notaFoco));
-    if (!grupo) return; // la nota ya no existe, o todavía no llegó del server
-
-    setAbiertos((prev) => ({ ...prev, [grupo.dia || 'sin-fecha']: true }));
-    setDestacada(notaFoco);
-
-    // Un frame para que el grupo recién abierto exista en el DOM antes de
-    // pedirle que se centre.
-    const raf = requestAnimationFrame(() => {
-      document
-        .getElementById(`bloque-${notaFoco}`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-    const timer = setTimeout(() => setDestacada(null), 2200);
-    return () => {
-      cancelAnimationFrame(raf);
-      clearTimeout(timer);
-    };
-  }, [notaFoco, grupos]);
-
-  const buscando = consulta.trim() !== '';
-  const visibles: GrupoDia[] = buscando
-    ? grupos
-        .map((g) => ({ ...g, bloques: g.bloques.filter((b) => coincide(b, consulta)) }))
-        .filter((g) => g.bloques.length > 0)
-    : grupos;
-
-  /** Con un solo día (o ninguno) la vista es la de siempre: sin encabezados. */
-  const conEncabezados = grupos.length > 1;
-
-  // El wrapper existe por el deep-link: le da a cada bloque un ancla estable a
-  // la que scrollear y dónde colgar el resaltado de "es esta".
+  // Un bloque con todos sus callbacks. El ancla y el resaltado del deep-link
+  // los pone `Bitacora`, que es la que sabe qué nota se está buscando.
   const fila = (b: Bloque) => (
-    <div
-      key={b.id}
-      id={`bloque-${b.id}`}
-      className={
-        destacada === b.id
-          ? 'rounded-[10px] bg-[rgba(251,191,36,.16)] transition-colors duration-500'
-          : 'transition-colors duration-500'
-      }
-    >
-      <FilaBloque
-        bloque={b}
-        catalogo={catalogo}
-        refs={refs}
-        secciones={secciones}
-        onIr={onIrAModulo}
-        onTexto={(t) => editarTexto(b.id, t)}
-        onBlurTexto={(t) => flush(b.id, { texto: t })}
-        onBorrar={() => borrar(b.id, 'Bloque eliminado')}
-        onEstado={() => ciclarEstado(b)}
-        onToggle={() => toggleTarea(b)}
-        onLink={(texto, url) => guardarLink(b.id, texto, url)}
-        onDetalle={() => setCardId(b.id)}
-      />
-    </div>
+    <FilaBloque
+      bloque={b}
+      catalogo={catalogo}
+      refs={refs}
+      secciones={secciones}
+      onIr={onIrAModulo}
+      onTexto={(t) => editarTexto(b.id, t)}
+      onBlurTexto={(t) => flush(b.id, { texto: t })}
+      onBorrar={() => borrar(b.id, 'Bloque eliminado')}
+      onEstado={() => ciclarEstado(b)}
+      onToggle={() => toggleTarea(b)}
+      onLink={(texto, url) => guardarLink(b.id, texto, url)}
+      onDetalle={() => setCardId(b.id)}
+    />
   );
 
   const card = items.find((b) => b.id === cardId) ?? null;
@@ -595,219 +492,24 @@ export function NotasEditor({
           onAgregar={(estado) => {
             // El "+ Nueva card" crea una tarea vacía y abre su modal.
             nuevaEn.current = estado;
-            agregar('tarea', '', estado);
+            crear('tarea', '', estado);
           }}
           onAbrir={setCardId}
           onBorrar={(id) => borrar(id, 'Card eliminada del tablero')}
         />
       ) : (
         <>
-      {/* Composer */}
-      <div className={`relative ${refAdjunta ? 'mt-2' : 'mt-[14px]'}`}>
-        {refAdjunta && (
-          <div className="mb-2 flex">
-            <span className="inline-flex items-center gap-2 rounded-full border border-bor2 bg-sup py-[5px] pr-[6px] pl-3">
-              <span
-                aria-hidden
-                className="h-[7px] w-[7px] shrink-0 rounded-full"
-                style={{ background: refAdjunta.color }}
-              />
-              <span className="max-w-[240px] truncate font-mono text-[11.5px] text-tx">
-                {refAdjunta.nombre}
-              </span>
-              <button
-                type="button"
-                onClick={() => setRefAdjunta(null)}
-                aria-label={`Quitar la referencia a ${refAdjunta.nombre}`}
-                className="grid h-6 w-6 shrink-0 cursor-pointer place-items-center rounded-full text-tx3"
-              >
-                <X size={13} strokeWidth={2.2} aria-hidden />
-              </button>
-            </span>
-          </div>
-        )}
-        <div className="flex gap-2">
-          <input
-            value={valor}
-            onChange={(e) => {
-              setValor(e.target.value);
-              setCursor(e.target.selectionStart ?? e.target.value.length);
-            }}
-            onKeyUp={(e) => setCursor(e.currentTarget.selectionStart ?? 0)}
-            onClick={(e) => setCursor(e.currentTarget.selectionStart ?? 0)}
-            onKeyDown={enterComposer}
-            placeholder="Anotá lo que dice el profe · / bloques · @ referencias"
-            aria-label="Nueva nota"
-            className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-bor bg-sup px-[14px] text-[14.5px] text-tx"
+          <Composer
+            borrador={borrador}
+            onBorrador={setBorrador}
+            refs={refs}
+            onCrear={crear}
+            onVista={setVista}
           />
-          <button
-            type="button"
-            onClick={botonMas}
-            aria-label="Agregar bloque"
-            className="tactil grid h-[46px] w-[46px] shrink-0 cursor-pointer place-items-center rounded-xl bg-acc-bg text-acc-fg"
-          >
-            <Plus size={18} strokeWidth={2.5} aria-hidden />
-          </button>
-        </div>
 
-        {/* Menú de referencias (`@`) */}
-        {mencion && (
-          <div className="absolute right-0 left-0 z-10 overflow-hidden rounded-xl border border-bor2 bg-sup p-1" style={{ top: refAdjunta ? '90px' : '52px' }}>
-            <div className="kicker px-[10px] pt-2 pb-1 !text-tx4">Referenciar</div>
-            {opcionesRef.length === 0 ? (
-              <div className="px-3 py-[10px] text-[13px] text-tx3">
-                Nada que referenciar con «{mencion.consulta}».
-              </div>
-            ) : (
-              opcionesRef.map((r) => (
-                <button
-                  key={`${r.ref.tipo}:${r.ref.id}`}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => elegirRefComposer(r)}
-                  className="flex min-h-[44px] w-full cursor-pointer items-center gap-[10px] rounded-[9px] px-[10px] py-1 text-left hover:bg-bor"
-                >
-                  <span
-                    aria-hidden
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: r.color }}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-tx">
-                    {r.nombre}
-                  </span>
-                  <span className="font-mono text-[10px] tracking-[0.1em] text-tx4 uppercase">
-                    {r.kind}
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-        )}
+          {error && <div className="mt-[10px] text-[13px] text-vencido">{error}</div>}
 
-        {/* Menú de comandos */}
-        {menuAbierto && (
-          <div className="absolute top-[52px] right-0 left-0 z-10 overflow-hidden rounded-xl border border-bor2 bg-sup p-1">
-            <div className="kicker px-[10px] pt-2 pb-1 !text-tx4">
-              {slash.resto ? `Se crea con «${slash.resto}»` : 'Bloques'}
-            </div>
-            {opciones.length === 0 ? (
-              <div className="px-3 py-[10px] text-[13px] text-tx3">
-                No hay ningún comando «/{filtro}».
-              </div>
-            ) : (
-              opciones.map((c) => (
-                <button
-                  key={c.cmd}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => correrComando(c, slash.resto)}
-                  className="flex min-h-[44px] w-full cursor-pointer items-center gap-[10px] rounded-[9px] px-[10px] py-1 text-left hover:bg-bor"
-                >
-                  <span
-                    aria-hidden
-                    className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-bor font-mono text-[13px] text-acc"
-                  >
-                    {c.glifo}
-                  </span>
-                  <span className="flex-1 text-[14px] font-semibold text-tx">{c.nombre}</span>
-                  <span className="font-mono text-[11px] text-tx3">{c.cmd}</span>
-                </button>
-              ))
-            )}
-          </div>
-        )}
-      </div>
-
-      {error && <div className="mt-[10px] text-[13px] text-vencido">{error}</div>}
-
-      {/* Bloques */}
-      {items.length === 0 ? (
-        <div className="mt-[14px] rounded-[14px] border border-dashed border-bor p-5 text-center text-[13.5px] text-tx3">
-          Sin notas todavía. Anotá lo que dice el profe acá — con / agregás títulos, tareas, links
-          y divisores.
-        </div>
-      ) : !conEncabezados ? (
-        <div className="mt-[14px] flex flex-col">
-          {grupos.flatMap((g) => g.bloques).map(fila)}
-        </div>
-      ) : (
-        <>
-          {/* Buscador — aparece recién cuando hay más de un día de notas */}
-          <div className="relative mt-[14px]">
-            <Search
-              size={15}
-              strokeWidth={2}
-              aria-hidden
-              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-tx3"
-            />
-            <input
-              value={consulta}
-              onChange={(e) => setConsulta(e.target.value)}
-              placeholder="Buscar en tus notas…"
-              aria-label="Buscar en tus notas"
-              type="text"
-              className="min-h-11 w-full rounded-xl border border-bor bg-sup pr-11 pl-9 text-[14px] text-tx"
-            />
-            {buscando && (
-              <button
-                type="button"
-                onClick={() => setConsulta('')}
-                aria-label="Limpiar búsqueda"
-                className="tactil absolute top-1/2 right-0 grid h-11 w-11 -translate-y-1/2 cursor-pointer place-items-center rounded-xl text-tx3"
-              >
-                <X size={15} strokeWidth={2.5} aria-hidden />
-              </button>
-            )}
-          </div>
-
-          {visibles.length === 0 ? (
-            <div className="mt-[14px] rounded-[14px] border border-dashed border-bor p-5 text-center text-[13.5px] text-tx3">
-              No encontramos nada con eso.
-            </div>
-          ) : (
-            <div className="mt-1 flex flex-col">
-              {visibles.map((g, i) => {
-                const clave = g.dia || 'sin-fecha';
-                const panelId = `dia-${clave}`;
-                // Mientras se busca, los días con coincidencias se abren solos.
-                const abierto = buscando || (abiertos[clave] ?? i === 0);
-                const n = g.bloques.filter((b) => b.tipo !== 'divisor').length;
-                return (
-                  <section key={clave}>
-                    <h3>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAbiertos((prev) => ({ ...prev, [clave]: !abierto }))
-                        }
-                        aria-expanded={abierto}
-                        aria-controls={panelId}
-                        className="tactil flex min-h-11 w-full cursor-pointer items-center gap-2 border-b border-bor py-2 text-left"
-                      >
-                        <ChevronRight
-                          size={14}
-                          strokeWidth={2.5}
-                          aria-hidden
-                          className={`shrink-0 text-tx3 transition-transform ${
-                            abierto ? 'rotate-90' : ''
-                          }`}
-                        />
-                        <span className="kicker flex-1">{g.etiqueta}</span>
-                        <span className="font-mono text-[11px] text-tx3">
-                          {n === 1 ? '1 nota' : `${n} notas`}
-                        </span>
-                      </button>
-                    </h3>
-                    <div id={panelId} className={abierto ? 'flex flex-col pb-2' : 'hidden'}>
-                      {abierto && g.bloques.map(fila)}
-                    </div>
-                  </section>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
+          <Bitacora items={items} fila={fila} />
         </>
       )}
 
@@ -831,6 +533,417 @@ export function NotasEditor({
         />
       )}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Composer — el input de arriba, con el menú `/` y el menú `@`
+// ---------------------------------------------------------------------------
+
+/**
+ * Lo que hay escrito en el composer y todavía no es un bloque. Vive en
+ * `NotasEditor` (no acá) para que irse al tablero y volver no borre lo que
+ * estabas escribiendo, que es como venía funcionando.
+ */
+type Borrador = {
+  valor: string;
+  /** Posición del cursor en el input, para saber si el `@` está pegado a él. */
+  cursor: number;
+  /**
+   * El `@` no escribe nada en el texto: adjunta la cita al bloque que está por
+   * nacer (campo `ref`). Se muestra como chip arriba del input hasta que se
+   * crea el bloque.
+   */
+  refAdjunta: ItemRef | null;
+};
+
+const BORRADOR_VACIO: Borrador = { valor: '', cursor: 0, refAdjunta: null };
+
+type ComposerProps = {
+  borrador: Borrador;
+  onBorrador: (cambio: (previo: Borrador) => Borrador) => void;
+  /** Catálogo de lo citable con `@` (curso, otras materias, avisos). */
+  refs: ItemRef[];
+  /** Crea el bloque. La cita adjunta viaja como último argumento. */
+  onCrear: (
+    tipo: TipoBloque,
+    texto?: string,
+    estado?: EstadoBloque,
+    url?: string,
+    ref?: ItemRef['ref']
+  ) => void;
+  /** `/tablero` no crea nada: cambia de vista. */
+  onVista: (vista: Vista) => void;
+};
+
+function Composer({ borrador, onBorrador, refs, onCrear, onVista }: ComposerProps) {
+  const { valor, cursor, refAdjunta } = borrador;
+  const setValor = (v: string) => onBorrador((b) => ({ ...b, valor: v }));
+  const setCursor = (c: number) => onBorrador((b) => ({ ...b, cursor: c }));
+  const setRefAdjunta = (r: ItemRef | null) => onBorrador((b) => ({ ...b, refAdjunta: r }));
+
+  // `/todo Traer el TP` se parte en comando ("todo") y contenido ("Traer el
+  // TP"). Antes el comando creaba el bloque VACÍO y había que rellenarlo
+  // abajo: se perdía lo que ya venías escribiendo y el foco saltaba fuera del
+  // input. Ahora el composer crea la nota terminada de una.
+  const slash = valor.startsWith('/') ? partirComando(valor) : null;
+  const menuAbierto = slash !== null;
+  const filtro = slash?.cmd ?? '';
+  // Como el prototipo: filtra por el comando Y por las palabras clave, así
+  // /kanban encuentra "Ver tablero" y /parrafo encuentra "Texto".
+  const opciones = menuAbierto
+    ? COMANDOS.filter((c) => c.cmd.includes(filtro) || c.claves.includes(filtro))
+    : [];
+
+  const mencion = menuAbierto ? null : mencionEnCursor(valor, cursor);
+  const opcionesRef = mencion ? buscarRefs(refs, mencion.consulta, 7) : [];
+
+  /** Adjunta la cita y saca el `@…` del texto, conservando el resto. */
+  const elegirRefComposer = (item: ItemRef) => {
+    if (!mencion) return;
+    setRefAdjunta(item);
+    setValor(valor.slice(0, mencion.desde) + valor.slice(mencion.hasta));
+    setCursor(mencion.desde);
+  };
+
+  const agregar = (tipo: TipoBloque, texto = '', estado?: EstadoBloque, url?: string) => {
+    setValor('');
+    const ref = refAdjunta?.ref;
+    setRefAdjunta(null);
+    onCrear(tipo, texto, estado, url, ref);
+  };
+
+  /**
+   * Ejecuta una opción del menú `/`: crear un bloque, o cambiar de vista.
+   *
+   * `contenido` es lo que se escribió después del comando. Un divisor no lo
+   * usa (es una línea, no tiene texto) y un link lo toma como URL, que es lo
+   * que uno pega después de `/link`.
+   */
+  const correrComando = (c: Comando, contenido = '') => {
+    if (c.vista) {
+      setValor('');
+      onVista(c.vista);
+      return;
+    }
+    if (!c.tipo) return;
+    if (c.tipo === 'divisor') return agregar('divisor');
+    if (c.tipo === 'link') return agregar('link', '', undefined, contenido);
+    agregar(c.tipo, contenido);
+  };
+
+  const enterComposer = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setValor('');
+      return;
+    }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (menuAbierto) {
+      const primera = opciones[0];
+      if (primera) correrComando(primera, slash.resto);
+      return;
+    }
+    const texto = valor.trim();
+    if (texto) agregar('texto', texto);
+  };
+
+  const botonMas = () => {
+    if (menuAbierto) {
+      const primera = opciones[0];
+      if (primera) correrComando(primera, slash.resto);
+      return;
+    }
+    const texto = valor.trim();
+    if (texto) agregar('texto', texto);
+  };
+
+  return (
+    <div className={`relative ${refAdjunta ? 'mt-2' : 'mt-[14px]'}`}>
+      {refAdjunta && (
+        <div className="mb-2 flex">
+          <span className="inline-flex items-center gap-2 rounded-full border border-bor2 bg-sup py-[5px] pr-[6px] pl-3">
+            <span
+              aria-hidden
+              className="h-[7px] w-[7px] shrink-0 rounded-full"
+              style={{ background: refAdjunta.color }}
+            />
+            <span className="max-w-[240px] truncate font-mono text-[11.5px] text-tx">
+              {refAdjunta.nombre}
+            </span>
+            <button
+              type="button"
+              onClick={() => setRefAdjunta(null)}
+              aria-label={`Quitar la referencia a ${refAdjunta.nombre}`}
+              className="grid h-6 w-6 shrink-0 cursor-pointer place-items-center rounded-full text-tx3"
+            >
+              <X size={13} strokeWidth={2.2} aria-hidden />
+            </button>
+          </span>
+        </div>
+      )}
+      <div className="flex gap-2">
+        <input
+          value={valor}
+          onChange={(e) => {
+            setValor(e.target.value);
+            setCursor(e.target.selectionStart ?? e.target.value.length);
+          }}
+          onKeyUp={(e) => setCursor(e.currentTarget.selectionStart ?? 0)}
+          onClick={(e) => setCursor(e.currentTarget.selectionStart ?? 0)}
+          onKeyDown={enterComposer}
+          placeholder="Anotá lo que dice el profe · / bloques · @ referencias"
+          aria-label="Nueva nota"
+          className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-bor bg-sup px-[14px] text-[14.5px] text-tx"
+        />
+        <button
+          type="button"
+          onClick={botonMas}
+          aria-label="Agregar bloque"
+          className="tactil grid h-[46px] w-[46px] shrink-0 cursor-pointer place-items-center rounded-xl bg-acc-bg text-acc-fg"
+        >
+          <Plus size={18} strokeWidth={2.5} aria-hidden />
+        </button>
+      </div>
+
+      {/* Menú de referencias (`@`) */}
+      {mencion && (
+        <div className="absolute right-0 left-0 z-10 overflow-hidden rounded-xl border border-bor2 bg-sup p-1" style={{ top: refAdjunta ? '90px' : '52px' }}>
+          <div className="kicker px-[10px] pt-2 pb-1 !text-tx4">Referenciar</div>
+          {opcionesRef.length === 0 ? (
+            <div className="px-3 py-[10px] text-[13px] text-tx3">
+              Nada que referenciar con «{mencion.consulta}».
+            </div>
+          ) : (
+            opcionesRef.map((r) => (
+              <button
+                key={`${r.ref.tipo}:${r.ref.id}`}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => elegirRefComposer(r)}
+                className="flex min-h-[44px] w-full cursor-pointer items-center gap-[10px] rounded-[9px] px-[10px] py-1 text-left hover:bg-bor"
+              >
+                <span
+                  aria-hidden
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: r.color }}
+                />
+                <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-tx">
+                  {r.nombre}
+                </span>
+                <span className="font-mono text-[10px] tracking-[0.1em] text-tx4 uppercase">
+                  {r.kind}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Menú de comandos */}
+      {menuAbierto && (
+        <div className="absolute top-[52px] right-0 left-0 z-10 overflow-hidden rounded-xl border border-bor2 bg-sup p-1">
+          <div className="kicker px-[10px] pt-2 pb-1 !text-tx4">
+            {slash.resto ? `Se crea con «${slash.resto}»` : 'Bloques'}
+          </div>
+          {opciones.length === 0 ? (
+            <div className="px-3 py-[10px] text-[13px] text-tx3">
+              No hay ningún comando «/{filtro}».
+            </div>
+          ) : (
+            opciones.map((c) => (
+              <button
+                key={c.cmd}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => correrComando(c, slash.resto)}
+                className="flex min-h-[44px] w-full cursor-pointer items-center gap-[10px] rounded-[9px] px-[10px] py-1 text-left hover:bg-bor"
+              >
+                <span
+                  aria-hidden
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-bor font-mono text-[13px] text-acc"
+                >
+                  {c.glifo}
+                </span>
+                <span className="flex-1 text-[14px] font-semibold text-tx">{c.nombre}</span>
+                <span className="font-mono text-[11px] text-tx3">{c.cmd}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Bitácora — los bloques agrupados por día, con buscador y deep-link
+// ---------------------------------------------------------------------------
+
+type BitacoraProps = {
+  items: Bloque[];
+  /** Cómo se pinta un bloque. Los callbacks los arma `NotasEditor`. */
+  fila: (bloque: Bloque) => React.ReactNode;
+};
+
+function Bitacora({ items, fila }: BitacoraProps) {
+  const [consulta, setConsulta] = useState('');
+  /** Solo los días que el usuario abrió/cerró a mano (el resto usa el default). */
+  const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
+
+  const grupos = useMemo(() => agruparPorDia(items, new Date()), [items]);
+
+  // --- Deep-link `?nota=<id>` (el click en un puntito del grafo) ---
+  //
+  // La nota puede estar dentro de un día colapsado, así que no alcanza con
+  // scrollear: primero hay que abrir su grupo. El resaltado se apaga solo —
+  // es para encontrarla con la vista, no un estado de selección.
+  const notaFoco = useSearchParams().get('nota');
+  const [destacada, setDestacada] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!notaFoco) return;
+    const grupo = grupos.find((g) => g.bloques.some((b) => b.id === notaFoco));
+    if (!grupo) return; // la nota ya no existe, o todavía no llegó del server
+
+    setAbiertos((prev) => ({ ...prev, [grupo.dia || 'sin-fecha']: true }));
+    setDestacada(notaFoco);
+
+    // Un frame para que el grupo recién abierto exista en el DOM antes de
+    // pedirle que se centre.
+    const raf = requestAnimationFrame(() => {
+      document
+        .getElementById(`bloque-${notaFoco}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    const timer = setTimeout(() => setDestacada(null), 2200);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
+  }, [notaFoco, grupos]);
+
+  const buscando = consulta.trim() !== '';
+  // Una sola pasada: filtra los bloques de cada día y descarta los días que
+  // quedaron sin ninguno.
+  const visibles: GrupoDia[] = buscando
+    ? grupos.flatMap((g) => {
+        const bloques = g.bloques.filter((b) => coincide(b, consulta));
+        return bloques.length > 0 ? [{ ...g, bloques }] : [];
+      })
+    : grupos;
+
+  /** Con un solo día (o ninguno) la vista es la de siempre: sin encabezados. */
+  const conEncabezados = grupos.length > 1;
+
+  // El wrapper existe por el deep-link: le da a cada bloque un ancla estable a
+  // la que scrollear y dónde colgar el resaltado de "es esta".
+  const conAncla = (b: Bloque) => (
+    <div
+      key={b.id}
+      id={`bloque-${b.id}`}
+      className={
+        destacada === b.id
+          ? 'rounded-[10px] bg-[rgba(251,191,36,.16)] transition-colors duration-500'
+          : 'transition-colors duration-500'
+      }
+    >
+      {fila(b)}
+    </div>
+  );
+
+  if (items.length === 0) {
+    return (
+      <div className="mt-[14px] rounded-[14px] border border-dashed border-bor p-5 text-center text-[13.5px] text-tx3">
+        Sin notas todavía. Anotá lo que dice el profe acá — con / agregás títulos, tareas, links y
+        divisores.
+      </div>
+    );
+  }
+
+  if (!conEncabezados) {
+    return (
+      <div className="mt-[14px] flex flex-col">
+        {grupos.flatMap((g) => g.bloques.map(conAncla))}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Buscador — aparece recién cuando hay más de un día de notas */}
+      <div className="relative mt-[14px]">
+        <Search
+          size={15}
+          strokeWidth={2}
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-tx3"
+        />
+        <input
+          value={consulta}
+          onChange={(e) => setConsulta(e.target.value)}
+          placeholder="Buscar en tus notas…"
+          aria-label="Buscar en tus notas"
+          type="text"
+          className="min-h-11 w-full rounded-xl border border-bor bg-sup pr-11 pl-9 text-[14px] text-tx"
+        />
+        {buscando && (
+          <button
+            type="button"
+            onClick={() => setConsulta('')}
+            aria-label="Limpiar búsqueda"
+            className="tactil absolute top-1/2 right-0 grid h-11 w-11 -translate-y-1/2 cursor-pointer place-items-center rounded-xl text-tx3"
+          >
+            <X size={15} strokeWidth={2.5} aria-hidden />
+          </button>
+        )}
+      </div>
+
+      {visibles.length === 0 ? (
+        <div className="mt-[14px] rounded-[14px] border border-dashed border-bor p-5 text-center text-[13.5px] text-tx3">
+          No encontramos nada con eso.
+        </div>
+      ) : (
+        <div className="mt-1 flex flex-col">
+          {visibles.map((g, i) => {
+            const clave = g.dia || 'sin-fecha';
+            const panelId = `dia-${clave}`;
+            // Mientras se busca, los días con coincidencias se abren solos.
+            const abierto = buscando || (abiertos[clave] ?? i === 0);
+            const n = g.bloques.filter((b) => b.tipo !== 'divisor').length;
+            return (
+              <section key={clave}>
+                <h3>
+                  <button
+                    type="button"
+                    onClick={() => setAbiertos((prev) => ({ ...prev, [clave]: !abierto }))}
+                    aria-expanded={abierto}
+                    aria-controls={panelId}
+                    className="tactil flex min-h-11 w-full cursor-pointer items-center gap-2 border-b border-bor py-2 text-left"
+                  >
+                    <ChevronRight
+                      size={14}
+                      strokeWidth={2.5}
+                      aria-hidden
+                      className={`shrink-0 text-tx3 transition-transform ${
+                        abierto ? 'rotate-90' : ''
+                      }`}
+                    />
+                    <span className="kicker flex-1">{g.etiqueta}</span>
+                    <span className="font-mono text-[11px] text-tx3">
+                      {n === 1 ? '1 nota' : `${n} notas`}
+                    </span>
+                  </button>
+                </h3>
+                <div id={panelId} className={abierto ? 'flex flex-col pb-2' : 'hidden'}>
+                  {abierto && g.bloques.map(conAncla)}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -930,15 +1043,29 @@ function Tablero({
                 const esLink = b.tipo === 'link' && /^https?:\/\//i.test(b.url);
                 const host = dominio(b.url);
                 return (
+                  // La card no puede ser interactiva ella misma: adentro tiene el
+                  // link del preview, el tachito y los botones "→ columna", y
+                  // anidar interactivos dentro de otro interactivo es HTML
+                  // inválido (rompe la semántica y el orden de tabulación).
+                  // Patrón "card con overlay button": la card es un div común y
+                  // la acción principal (abrir) vive en un <button> hermano que
+                  // cubre la card por debajo en z-index. El contenido de texto
+                  // va con pointer-events-none para que el click lo atraviese y
+                  // llegue al overlay; los controles reales quedan encima.
                   <div
                     key={b.id}
-                    onClick={() => onAbrir(b.id)}
-                    className={`cursor-pointer rounded-[11px] border border-bor bg-bg px-[10px] py-2 hover:border-bor2 ${
+                    className={`relative rounded-[11px] border border-bor bg-bg px-[10px] py-2 hover:border-bor2 ${
                       arrastrando === b.id ? 'opacity-50' : ''
                     }`}
                   >
+                    <button
+                      type="button"
+                      onClick={() => onAbrir(b.id)}
+                      aria-label={`Abrir la card ${textoCard(b)}`}
+                      className="absolute inset-0 z-0 cursor-pointer rounded-[11px]"
+                    />
                     <div
-                      className={`rounded-[5px] px-1 py-[2px] text-[13.5px] leading-[1.45] ${
+                      className={`pointer-events-none relative z-[1] rounded-[5px] px-1 py-[2px] text-[13.5px] leading-[1.45] [&_a]:pointer-events-auto [&_button]:pointer-events-auto ${
                         b.hecho ? 'text-tx3' : 'text-tx'
                       }`}
                       style={{
@@ -963,8 +1090,7 @@ function Tablero({
                         href={b.url}
                         target="_blank"
                         rel="noopener"
-                        onClick={(e) => e.stopPropagation()}
-                        className="mt-[6px] flex min-h-11 items-center gap-2 rounded-[9px] border border-bor bg-sup px-[9px] py-[7px]"
+                        className="relative z-[1] mt-[6px] flex min-h-11 items-center gap-2 rounded-[9px] border border-bor bg-sup px-[9px] py-[7px]"
                       >
                         <span
                           aria-hidden
@@ -983,26 +1109,23 @@ function Tablero({
                     )}
 
                     {b.ref && (
-                      <div>
+                      <div className="pointer-events-none relative z-[1]">
                         <ChipRef cita={b.ref} catalogo={refs} chico />
                       </div>
                     )}
 
-                    <div className="mt-[6px] flex items-center gap-2">
+                    <div className="pointer-events-none relative z-[1] mt-[6px] flex items-center gap-2">
                       <span className="font-mono text-[10.5px] text-tx4">
                         {ddmm(b.createdAt)} · {NOMBRE_TIPO[b.tipo]}
                       </span>
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          tocarBorrar(b.id);
-                        }}
+                        onClick={() => tocarBorrar(b.id)}
                         aria-label={armado === b.id ? '¿Seguro? Tocá de nuevo' : 'Eliminar card'}
                         title="Eliminar"
                         // 24px de alto visual; el ::after invisible le da los 44
                         // táctiles sin estirar el pie de la card (spec §2).
-                        className={`relative ml-auto inline-flex h-6 min-w-7 cursor-pointer items-center justify-center gap-[5px] px-[2px] after:absolute after:top-1/2 after:left-1/2 after:h-11 after:w-full after:min-w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] hover:text-[#fb7185] ${
+                        className={`pointer-events-auto relative ml-auto inline-flex h-6 min-w-7 cursor-pointer items-center justify-center gap-[5px] px-[2px] after:absolute after:top-1/2 after:left-1/2 after:h-11 after:w-full after:min-w-11 after:-translate-x-1/2 after:-translate-y-1/2 after:content-[''] hover:text-[#fb7185] ${
                           armado === b.id ? 'text-[#fb7185]' : 'text-bor2'
                         }`}
                       >
@@ -1015,30 +1138,25 @@ function Tablero({
                       </button>
                       <span
                         draggable
-                        onClick={(e) => e.stopPropagation()}
-                        onDragStart={(e) => {
-                          e.stopPropagation();
-                          onArrastrar(b.id);
-                        }}
+                        onDragStart={() => onArrastrar(b.id)}
                         onDragEnd={() => {
                           onArrastrar(null);
                           onEncima(null);
                         }}
                         title="Arrastrá a otra columna"
                         aria-hidden
-                        className="grid h-6 w-7 cursor-grab place-items-center text-bor2"
+                        className="pointer-events-auto grid h-6 w-7 cursor-grab place-items-center text-bor2"
                       >
                         <GripVertical size={12} strokeWidth={2.5} />
                       </span>
                     </div>
                     {/* Mover sin arrastrar: en touch no hay drag nativo. */}
-                    <div className="mt-1 flex gap-1">
+                    <div className="relative z-[1] mt-1 flex gap-1">
                       {COLUMNAS.filter((c) => c.estado !== estado).map((c) => (
                         <button
                           key={c.estado}
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          onClick={() => {
                             onArrastrar(b.id);
                             onSoltar(c.estado);
                           }}
@@ -1267,6 +1385,13 @@ function ElegirRef({
 }) {
   const [consulta, setConsulta] = useState('');
   const opciones = buscarEnCatalogo(catalogo, consulta).slice(0, 6);
+  // Este buscador aparece porque la persona acaba de crear un bloque `ref` con
+  // `/curso`: el paso siguiente es justamente escribir qué citar, así que el
+  // foco va acá. Se hace al montar en vez de con `autoFocus` (mismo efecto).
+  const entrada = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    entrada.current?.focus();
+  }, []);
 
   if (catalogo.length === 0) {
     return (
@@ -1279,9 +1404,9 @@ function ElegirRef({
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-dashed border-bor bg-sup p-3">
       <input
+        ref={entrada}
         value={consulta}
         onChange={(e) => setConsulta(e.target.value)}
-        autoFocus
         placeholder="Buscá un TP, un cuestionario, una unidad…"
         aria-label="Buscar en el curso"
         className="min-h-11 w-full rounded-lg border border-bor bg-bg px-3 text-[14px] text-tx"

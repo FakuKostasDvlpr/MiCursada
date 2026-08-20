@@ -53,6 +53,24 @@ function mensajeDeError(errorcode: string | undefined, error: string | undefined
 }
 
 /**
+ * Lee del body los campos que sirven para elegir el mensaje. Se usan SOLO para
+ * decidir el texto propio: nada de esto se propaga crudo.
+ */
+async function camposDeError(
+  res: Response
+): Promise<{ errorcode: string | undefined; error: string | undefined }> {
+  try {
+    const json = JSON.parse(await res.text()) as { errorcode?: unknown; error?: unknown };
+    return {
+      errorcode: typeof json.errorcode === 'string' ? json.errorcode : undefined,
+      error: typeof json.error === 'string' ? json.error : undefined,
+    };
+  } catch {
+    return { errorcode: undefined, error: undefined };
+  }
+}
+
+/**
  * Pide un token a Moodle con usuario + contraseña.
  *
  * `password` se consume acá adentro y no sale nunca de esta función.
@@ -82,6 +100,13 @@ export async function pedirToken(
   } finally {
     // El body con la contraseña deja de ser alcanzable apenas sale el request.
     body.delete('password');
+  }
+
+  // `fetch` NO rechaza en 4xx/5xx: resuelve igual. Sin chequear el status, un
+  // body de error HTTP se podría leer como si fuera una respuesta buena.
+  if (!res.ok) {
+    const { errorcode, error } = await camposDeError(res);
+    return { ok: false, error: mensajeDeError(errorcode, error) };
   }
 
   let json: unknown;

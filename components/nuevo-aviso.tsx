@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useReducer } from 'react';
 import { crearAviso } from '@/app/actions';
 import { Rueda } from '@/components/cargando';
 import { Modal } from '@/components/modal';
@@ -13,41 +13,74 @@ const claseInput =
 
 const claseLabel = 'kicker mb-[7px] block';
 
+// El formulario entero es UN estado: abrir lo resetea de una, guardar lo mueve
+// de golpe. Con un useState por campo había que acordarse de tocarlos todos en
+// cada transición; acá cada acción deja el formulario consistente.
+type Estado = {
+  abierto: boolean;
+  titulo: string;
+  materiaId: string;
+  fecha: string;
+  error: string;
+  guardando: boolean;
+};
+
+type Accion =
+  | { tipo: 'abrir'; hoy: string }
+  | { tipo: 'cerrar' }
+  | { tipo: 'campo'; campo: 'titulo' | 'materiaId' | 'fecha'; valor: string }
+  | { tipo: 'guardando' }
+  | { tipo: 'error'; error: string }
+  | { tipo: 'guardado' };
+
+const INICIAL: Estado = {
+  abierto: false,
+  titulo: '',
+  materiaId: '',
+  fecha: '',
+  error: '',
+  guardando: false,
+};
+
+function reducir(e: Estado, a: Accion): Estado {
+  switch (a.tipo) {
+    case 'abrir':
+      return { ...INICIAL, abierto: true, fecha: a.hoy };
+    case 'cerrar':
+      return { ...e, abierto: false };
+    case 'campo':
+      return { ...e, [a.campo]: a.valor };
+    case 'guardando':
+      return { ...e, guardando: true, error: '' };
+    case 'error':
+      return { ...e, guardando: false, error: a.error };
+    case 'guardado':
+      return { ...e, guardando: false, abierto: false };
+  }
+}
+
 /** Botón "+ Nuevo" de /avisos + modal "Nuevo aviso" (título, materia, fecha). */
 export function NuevoAviso({ materias }: { materias: MateriaOpcion[] }) {
-  const [abierto, setAbierto] = useState(false);
-  const [titulo, setTitulo] = useState('');
-  const [materiaId, setMateriaId] = useState('');
-  const [fecha, setFecha] = useState('');
-  const [error, setError] = useState('');
-  const [guardando, setGuardando] = useState(false);
+  const [st, dispatch] = useReducer(reducir, INICIAL);
 
-  const abrir = () => {
-    setTitulo('');
-    setMateriaId('');
-    setFecha(hoyISO(new Date()));
-    setError('');
-    setAbierto(true);
-  };
+  const abrir = () => dispatch({ tipo: 'abrir', hoy: hoyISO(new Date()) });
 
   const guardar = async () => {
-    if (!titulo.trim() || !fecha) {
-      setError('Poné un título y una fecha.');
+    if (!st.titulo.trim() || !st.fecha) {
+      dispatch({ tipo: 'error', error: 'Poné un título y una fecha.' });
       return;
     }
-    setGuardando(true);
-    setError('');
+    dispatch({ tipo: 'guardando' });
     const resultado = await crearAviso({
-      titulo: titulo.trim(),
-      materiaId: materiaId || null,
-      fecha,
+      titulo: st.titulo.trim(),
+      materiaId: st.materiaId || null,
+      fecha: st.fecha,
     });
-    setGuardando(false);
     if (!resultado.ok) {
-      setError(resultado.error);
+      dispatch({ tipo: 'error', error: resultado.error });
       return;
     }
-    setAbierto(false);
+    dispatch({ tipo: 'guardado' });
   };
 
   return (
@@ -60,7 +93,7 @@ export function NuevoAviso({ materias }: { materias: MateriaOpcion[] }) {
         + Nuevo
       </button>
 
-      <Modal abierto={abierto} titulo="Nuevo aviso" onCerrar={() => setAbierto(false)}>
+      <Modal abierto={st.abierto} titulo="Nuevo aviso" onCerrar={() => dispatch({ tipo: 'cerrar' })}>
         <div className="flex flex-col gap-4">
           <div>
             <label className={claseLabel} htmlFor="na-titulo">
@@ -68,8 +101,8 @@ export function NuevoAviso({ materias }: { materias: MateriaOpcion[] }) {
             </label>
             <input
               id="na-titulo"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
+              value={st.titulo}
+              onChange={(e) => dispatch({ tipo: 'campo', campo: 'titulo', valor: e.target.value })}
               placeholder="Ej: Entrega del TP2"
               className={claseInput}
             />
@@ -80,8 +113,10 @@ export function NuevoAviso({ materias }: { materias: MateriaOpcion[] }) {
             </label>
             <select
               id="na-materia"
-              value={materiaId}
-              onChange={(e) => setMateriaId(e.target.value)}
+              value={st.materiaId}
+              onChange={(e) =>
+                dispatch({ tipo: 'campo', campo: 'materiaId', valor: e.target.value })
+              }
               className="min-h-[46px] w-full rounded-xl border border-bor bg-bg px-3 text-[15px] text-tx"
             >
               <option value="">General</option>
@@ -99,18 +134,18 @@ export function NuevoAviso({ materias }: { materias: MateriaOpcion[] }) {
             <input
               id="na-fecha"
               type="date"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
+              value={st.fecha}
+              onChange={(e) => dispatch({ tipo: 'campo', campo: 'fecha', valor: e.target.value })}
               className="min-h-[46px] w-full rounded-xl border border-bor bg-bg px-[14px] font-mono text-sm text-tx"
             />
           </div>
 
-          {error && <div className="text-[13px] text-vencido">{error}</div>}
+          {st.error && <div className="text-[13px] text-vencido">{st.error}</div>}
 
           <div className="mt-[2px] flex gap-[10px]">
             <button
               type="button"
-              onClick={() => setAbierto(false)}
+              onClick={() => dispatch({ tipo: 'cerrar' })}
               className="min-h-12 cursor-pointer rounded-xl border border-bor2 px-[18px] text-sm font-bold text-tx2"
             >
               Cancelar
@@ -118,11 +153,11 @@ export function NuevoAviso({ materias }: { materias: MateriaOpcion[] }) {
             <button
               type="button"
               onClick={guardar}
-              disabled={guardando}
+              disabled={st.guardando}
               className="inline-flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-acc-bg text-[14.5px] font-bold text-acc-fg disabled:opacity-60"
             >
-              {guardando && <Rueda sobreAmbar />}
-              {guardando ? 'Guardando…' : 'Guardar aviso'}
+              {st.guardando && <Rueda sobreAmbar />}
+              {st.guardando ? 'Guardando…' : 'Guardar aviso'}
             </button>
           </div>
         </div>

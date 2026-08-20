@@ -14,7 +14,6 @@
  * SOLO SERVIDOR por convención (parte de lib/moodle/).
  */
 import { z } from 'zod';
-import type { FuncionMoodle } from './cliente';
 
 const loose = z.looseObject;
 
@@ -181,77 +180,7 @@ export const assignmentsSchema = loose({
   warnings: z.array(z.unknown()).optional(),
 });
 
-// 6. mod_assign_get_submission_status
-export const submissionStatusSchema = loose({
-  lastattempt: loose({
-    submission: loose({
-      id: z.number(),
-      status: z.string(), // 'new' | 'draft' | 'submitted' | 'reopened'
-      timemodified: z.number().optional(),
-    }).optional(),
-    submissionsenabled: z.boolean().optional(),
-    cansubmit: z.boolean().optional(),
-    graded: z.boolean().optional(),
-  }).optional(),
-  feedback: z.unknown().optional(),
-  warnings: z.array(z.unknown()).optional(),
-});
-
-// 7. gradereport_user_get_grade_items
-export const gradeItemSchema = loose({
-  id: z.number().nullable().optional(),
-  itemname: z.string().nullable(),
-  itemtype: z.string(), // 'course' = fila del total, separarla
-  itemmodule: z.string().nullable().optional(),
-  cmid: z.number().nullable().optional(),
-  graderaw: z.number().nullable().optional(), // null = sin corregir
-  gradeformatted: z.string().optional(),
-  grademin: z.number().optional(),
-  grademax: z.number().optional(),
-});
-export const gradeItemsSchema = loose({
-  usergrades: z.array(
-    loose({
-      courseid: z.number(),
-      userid: z.number(),
-      gradeitems: z.array(gradeItemSchema),
-    })
-  ),
-  warnings: z.array(z.unknown()).optional(),
-});
-
-// 8a. mod_forum_get_forums_by_courses — array plano de foros
-export const foroSchema = loose({
-  id: z.number(),
-  course: z.number(),
-  type: z.string(), // 'news' = foro de Novedades
-  name: z.string(),
-  cmid: z.number(),
-  numdiscussions: z.number().optional(),
-});
-export const forosSchema = z.array(foroSchema);
-
-// 8b. mod_forum_get_forum_discussions
-export const discusionSchema = loose({
-  id: z.number(),
-  name: z.string(),
-  timemodified: z.number(),
-  userfullname: z.string().nullable().optional(),
-  message: z.string(), // HTML: sanitizar
-  pinned: z.boolean().optional(),
-});
-export const discusionesSchema = loose({
-  discussions: z.array(discusionSchema),
-  warnings: z.array(z.unknown()).optional(),
-});
-
-// 9. core_calendar_get_calendar_export_token
-export const exportTokenSchema = loose({
-  token: z.string(), // ⚠️ credencial: no loguear su valor
-  warnings: z.array(z.unknown()).optional(),
-});
-
-// 10. Contenido de los módulos para el lector embebido.
+// 6. Contenido de los módulos para el lector embebido.
 //     Todas comparten forma: `{ <plural>: [...], warnings: [] }`, y cada ítem
 //     trae `coursemodule` (el cmid) que es la clave con la que se pegan a las
 //     secciones de core_course_get_contents.
@@ -317,34 +246,12 @@ export const cuestionariosSchema = loose({
   warnings: z.array(z.unknown()).optional(),
 });
 
-/** Mapa función → schema, para validar genéricamente. */
-export const schemasPorFuncion: Record<FuncionMoodle, z.ZodType> = {
-  core_webservice_get_site_info: siteInfoSchema,
-  core_user_get_users_by_field: perfilesUsuarioSchema,
-  core_enrol_get_users_courses: cursosSchema,
-  core_course_get_contents: contenidosCursoSchema,
-  core_calendar_get_action_events_by_timesort: eventosCalendarioSchema,
-  mod_assign_get_assignments: assignmentsSchema,
-  mod_assign_get_submission_status: submissionStatusSchema,
-  gradereport_user_get_grade_items: gradeItemsSchema,
-  mod_forum_get_forums_by_courses: forosSchema,
-  mod_forum_get_forum_discussions: discusionesSchema,
-  core_calendar_get_calendar_export_token: exportTokenSchema,
-  mod_page_get_pages_by_courses: paginasSchema,
-  mod_url_get_urls_by_courses: urlsSchema,
-  mod_resource_get_resources_by_courses: recursosSchema,
-  mod_lesson_get_lessons_by_courses: leccionesSchema,
-  mod_quiz_get_quizzes_by_courses: cuestionariosSchema,
-};
-
 export type SiteInfo = z.infer<typeof siteInfoSchema>;
 export type Curso = z.infer<typeof cursosSchema>[number];
 export type SeccionCurso = z.infer<typeof contenidosCursoSchema>[number];
 export type EventoCalendario = z.infer<typeof eventosCalendarioSchema>['events'][number];
 export type CursoConAssignments = z.infer<typeof assignmentsSchema>['courses'][number];
 export type Assignment = CursoConAssignments['assignments'][number];
-export type Foro = z.infer<typeof forosSchema>[number];
-export type Discusion = z.infer<typeof discusionesSchema>['discussions'][number];
 export type ArchivoWs = z.infer<typeof archivoWsSchema>;
 export type Pagina = z.infer<typeof paginaSchema>;
 export type UrlModulo = z.infer<typeof urlModuloSchema>;

@@ -106,11 +106,18 @@ export function Sidebar({
           className="flex min-h-12 items-center gap-[11px] rounded-[11px] px-3 !text-tx"
         >
           {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            // 30×30, el tamaño real de la fila. `unoptimized` solo para la URL
+            // relativa: en modo local el avatar lo sirve /api/avatar, que exige
+            // la cookie de sesión, y el optimizador de Next hace su propio
+            // fetch sin cookies (401 → foto rota). Las del bucket de Supabase
+            // son absolutas y públicas: esas sí se optimizan.
+            <Image
               src={avatarUrl}
               alt=""
               aria-hidden
+              width={30}
+              height={30}
+              unoptimized={avatarUrl.startsWith('/')}
               className="h-[30px] w-[30px] shrink-0 rounded-full object-cover"
             />
           ) : (

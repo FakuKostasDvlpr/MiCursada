@@ -12,17 +12,29 @@
 // ni cierre por Escape ni por click afuera. Las dos únicas salidas son aceptar
 // o salir de la app, porque sin aceptar no hay nada que mostrar.
 
+import { useEffect, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
 import { aceptarConsentimiento, cerrarSesion } from '@/app/actions-sesion';
 import { Rueda } from '@/components/cargando';
 
 export function Consentimiento() {
+  const dialogo = useRef<HTMLDialogElement>(null);
+
+  // `<dialog>` nativo con showModal(): deja la app de atrás inerte y atrapa el
+  // foco adentro del aviso (con Tab no te escapás a la cursada difuminada).
+  useEffect(() => {
+    const d = dialogo.current;
+    if (d && !d.open) d.showModal();
+  }, []);
+
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogo}
       aria-labelledby="titulo-privacidad"
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-scrim px-[18px] py-[30px] backdrop-blur-[10px]"
+      // Escape queda cancelado a propósito: este aviso no se cierra, las dos
+      // únicas salidas son aceptar o salir de la app.
+      onCancel={(e) => e.preventDefault()}
+      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center overflow-y-auto bg-scrim px-[18px] py-[30px] text-tx backdrop-blur-[10px] backdrop:bg-transparent"
     >
       <div className="card-in my-auto w-full max-w-[560px] rounded-[20px] border border-bor bg-sup px-[26px] py-[30px]">
         <div className="kicker">Un paso más</div>
@@ -68,7 +80,7 @@ export function Consentimiento() {
           </form>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 

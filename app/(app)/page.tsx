@@ -23,6 +23,10 @@ export default async function PaginaHoy() {
         iniciales={iniciales(perfil?.nombre ?? '')}
         avatarUrl={perfil?.avatarUrl ?? null}
         instituto={perfil?.instituto ?? null}
+        // Server Component puro (force-dynamic, sin "use client"): el instante se evalúa una sola
+        // vez en el servidor y viaja serializado como prop, así que no hay valor de cliente que
+        // difiera.
+        // react-doctor-disable-next-line react-doctor/rendering-hydration-mismatch-time
         inicialIso={new Date().toISOString()}
         syncIso={sync?.corridaAt ?? null}
       />

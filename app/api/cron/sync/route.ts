@@ -45,6 +45,11 @@ export async function GET(request: Request): Promise<Response> {
       continue;
     }
     try {
+      // Las iteraciones NO son independientes: la deduplicación depende del orden. El primero que
+      // sincroniza deja frescos los cursos compartidos y los que cursan lo mismo se saltean por
+      // esta misma condición. En paralelo todos leerían "no fresco" a la vez y bajarían la misma
+      // materia N veces.
+      // react-doctor-disable-next-line react-doctor/async-await-in-loop
       if (await cursadaFresca(user_id)) continue;
       const cred: Credencial | null = await leerCredencialDb(user_id);
       if (!cred) continue;

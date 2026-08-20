@@ -22,7 +22,7 @@ type Props = {
   onIr?: (id: string) => void;
 };
 
-export function ChipRef({ id, nombre, secciones, onIr }: Props) {
+function ChipRef({ id, nombre, secciones, onIr }: Props) {
   const item = resolverRef(id, nombre, secciones);
   const contenido = (
     <>
@@ -129,9 +129,15 @@ export function TextoConRefs({
     <>
       {partir(texto).map((t, i) =>
         t.t === 'texto' ? (
-          // Los índices alcanzan: los trozos se regeneran enteros con el texto.
+          // Un trozo de `partir()` NO tiene id: es una porción del string, y su única
+          // identidad es la posición. La lista se deriva entera de `texto` en cada render
+          // (no se filtra, no se ordena, no se reordena) y ningún trozo tiene estado
+          // propio ni hijos con estado, así que el índice es estable.
+          // react-doctor-disable-next-line react-doctor/no-array-index-as-key
           <span key={i}>{t.texto}</span>
         ) : (
+          // Mismo caso que el trozo de texto: los trozos se regeneran enteros con `texto`.
+          // react-doctor-disable-next-line react-doctor/no-array-index-as-key
           <ChipRef key={i} id={t.id} nombre={t.nombre} secciones={secciones} onIr={onIr} />
         )
       )}

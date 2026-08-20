@@ -59,14 +59,19 @@ export function ArmarSemana({ materias }: { materias: Materia[] }) {
   // Lo último que el server confirmó, por materia. Sirve para dos cosas: no
   // reescribir cuando nada cambió (cada blur de un campo de hora dispararía un
   // guardado igual al anterior) y tener a dónde volver si falla.
-  const persistido = useRef<Record<string, Franja[]>>(
-    Object.fromEntries(
-      materias.map((m) => [
+  //
+  // Arranca vacío y se llena en el primer uso: `useRef(Object.fromEntries(…))`
+  // armaba el mapa entero en CADA render para tirarlo (useRef ignora el valor
+  // después del primer render).
+  const materiasIniciales = useRef(materias);
+  const persistido = useRef<Record<string, Franja[]> | null>(null);
+  const confirmado = () =>
+    (persistido.current ??= Object.fromEntries(
+      materiasIniciales.current.map((m) => [
         m.id,
         ordenarFranjas(m.horarios.map((h) => ({ dia: h.dia, inicio: h.inicio, fin: h.fin }))),
       ])
-    )
-  );
+    ));
 
   if (materias.length === 0) return null;
 
@@ -83,7 +88,7 @@ export function ArmarSemana({ materias }: { materias: Materia[] }) {
       return;
     }
 
-    const antes = persistido.current[m.id] ?? [];
+    const antes = confirmado()[m.id] ?? [];
     if (JSON.stringify(antes) === JSON.stringify(ordenadas)) return;
 
     empezar(async () => {
@@ -98,7 +103,7 @@ export function ArmarSemana({ materias }: { materias: Materia[] }) {
         setError(r.error);
         return;
       }
-      persistido.current[m.id] = ordenadas;
+      confirmado()[m.id] = ordenadas;
       lanzarToast('Horario guardado', 'ok');
     });
   };

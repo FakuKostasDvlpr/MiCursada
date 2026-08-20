@@ -1,7 +1,9 @@
 import { Clock, MapPin, User } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 import { AsistenciaMateria } from '@/components/asistencia';
+import { Cargando } from '@/components/cargando';
 import { EditarMateria } from '@/components/editar-materia';
 import { MateriaDetalle } from '@/components/materia-detalle';
 import { hoyISO, nombreDia } from '@/lib/cursada';
@@ -92,13 +94,28 @@ export default async function PaginaDetalleMateria({
 
       <AsistenciaMateria materia={materia} />
 
-      <MateriaDetalle
-        materia={materia}
-        avisos={avisos}
-        materiasRef={materiasRef}
-        avisosRef={todosLosAvisos}
-        hoyIso={hoyISO(new Date())}
-      />
+      {/* `MateriaDetalle` usa `useSearchParams()` (la tab activa viaja en la URL).
+          Sin este boundary, Next tira la página entera a client-side rendering:
+          el <Suspense> deja que el resto del detalle siga siendo HTML del server. */}
+      <Suspense
+        fallback={
+          <div className="relative mt-4 min-h-[220px]">
+            <Cargando />
+          </div>
+        }
+      >
+        <MateriaDetalle
+          materia={materia}
+          avisos={avisos}
+          materiasRef={materiasRef}
+          avisosRef={todosLosAvisos}
+          // Server Component puro (force-dynamic, sin "use client"): `hoyISO` formatea el instante
+          // en la timezone fija de Buenos Aires una sola vez en el servidor y baja serializado
+          // como prop.
+          // react-doctor-disable-next-line react-doctor/rendering-hydration-mismatch-time
+          hoyIso={hoyISO(new Date())}
+        />
+      </Suspense>
     </main>
   );
 }

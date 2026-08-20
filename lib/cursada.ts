@@ -345,10 +345,11 @@ export function fechaLargaHoy(ahora: Date): string {
  * de lib/instituto.
  */
 export function turnoDesdeMaterias(materias: Materia[]): string | null {
-  const inicios = materias
-    .flatMap((m) => m.horarios)
-    .map((h) => h.inicio)
-    .sort();
+  const inicios: string[] = [];
+  for (const m of materias) {
+    for (const h of m.horarios) inicios.push(h.inicio);
+  }
+  inicios.sort();
   const medio = inicios[Math.floor(inicios.length / 2)];
   if (!medio) return null;
   if (medio >= '18:00') return 'Turno noche';

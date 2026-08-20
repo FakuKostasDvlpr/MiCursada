@@ -35,12 +35,15 @@ type Props = {
 
 type Vista = 'perfil' | 'avatar';
 
+/** Default estable de `biblioteca`: un `[]` inline sería un array nuevo por render. */
+const SIN_BIBLIOTECA: string[] = [];
+
 export function PerfilModal({
   perfil,
   usuario,
   conCuenta,
   turno = null,
-  biblioteca = [],
+  biblioteca = SIN_BIBLIOTECA,
   cerrarCon = 'back',
 }: Props) {
   const router = useRouter();

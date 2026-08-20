@@ -698,12 +698,13 @@ async function nombresBiblioteca(
     sortBy: { column: 'created_at', order: 'desc' },
   });
   if (error) throw error;
-  return (data ?? [])
-    .map((o) => o.name)
-    // `search` de Storage es un "contiene", no un "empieza con": el prefijo se
-    // vuelve a chequear acá para que nadie entre por un nombre armado. Y fuera
-    // los PNG generados de un predefinido (ver el `gen-` en guardarAvatarLocal).
-    .filter((n) => n.startsWith(`${userId}.`) && !n.startsWith(`${userId}.gen-`));
+  // `search` de Storage es un "contiene", no un "empieza con": el prefijo se
+  // vuelve a chequear acá para que nadie entre por un nombre armado. Y fuera
+  // los PNG generados de un predefinido (ver el `gen-` en guardarAvatarLocal).
+  // Filtro y proyección en una sola pasada.
+  return (data ?? []).flatMap((o) =>
+    o.name.startsWith(`${userId}.`) && !o.name.startsWith(`${userId}.gen-`) ? [o.name] : []
+  );
 }
 
 /**

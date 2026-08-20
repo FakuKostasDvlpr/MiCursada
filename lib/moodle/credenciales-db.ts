@@ -6,6 +6,9 @@
 
 import { cifrar, descifrar } from '@/lib/cifrado';
 import { type Credencial, URL_MOODLE_DEFAULT } from '@/lib/moodle/credenciales';
+// `credenciales` es solo-servidor: sin policies para anon/authenticated y con revoke explícito, se
+// escribe siempre via service role. RLS no puede cubrirla porque el cliente nunca la toca.
+// react-doctor-disable-next-line react-doctor/supabase-client-owned-authz-field
 import { adminClient } from '@/lib/supabase/admin';
 
 /** Postgres espera bytea como '\x<hex>'; PostgREST lo devuelve igual. */

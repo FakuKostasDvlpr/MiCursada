@@ -13,7 +13,11 @@ import {
   subirAvatarABiblioteca,
   usarAvatarDeBiblioteca,
 } from '@/app/actions';
-import { type Avatar, AvatarPicker, crearAvatarBlob } from '@/components/kokonutui/avatar-picker';
+import { AvatarPicker } from '@/components/kokonutui/avatar-picker';
+import {
+  type Avatar,
+  crearAvatarBlob,
+} from '@/components/kokonutui/avatares-predefinidos';
 import {
   AVISAR_DESDE,
   MAX_FOTOS_BIBLIOTECA,
@@ -35,6 +39,15 @@ type Props = {
 
 export function PerfilAvatar({ bibliotecaInicial, avatarActual, onListo }: Props) {
   const inputFoto = useRef<HTMLInputElement>(null);
+  // La prop es
+  // deliberadamente SOLO-INICIAL (de ahí el nombre): la grilla abre poblada con lo que
+  // ya trajo el server y desde ahí la biblioteca la maneja esta vista, que agrega y
+  // borra fotos de forma optimista contra las server actions. Cada action revalida, así
+  // que la prop vuelve a llegar con lo mismo que el estado local ya tiene; pisarla
+  // haría parpadear la grilla en medio de una subida. No hace falta `key` en el padre:
+  // `PerfilModal` desmonta esta vista al volver al perfil, así que la próxima vez que
+  // se abre arranca de la biblioteca fresca del server.
+  // react-doctor-disable-next-line react-doctor/no-derived-useState
   const [biblioteca, setBiblioteca] = useState<string[]>(bibliotecaInicial);
   const [subiendo, setSubiendo] = useState(false);
   const [error, setError] = useState('');

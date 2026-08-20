@@ -8,7 +8,7 @@
 // no aportaba información.
 
 import Link from 'next/link';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ALFA_QUIETA,
   ALTO,
@@ -34,20 +34,21 @@ type Props = {
 
 export function GrafoCursada({ materias, avisos, iniciales }: Props) {
   const firma = firmaGrafo(materias, avisos);
-  const grafoRef = useRef<Grafo | null>(null);
-  const firmaRef = useRef<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
 
   // Se rearma solo si cambiaron los datos: si no, las posiciones ya calculadas
   // se conservan entre renders. Se asienta acá mismo, en el render: el grafo
   // aparece quieto desde el primer frame.
-  if (firmaRef.current !== firma) {
-    firmaRef.current = firma;
+  //
+  // La dependencia es `firma` (y no materias/avisos/iniciales) a propósito: es
+  // el hash de los datos que cambian el dibujo. Rearmar por identidad de array
+  // tiraría las posiciones asentadas en cada render del padre.
+  const g = useMemo<Grafo>(() => {
     const nuevo = armarGrafo(materias, avisos, iniciales);
     for (let i = 0; i < PASOS_ASENTAR && nuevo.alfa > ALFA_QUIETA; i++) tickGrafo(nuevo);
-    grafoRef.current = nuevo;
-  }
-  const g = grafoRef.current as Grafo;
+    return nuevo;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firma]);
 
   const encendidos = useMemo(() => cadenaEncendida(g, hover), [g, hover]);
   const nodoHover = hover ? g.nodos.find((n) => n.id === hover) ?? null : null;

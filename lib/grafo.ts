@@ -117,10 +117,11 @@ export function firmaGrafo(materias: Materia[], avisos: Aviso[]): string {
   const m = materias
     .map((x) => `${x.id}:${x.bloques.length}:${x.archivos.length}`)
     .join('|');
-  const a = avisos
-    .filter((x) => !x.hecho)
-    .map((x) => x.id)
-    .join(',');
+  const pendientes: string[] = [];
+  for (const x of avisos) {
+    if (!x.hecho) pendientes.push(x.id);
+  }
+  const a = pendientes.join(',');
   return `${m}#${a}`;
 }
 

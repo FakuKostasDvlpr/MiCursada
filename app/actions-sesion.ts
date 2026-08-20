@@ -82,6 +82,9 @@ function loguear(contexto: string, e: unknown): void {
  * La contraseña se usa solo para el fetch a /login/token.php y no se persiste
  * en ningún lado (ver lib/moodle/login.ts).
  */
+// Esta ES la puerta de autenticación: no puede exigir sesión previa. El control de acceso lo hace
+// Moodle, que rechaza el par usuario/contraseña; recién con su token válido se acuña la sesión.
+// react-doctor-disable-next-line react-doctor/server-auth-actions
 export async function iniciarSesion(usuario: string, password: string): Promise<ResultadoLogin> {
   const parsed = loginSchema.safeParse({ usuario, password });
   if (!parsed.success) return { ok: false, error: 'Poné tu usuario y tu contraseña.' };
@@ -301,7 +304,9 @@ export async function borrarMiCuenta(): Promise<{ ok: false; error: string } | n
   }
   try {
     const { data: lista } = await admin.storage.from('avatares').list('', { search: u.userId });
-    const nombres = (lista ?? []).map((f) => f.name).filter((n) => n.startsWith(u.userId));
+    // Una sola pasada: `search` de Storage es un "contiene", así que el prefijo
+    // se rechequea acá mismo mientras se juntan los nombres.
+    const nombres = (lista ?? []).flatMap((f) => (f.name.startsWith(u.userId) ? [f.name] : []));
     if (nombres.length > 0) await admin.storage.from('avatares').remove(nombres);
   } catch (e) {
     loguear('borrarMiCuenta (avatar)', e); // huérfano en el bucket, no es motivo para fallar

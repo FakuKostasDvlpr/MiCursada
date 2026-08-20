@@ -2,13 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import {
-  IndicadorAula,
-  PanelAulaVirtual,
-  detallesAula,
-  nombreAula,
-  useAulaVirtual,
-} from '@/components/aula-virtual';
+import { IndicadorAula, PanelAulaVirtual, useAulaVirtual } from '@/components/aula-virtual';
+import { detallesAula, nombreAula } from '@/components/aula-virtual-partes';
 import { TileAsistencia } from '@/components/asistencia';
 import { CifraRodante } from '@/components/cifra-rodante';
 import { MenuPerfil } from '@/components/menu-perfil';

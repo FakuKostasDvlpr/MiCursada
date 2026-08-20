@@ -6,6 +6,7 @@
 // una foto propia, ambos vía guardarAvatarLocal.
 
 import { Camera, Check, CircleHelp, User } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -92,10 +93,17 @@ export function PerfilVista({
         className="relative mx-auto mt-[26px] block w-[104px] cursor-pointer"
       >
         {fotoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          // 104×104, el tamaño real del avatar del perfil. `unoptimized` solo
+          // para la URL relativa: en modo local la foto la sirve /api/avatar,
+          // que exige la cookie de sesión, y el optimizador de Next hace su
+          // propio fetch sin cookies (401 → foto rota). Las del bucket de
+          // Supabase son absolutas y públicas: esas sí se optimizan.
+          <Image
             src={fotoUrl}
             alt="Tu foto de perfil"
+            width={104}
+            height={104}
+            unoptimized={fotoUrl.startsWith('/')}
             className="h-[104px] w-[104px] rounded-full object-cover [box-shadow:0_0_0_3px_var(--bg),0_0_0_5px_#34d399]"
           />
         ) : (

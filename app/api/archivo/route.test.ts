@@ -31,8 +31,14 @@ vi.mock('@/lib/moodle/credenciales', () => ({
   leerCredenciales: async () => ({ token: TOKEN, url: 'https://aula.example.edu', userid: 1 }),
 }));
 vi.mock('@/lib/datos-locales', () => ({ rutaDatos: () => '/fake/aula-virtual-archivos.json' }));
+// El proxy cachea el índice en memoria y lo invalida por `mtime`, así que el
+// mock necesita `stat` además de `readFile`. El mtime es constante: el índice de
+// este test tampoco cambia.
 vi.mock('node:fs/promises', () => ({
-  default: { readFile: async () => JSON.stringify(indice) },
+  default: {
+    readFile: async () => JSON.stringify(indice),
+    stat: async () => ({ mtimeMs: 1 }),
+  },
 }));
 
 const { GET } = await import('./route');

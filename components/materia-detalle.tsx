@@ -81,14 +81,22 @@ const claseInput =
 const claseVacio =
   'mt-[14px] rounded-[14px] border border-dashed border-bor p-5 text-center text-[13.5px] text-tx3';
 
+/** Rótulo de un campo del alta inline: chico, en mayúsculas, como los kickers. */
+const claseLabel = 'kicker';
+
+// Defaults de props a nivel de módulo: un `[]` literal en la firma es un array
+// NUEVO en cada render, así que los hijos memoizados se redibujan al vicio.
+const SIN_MATERIAS: { id: string; nombre: string; color: string }[] = [];
+const SIN_AVISOS: Aviso[] = [];
+
 /** Tabs del detalle de materia: Curso (las unidades del aula virtual), Notas
  *  (editor de bloques con menú de comandos), Archivos (alta inline + lista) y
  *  Avisos (alta inline + lista con toggle). */
 export function MateriaDetalle({
   materia,
   avisos,
-  materiasRef = [],
-  avisosRef = [],
+  materiasRef = SIN_MATERIAS,
+  avisosRef = SIN_AVISOS,
   hoyIso,
 }: Props) {
   const router = useRouter();
@@ -104,8 +112,17 @@ export function MateriaDetalle({
     if (tabUrl === 'notas' || tabUrl === 'archivos' || tabUrl === 'avisos') return tabUrl;
     return 'curso';
   });
-  /** Módulo que hay que abrir al entrar a la tab Curso (de una nota o la URL). */
-  const [irAModulo, setIrAModulo] = useState<string | null>(moduloUrl);
+  /**
+   * Pedido de abrir un módulo en la tab Curso (de una nota o de la URL).
+   *
+   * Es un OBJETO y no el id pelado: cada pedido es una identidad nueva, así que
+   * tocar dos veces la misma referencia vuelve a abrir el módulo sin que el
+   * hijo tenga que avisar "ya lo atendí" (ese aviso era un efecto que llamaba a
+   * un callback del padre). Se limpia acá, en el click de las tabs.
+   */
+  const [pedidoModulo, setPedidoModulo] = useState<{ id: string } | null>(() =>
+    moduloUrl ? { id: moduloUrl } : null
+  );
 
   const secciones = materia.secciones ?? [];
   const modulos = secciones.reduce((n, s) => n + s.modulos.length, 0);
@@ -126,7 +143,12 @@ export function MateriaDetalle({
           <button
             key={t.id}
             type="button"
-            onClick={() => setTab(t.id)}
+            onClick={() => {
+              // Cambiar de tab a mano descarta el pedido pendiente: volver a
+              // Curso desde acá muestra la lista plegada, como siempre.
+              setPedidoModulo(null);
+              setTab(t.id);
+            }}
             aria-pressed={tab === t.id}
             className={`-mb-px min-h-12 flex-1 cursor-pointer border-b-2 px-1 py-3 text-[13.5px] font-bold ${
               tab === t.id ? 'border-acc text-acc' : 'border-transparent text-tx3'
@@ -138,12 +160,7 @@ export function MateriaDetalle({
       </div>
 
       {tab === 'curso' && (
-        <TabCurso
-          secciones={secciones}
-          materiaId={materia.id}
-          irAModulo={irAModulo}
-          onAtendido={() => setIrAModulo(null)}
-        />
+        <TabCurso secciones={secciones} materiaId={materia.id} pedidoModulo={pedidoModulo} />
       )}
       {tab === 'notas' && (
         <NotasEditor
@@ -158,7 +175,7 @@ export function MateriaDetalle({
           onVerAvisos={() => router.push('/avisos')}
           // Tocar una referencia en una nota abre ese módulo en la tab Curso.
           onIrAModulo={(id) => {
-            setIrAModulo(id);
+            setPedidoModulo({ id });
             setTab('curso');
           }}
         />
@@ -266,14 +283,16 @@ function ListaRequisitos({ requisitos }: { requisitos: Requisito[] }) {
 function TabCurso({
   secciones,
   materiaId,
-  irAModulo = null,
-  onAtendido,
+  pedidoModulo = null,
 }: {
   secciones: Seccion[];
   materiaId: string;
-  /** Módulo a abrir al entrar (lo pide una referencia de una nota). */
-  irAModulo?: string | null;
-  onAtendido?: () => void;
+  /**
+   * Módulo a abrir al entrar (lo pide una referencia de una nota o la URL).
+   * Cada pedido es un objeto nuevo: alcanza con comparar identidades para
+   * saber si hay uno sin atender, sin devolverle nada al padre.
+   */
+  pedidoModulo?: { id: string } | null;
 }) {
   const idBase = useId();
   // Todo plegado al entrar: las unidades cerradas son el índice del curso, y
@@ -282,16 +301,22 @@ function TabCurso({
   const [moduloAbierto, setModuloAbierto] = useState<string | null>(null);
   const refModulo = useRef<HTMLDivElement>(null);
 
-  // Vino de una nota: se abre la unidad, se despliega el módulo y se scrollea.
-  useEffect(() => {
-    if (!irAModulo) return;
-    const i = secciones.findIndex((s) => s.modulos.some((m) => m.id === irAModulo));
-    const esUnidad = irAModulo.startsWith('sec:');
-    const indiceUnidad = esUnidad ? Number(irAModulo.slice(4)) : i;
-    if (indiceUnidad >= 0) setAbiertas((prev) => new Set(prev).add(indiceUnidad));
-    setModuloAbierto(esUnidad ? null : irAModulo);
-    onAtendido?.();
-  }, [irAModulo, secciones, onAtendido]);
+  // Vino de una nota: se abre la unidad y se despliega el módulo. Se ajusta
+  // DURANTE el render comparando con el pedido anterior guardado en estado, no
+  // en un efecto: con un efecto se pintaba un frame con la lista todavía
+  // plegada antes de abrirse (react.dev/learn/you-might-not-need-an-effect).
+  const [atendido, setAtendido] = useState<{ id: string } | null>(null);
+  if (pedidoModulo !== atendido) {
+    setAtendido(pedidoModulo);
+    if (pedidoModulo) {
+      const id = pedidoModulo.id;
+      const i = secciones.findIndex((s) => s.modulos.some((m) => m.id === id));
+      const esUnidad = id.startsWith('sec:');
+      const indiceUnidad = esUnidad ? Number(id.slice(4)) : i;
+      if (indiceUnidad >= 0) setAbiertas((prev) => new Set(prev).add(indiceUnidad));
+      setModuloAbierto(esUnidad ? null : id);
+    }
+  }
 
   // El scroll va en su propio efecto: recién después de que el módulo se abrió.
   useEffect(() => {
@@ -319,6 +344,12 @@ function TabCurso({
           const abierta = abiertas.has(i);
           const idPanel = `${idBase}-seccion-${i}`;
           return (
+            // Una unidad de Moodle NO tiene id: su identidad en toda la app ES el índice
+            // (las notas la citan como `sec:{indice}`, ver lib/referencias.ts, y el
+            // estado `abiertas` es un Set de índices). La lista es el `secciones` del
+            // snapshot renderizado tal cual: no se filtra, no se ordena y no se
+            // reordena en el cliente, así que el índice es estable.
+            // react-doctor-disable-next-line react-doctor/no-array-index-as-key
             <section key={`${s.nombre}-${i}`}>
               <button
                 type="button"
@@ -646,10 +677,28 @@ function VideoCelda({ video }: { video: string }) {
   if (reproduciendo) {
     return (
       <div className="col-span-full flex flex-col gap-2">
+        {/* Sandbox con lo mínimo que necesita el player de youtube-nocookie:
+            `allow-scripts` (el player ES un script), `allow-same-origin` para su
+            PROPIO origen (youtube-nocookie.com, no el nuestro: sin esto no
+            guarda ni el volumen), `allow-presentation` para el botón de
+            fullscreen y los `allow-popups*` para "Ver en YouTube" del propio
+            player, que sin escapar del sandbox abre una pestaña rota. Quedan
+            bloqueados formularios, navegación del top y descargas. */}
+        {/* `allow-scripts` + `allow-same-origin` es una vía de escape del
+            sandbox SOLO cuando el documento embebido es del mismo origen que
+            el embebedor (ahí puede sacarse su propio atributo `sandbox`). Acá
+            no aplica: `urlEmbed()` (lib/embebido.ts) arma SIEMPRE una URL de
+            www.youtube-nocookie.com con el host escrito a mano y el id pasado
+            por encodeURIComponent, así que el src nunca es de nuestro origen ni
+            de una URL que venga del contenido del aula. `allow-same-origin` le
+            devuelve el origen de YouTube, no el nuestro: no alcanza nuestro DOM
+            ni nuestras cookies. */}
+        {/* react-doctor-disable-next-line react-doctor/iframe-missing-sandbox */}
         <iframe
           src={urlEmbed(video)}
           title={titulo}
           allowFullScreen
+          sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
           className="aspect-video w-full rounded-xl border-0 bg-bg"
         />
         <a
@@ -938,9 +987,18 @@ function ArchivoEmbebido({ archivo, activo }: { archivo: ArchivoModulo; activo: 
             <FalloCarga />
           ) : (
             <div className="relative h-[min(70vh,540px)]">
+              {/* Acá adentro van BYTES del aula virtual servidos por nuestro
+                  proxy, así que la URL es same-origin pero el contenido es
+                  ajeno. `allow-scripts` porque el visor de PDF del navegador es
+                  una app JS y sin eso queda en blanco, y `allow-downloads` para
+                  el botón de guardar de su barra. A propósito SIN
+                  `allow-same-origin`: el archivo corre en un origen opaco, así
+                  que aunque el aula devolviera un HTML en vez de un PDF no
+                  puede leer nuestras cookies ni nuestro DOM. */}
               <iframe
                 src={url}
                 title={archivo.nombre}
+                sandbox="allow-scripts allow-downloads"
                 onLoad={listo}
                 onError={fallo}
                 className={`h-full w-full rounded-xl border border-bor bg-sup ${
@@ -961,6 +1019,9 @@ function ArchivoEmbebido({ archivo, activo }: { archivo: ArchivoModulo; activo: 
 // ---------------------------------------------------------------------------
 
 function TabArchivos({ materia }: { materia: Materia }) {
+  const idBase = useId();
+  const idNombre = `${idBase}-nombre`;
+  const idUrl = `${idBase}-url`;
   const [nombre, setNombre] = useState('');
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
@@ -988,27 +1049,40 @@ function TabArchivos({ materia }: { materia: Materia }) {
   return (
     <div className="mt-4">
       <div className="flex flex-col gap-2">
-        <input
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          placeholder="Nombre (ej: Guía 5 PDF)"
-          className={claseInput}
-        />
-        <div className="flex gap-2">
+        {/* El placeholder no alcanza como rótulo: se borra en cuanto escribís. */}
+        <div className="flex flex-col gap-[5px]">
+          <label htmlFor={idNombre} className={claseLabel}>
+            Nombre
+          </label>
           <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="Pegá el link acá"
-            className={`${claseInput} min-w-0 flex-1`}
+            id={idNombre}
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            placeholder="Nombre (ej: Guía 5 PDF)"
+            className={claseInput}
           />
-          <button
-            type="button"
-            onClick={agregar}
-            disabled={guardando}
-            className="min-h-[46px] shrink-0 cursor-pointer rounded-xl bg-acc-bg px-4 text-sm font-bold text-acc-fg disabled:opacity-60"
-          >
-            Agregar
-          </button>
+        </div>
+        <div className="flex flex-col gap-[5px]">
+          <label htmlFor={idUrl} className={claseLabel}>
+            Link
+          </label>
+          <div className="flex gap-2">
+            <input
+              id={idUrl}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="Pegá el link acá"
+              className={`${claseInput} min-w-0 flex-1`}
+            />
+            <button
+              type="button"
+              onClick={agregar}
+              disabled={guardando}
+              className="min-h-[46px] shrink-0 cursor-pointer rounded-xl bg-acc-bg px-4 text-sm font-bold text-acc-fg disabled:opacity-60"
+            >
+              Agregar
+            </button>
+          </div>
         </div>
         {error && <div className="text-[13px] text-vencido">{error}</div>}
       </div>
@@ -1063,6 +1137,9 @@ function TabArchivos({ materia }: { materia: Materia }) {
 // ---------------------------------------------------------------------------
 
 function TabAvisos({ materiaId, avisos }: { materiaId: string; avisos: Aviso[] }) {
+  const idBase = useId();
+  const idTitulo = `${idBase}-titulo`;
+  const idFecha = `${idBase}-fecha`;
   const [titulo, setTitulo] = useState('');
   const [fecha, setFecha] = useState(() => hoyISO(new Date()));
   const [error, setError] = useState('');
@@ -1168,28 +1245,40 @@ function TabAvisos({ materiaId, avisos }: { materiaId: string; avisos: Aviso[] }
   return (
     <div className="mt-4">
       <div className="flex flex-col gap-2">
-        <input
-          value={titulo}
-          onChange={(e) => setTitulo(e.target.value)}
-          placeholder="Título (ej: Entrega del TP)"
-          className={claseInput}
-        />
-        <div className="flex gap-2">
+        {/* El placeholder no alcanza como rótulo: se borra en cuanto escribís. */}
+        <div className="flex flex-col gap-[5px]">
+          <label htmlFor={idTitulo} className={claseLabel}>
+            Título
+          </label>
           <input
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            aria-label="Fecha"
-            className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-bor bg-sup px-[14px] font-mono text-sm text-tx"
+            id={idTitulo}
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Título (ej: Entrega del TP)"
+            className={claseInput}
           />
-          <button
-            type="button"
-            onClick={agregar}
-            disabled={guardando}
-            className="min-h-[46px] shrink-0 cursor-pointer rounded-xl bg-acc-bg px-4 text-sm font-bold text-acc-fg disabled:opacity-60"
-          >
-            Agregar
-          </button>
+        </div>
+        <div className="flex flex-col gap-[5px]">
+          <label htmlFor={idFecha} className={claseLabel}>
+            Fecha
+          </label>
+          <div className="flex gap-2">
+            <input
+              id={idFecha}
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className="min-h-[46px] min-w-0 flex-1 rounded-xl border border-bor bg-sup px-[14px] font-mono text-sm text-tx"
+            />
+            <button
+              type="button"
+              onClick={agregar}
+              disabled={guardando}
+              className="min-h-[46px] shrink-0 cursor-pointer rounded-xl bg-acc-bg px-4 text-sm font-bold text-acc-fg disabled:opacity-60"
+            >
+              Agregar
+            </button>
+          </div>
         </div>
         {error && <div className="text-[13px] text-vencido">{error}</div>}
       </div>

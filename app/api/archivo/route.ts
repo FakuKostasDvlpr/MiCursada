@@ -45,6 +45,32 @@ const refArchivoSchema = z.object({
 
 const indiceSchema = z.record(z.string(), refArchivoSchema);
 
+type Indice = z.infer<typeof indiceSchema>;
+
+/**
+ * Caché en memoria del índice local de refs, invalidado por `mtime` (mismo
+ * criterio que `lib/datos-locales.ts`). Antes se leía y parseaba el JSON entero
+ * en CADA request del proxy: una pantalla con diez materiales eran diez
+ * parseos. El `stat` sigue por request, así que un sync que reescriba el
+ * archivo se ve enseguida.
+ */
+let cacheIndice: { mtimeMs: number; indice: Indice } | null = null;
+
+/** El índice local de refs, o null si no existe o está roto. */
+async function indiceLocal(): Promise<Indice | null> {
+  const ruta = rutaDatos('archivosCurso');
+  try {
+    const { mtimeMs } = await fs.stat(ruta);
+    if (cacheIndice !== null && cacheIndice.mtimeMs === mtimeMs) return cacheIndice.indice;
+    const indice = indiceSchema.parse(JSON.parse(await fs.readFile(ruta, 'utf8')));
+    cacheIndice = { mtimeMs, indice };
+    return indice;
+  } catch {
+    cacheIndice = null;
+    return null;
+  }
+}
+
 /**
  * `Content-Disposition` con el nombre real del archivo.
  *
@@ -94,10 +120,8 @@ export async function GET(request: Request): Promise<Response> {
     }
     cred = await credencialDelUsuario();
   } else {
-    let indice: z.infer<typeof indiceSchema>;
-    try {
-      indice = indiceSchema.parse(JSON.parse(await fs.readFile(rutaDatos('archivosCurso'), 'utf8')));
-    } catch {
+    const indice = await indiceLocal();
+    if (indice === null) {
       return new Response('No hay índice de archivos. Sincronizá el aula virtual.', { status: 404 });
     }
     const encontrada = indice[ref.data];
