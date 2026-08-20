@@ -167,10 +167,15 @@ Casos concretos de esta sesión donde el README mentía o se quedaba corto:
 
   Tres cosas que conviene saber:
 
-  1. **Queda un paso a mano: aplicar `supabase/migrations/0005_perfiles_onboarding.sql`.**
-     Sin eso, en modo Supabase `getPerfil()` pide `onboarding_en` y todo `(app)`
-     devuelve 500. La verificación en navegador se hizo íntegra en modo local
-     aislado, así que este camino **no se vio corriendo con Postgres**.
+  1. **Las migraciones 0005 y 0006 ya están aplicadas en el proyecto remoto.**
+     La 0005 agrega `perfiles.onboarding_en`; la 0006 es de **datos** y lo pone
+     en `null` para todas las cuentas, así todos ven el onboarding una vez.
+     Ojo: `supabase db push` falló la primera vez porque la tabla de historial
+     de migraciones estaba vacía aunque el esquema estuviera en 0004 — se
+     arregló con `supabase migration repair --status applied 0001 0002 0003 0004`.
+     Si `db push` vuelve a querer re-crear tablas que ya existen, es eso.
+     La verificación en navegador se hizo en modo local aislado, así que el
+     camino Supabase **no se vio corriendo con Postgres**.
   2. **Este paquete cierra el R7 de `specs/avisos-vinculados`** (el modal grande
      de aviso), que estaba specado y sin implementar desde el 17/08 — en su
      lugar se había hecho el snippet inline de `components/nota-aviso.tsx`. El
@@ -181,8 +186,14 @@ Casos concretos de esta sesión donde el README mentía o se quedaba corto:
   3. El onboarding se muestra **una sola vez por persona**, no en cada login
      como el prototipo — decisión del usuario, flag en `perfiles.onboarding_en`
      / `datos/perfil.json → onboardingEn`. Nada en `localStorage`. **No hay
-     forma de volver a verlo**: si se quiere, va un botón en `/manual` que
-     ponga el flag en `null` (§6).
+     forma de volver a verlo** desde la UI: se resetea con SQL (§6).
+  4. **El onboarding va ANTES del consentimiento** (decisión del 19/08; la
+     primera versión hacía lo contrario). Nunca los dos a la vez: la decisión
+     está en `capaDeEntrada()` (`lib/onboarding.ts`), con tests. Con el
+     consentimiento pendiente **el loader se saltea**, porque su checklist dice
+     "Sincronizando con el aula virtual" y `sincronizarAhora` exige
+     consentimiento — ahí todavía no sincronizó nada. Si alguna vez se cambia
+     ese copy o el gate del sync, revisar esa rama.
 
 ### Lo implementado del paquete nuevo (17/08)
 
@@ -258,11 +269,10 @@ y dejar solo la carpeta.
 - El subtítulo de la secuencia de entrada dice `SEDE_Y_TURNO`
   ("Almagro · Turno noche"); el prototipo dice "Turno noche · Lun a Sáb
   18:10–21:30". Es una constante de `lib/instituto.ts`, se dejó a propósito.
-- **Aplicar `supabase/migrations/0005_perfiles_onboarding.sql`** (19/08). Es lo
-  único que le falta al onboarding para funcionar en modo Supabase.
-- **Volver a ver el onboarding a pedido**: hoy, una vez visto, no hay forma de
-  mostrarlo de nuevo. Un botón en `/manual` que ponga `onboarding_en` en `null`
-  lo resuelve, pero no se implementó (no lo pedía el handoff).
+- **Volver a ver el onboarding a pedido**: desde la UI no hay forma. Para
+  resetearlo hay que ir a SQL (`update public.perfiles set onboarding_en = null`),
+  que es lo que hace la migración 0006. Un botón en `/manual` lo resolvería,
+  pero no se implementó (no lo pedía el handoff).
 - **El chevron + modal grande de aviso solo está en Hoy** (19/08). En `/avisos`
   y en la tab Avisos de la materia sigue el snippet inline. Si se quiere
   consistencia, `components/aviso-modal.tsx` ya es reusable.

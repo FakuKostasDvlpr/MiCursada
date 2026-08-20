@@ -35,7 +35,17 @@ const ICONO: Record<IconoPaso, typeof CalendarDays> = {
   grafo: Share2,
 };
 
-export function Onboarding() {
+type Props = {
+  /**
+   * Salta el loader: `Empezar`/`Saltar` cierra el overlay derecho. Se usa
+   * cuando todavía falta consentir — ahí el checklist mentiría, porque
+   * `sincronizarAhora` exige consentimiento y no sincronizó nada. Lo decide
+   * `capaDeEntrada()` en `lib/onboarding.ts`.
+   */
+  sinLoader?: boolean;
+};
+
+export function Onboarding({ sinLoader = false }: Props) {
   const [paso, setPaso] = useState(0);
   /** -1 = mostrando los pasos; 0..2 = tarea en curso; 3 = todas hechas. */
   const [tarea, setTarea] = useState(-1);
@@ -61,6 +71,13 @@ export function Onboarding() {
    */
   const arrancarLoader = () => {
     if (tarea >= 0) return;
+    // Sin loader: se cierra ya y el consentimiento (que el layout muestra
+    // apenas el flag queda escrito) toma la posta.
+    if (sinLoader) {
+      setCerrado(true);
+      void terminarOnboarding();
+      return;
+    }
     setTarea(0);
     MS_TAREA.forEach((ms, i) => {
       if (ms === 0) return;

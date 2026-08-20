@@ -4,6 +4,7 @@ import {
   MS_TAREA,
   PASOS_ONBOARDING,
   TAREAS_ONBOARDING,
+  capaDeEntrada,
   estadoTarea,
   kickerOnboarding,
   labelBotonOnboarding,
@@ -108,5 +109,55 @@ describe('timeline', () => {
 
   it('hay un paso de timeline por tarea, más el de "todas hechas"', () => {
     expect(MS_TAREA).toHaveLength(TAREAS_ONBOARDING.length + 1);
+  });
+});
+
+describe('capaDeEntrada', () => {
+  const base = {
+    tienePerfil: true,
+    onboardingEn: null as string | null,
+    consentimientoEn: '2026-08-01T00:00:00.000Z' as string | null,
+    conSupabase: true,
+  };
+  const AYER = '2026-08-18T00:00:00.000Z';
+
+  it('cuenta nueva: el onboarding va PRIMERO, y sin loader', () => {
+    // Antes de consentir el loader mentiría: no sincronizó nada todavía.
+    expect(capaDeEntrada({ ...base, consentimientoEn: null })).toBe('onboarding-sin-loader');
+  });
+
+  it('ya consintió pero no vio el onboarding: onboarding con loader', () => {
+    expect(capaDeEntrada(base)).toBe('onboarding');
+  });
+
+  it('vio el onboarding pero falta consentir: el consentimiento', () => {
+    expect(capaDeEntrada({ ...base, onboardingEn: AYER, consentimientoEn: null })).toBe(
+      'consentimiento'
+    );
+  });
+
+  it('todo hecho: se entra derecho a la app', () => {
+    expect(capaDeEntrada({ ...base, onboardingEn: AYER })).toBeNull();
+  });
+
+  it('nunca devuelve las dos capas: siempre una sola o ninguna', () => {
+    const capa = capaDeEntrada({ ...base, onboardingEn: null, consentimientoEn: null });
+    expect(['onboarding', 'onboarding-sin-loader', 'consentimiento', null]).toContain(capa);
+  });
+
+  it('sin fila de perfil no hay onboarding: no habría dónde escribir el flag', () => {
+    expect(capaDeEntrada({ ...base, tienePerfil: false, consentimientoEn: null })).toBe(
+      'consentimiento'
+    );
+    expect(capaDeEntrada({ ...base, tienePerfil: false })).toBeNull();
+  });
+
+  it('modo local: no hay consentimiento que pedir, pero el onboarding sí sale', () => {
+    expect(
+      capaDeEntrada({ ...base, conSupabase: false, consentimientoEn: null })
+    ).toBe('onboarding');
+    expect(
+      capaDeEntrada({ ...base, conSupabase: false, consentimientoEn: null, onboardingEn: AYER })
+    ).toBeNull();
   });
 });

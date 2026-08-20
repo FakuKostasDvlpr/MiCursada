@@ -49,9 +49,25 @@ tiene Moodle, sesión real y overlays irrecuperables.
   lugar. Consecuencia buscada: el onboarding aparece sobre **cualquier** ruta de
   `(app)`, no solo sobre Hoy — si recargás en `/semana` con el flag sin
   escribir, sale ahí.
-- **A3 — Onboarding y consentimiento no se apilan.** En modo Supabase el
-  consentimiento va primero y es bloqueante; el onboarding recién se monta
-  cuando ya está consentido. Dos overlays con blur uno sobre otro no se leen.
+- **A3 — Onboarding y consentimiento no se apilan, y el onboarding va PRIMERO.**
+  Dos overlays con blur uno sobre otro no se leen, así que se muestra uno a la
+  vez. El orden lo decide `capaDeEntrada()` (`lib/onboarding.ts`), que está
+  testeada: primero la presentación, después el permiso — tiene más sentido
+  contar qué hace la app y recién ahí pedirlo. **Decisión del usuario
+  (19/08)**; la primera versión hacía lo contrario.
+
+  Con el consentimiento pendiente **el loader se saltea**: su checklist dice
+  "Sincronizando con el aula virtual" y `sincronizarAhora` exige consentimiento
+  (`app/actions-moodle.ts:205`), así que ahí todavía no sincronizó nada y el
+  texto sería falso. `Empezar`/`Saltar` cierra el overlay y aparece el
+  consentimiento; el sync real lo dispara `aceptarConsentimiento`, que ya tiene
+  su propio feedback. Para quien ya consintió, el loader va completo.
+
+  Consecuencia asumida: `terminarOnboarding()` escribe `onboarding_en` **antes**
+  del consentimiento. Es coherente con lo que ya pasa — la fila de `perfiles` se
+  crea en el login, también antes de consentir — y no es un dato personal sino
+  un flag de UI. Sin persistirlo, el onboarding volvería a salir después de
+  aceptar.
 - **A4 — El loader es un beat de cierre, no una carga real.** La app ya baja
   los datos de verdad durante el login (`montarCursada()` en
   `components/login-entrada.tsx:100`): cuando el onboarding aparece no queda
@@ -110,9 +126,10 @@ tiene Moodle, sesión real y overlays irrecuperables.
   está en 60), flex centrado, `padding: 24px`, `overflow-y: auto`.
 - **R2.2** Fondo `rgba(2,6,23,.62)` + `backdrop-filter: blur(10px)` con prefijo
   `-webkit-`. Entrada `fadeIn .5s ease`.
-- **R2.3** Se monta cuando `!perfil.onboardingEn` y (modo Supabase) ya hay
-  consentimiento. La app de atrás va con `aria-hidden` + `inert`, igual que con
-  el consentimiento.
+- **R2.3** Se monta cuando hay fila de perfil y `!perfil.onboardingEn`, **antes**
+  del consentimiento (A3). La decisión sale de `capaDeEntrada()`; el layout no
+  la calcula. La app de atrás va con `aria-hidden` + `inert` mientras haya
+  cualquiera de las dos capas.
 - **R2.4** El overlay **no** se cierra con click afuera ni con Escape: es la
   presentación, se sale con `Saltar` o completando los pasos.
 
@@ -368,9 +385,33 @@ anima. Es lo único de la timeline del handoff que no se portó.
 devuelve el bounding box del cuadrado rotado (74·√2 ≈ 104 en el peor ángulo).
 Queda anotado para que la próxima medición no lo persiga.
 
-**D8 — La migración no se aplicó.** El usuario la corre por su cuenta (ver §6).
-La verificación se hizo íntegra en **modo local**, con una copia aislada de
-`datos/`, sin tocar el Supabase ni el dev server del usuario.
+**D8 — La migración sí se aplicó, después de un desvío.** `supabase db push`
+falló queriendo re-crear `cursos`: el esquema remoto estaba en 0004 pero la
+tabla de historial de migraciones estaba **vacía** (se habían aplicado a mano).
+Se arregló con `supabase migration repair --status applied 0001..0004` y después
+el push aplicó solo la 0005. En el camino, el editor SQL del dashboard daba
+`42P01: relation "public.perfiles" does not exist` porque el navegador estaba
+logueado con una cuenta que no es miembro de la org **CWC**, que es donde vive
+el proyecto.
+
+**D9 — El orden se dio vuelta (19/08).** Ver A3. Trajo `capaDeEntrada()` a
+`lib/onboarding.ts` con 7 tests: la decisión de qué capa se muestra dejó de
+estar inline en el layout.
+
+**D10 — Reset del flag para todas las cuentas.** `0006_reset_onboarding.sql` es
+una migración de **datos**, no de esquema: pone `onboarding_en` en `null` para
+todos, porque las pruebas de verificación se lo habían escrito a algunas cuentas
+(entre ellas la del dueño) y nunca lo habrían visto. Va como migración porque es
+la única vía versionada para escribir en el remoto — `supabase db query` pide un
+access token de plataforma (`supabase login`, interactivo) que el entorno no
+tiene.
+
+**D11 — `sinLoader` no se pudo ver en modo Supabase.** La rama
+`onboarding-sin-loader` → `consentimiento` se verificó en el navegador forzando
+`conSupabase: true` en el layout de un entorno local aislado (cambio temporal,
+revertido: no queda ningún `TEMPORAL-VERIF` en el árbol). Reproducirla de verdad
+habría exigido poner en `null` el `consentimiento_en` de una cuenta real, y eso
+la obligaría a consentir otra vez.
 
 ## 6. Verificación
 

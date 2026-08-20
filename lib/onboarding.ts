@@ -113,3 +113,46 @@ export const labelBotonOnboarding = (paso: number): string =>
 /** Kicker de la fila de arriba: `Paso 1 de 3`. */
 export const kickerOnboarding = (paso: number): string =>
   `Paso ${paso + 1} de ${PASOS_ONBOARDING.length}`;
+
+// ---------------------------------------------------------------------------
+// Qué capa se muestra al entrar
+// ---------------------------------------------------------------------------
+
+/**
+ * `onboarding` = la presentación con su loader. `onboarding-sin-loader` = la
+ * presentación pero saliendo derecho, sin el checklist. `consentimiento` = el
+ * aviso bloqueante. `null` = se entra directo a la app.
+ */
+export type CapaDeEntrada = 'onboarding' | 'onboarding-sin-loader' | 'consentimiento' | null;
+
+export type EstadoDeEntrada = {
+  /** Si existe la fila de `perfiles` (se crea al entrar, antes de consentir). */
+  tienePerfil: boolean;
+  onboardingEn: string | null;
+  consentimientoEn: string | null;
+  /** En modo local no hay consentimiento que pedir. */
+  conSupabase: boolean;
+};
+
+/**
+ * Cuál de las dos capas va arriba, y nunca las dos a la vez: dos overlays con
+ * blur uno encima del otro no se leen.
+ *
+ * **El onboarding va PRIMERO, antes del consentimiento** (pedido del 19/08):
+ * tiene más sentido contar qué hace la app y después pedir permiso que al
+ * revés. Pero en ese caso el loader se saltea: su checklist dice
+ * "Sincronizando con el aula virtual" y `sincronizarAhora` exige consentimiento
+ * (`app/actions-moodle.ts`), así que ahí todavía no sincronizó nada. El sync
+ * real lo dispara `aceptarConsentimiento`, que tiene su propio feedback.
+ *
+ * Sin fila de perfil el onboarding no se muestra: no habría dónde escribir el
+ * flag y volvería a salir en cada request.
+ */
+export function capaDeEntrada(e: EstadoDeEntrada): CapaDeEntrada {
+  const faltaConsentir = e.conSupabase && !e.consentimientoEn;
+  const faltaOnboarding = e.tienePerfil && !e.onboardingEn;
+
+  if (faltaOnboarding) return faltaConsentir ? 'onboarding-sin-loader' : 'onboarding';
+  if (faltaConsentir) return 'consentimiento';
+  return null;
+}

@@ -8,6 +8,7 @@ import { Sidebar } from '@/components/sidebar';
 import { Toast } from '@/components/toast';
 import { materiasAvisables } from '@/lib/aviso-presente';
 import { iniciales, turnoDesdeMaterias } from '@/lib/cursada';
+import { capaDeEntrada } from '@/lib/onboarding';
 import { getMaterias, getPerfil } from '@/lib/queries';
 import { exigirSesion } from '@/lib/sesion-actual';
 import { supabaseConfigurado } from '@/lib/supabase/configurado';
@@ -48,13 +49,17 @@ export default async function LayoutApp({
     0
   );
 
-  const faltaConsentir = supabaseConfigurado() && !perfil?.consentimientoEn;
-  // El onboarding va DESPUÉS del consentimiento y nunca a la vez: dos overlays
-  // con blur uno arriba del otro no se leen (spec `onboarding-y-salida` A3).
-  // Pide un perfil existente: sin él todavía no hay dónde escribir el flag y el
-  // overlay volvería a salir en cada request.
-  const faltaOnboarding = !faltaConsentir && !!perfil && !perfil.onboardingEn;
-  const tapado = faltaConsentir || faltaOnboarding;
+  // Qué capa va encima de la app, y nunca las dos a la vez: dos overlays con
+  // blur uno arriba del otro no se leen. El onboarding va PRIMERO y el
+  // consentimiento después (spec `onboarding-y-salida` A3). La decisión es de
+  // `capaDeEntrada()`, que está testeada.
+  const capa = capaDeEntrada({
+    tienePerfil: !!perfil,
+    onboardingEn: perfil?.onboardingEn ?? null,
+    consentimientoEn: perfil?.consentimientoEn ?? null,
+    conSupabase: supabaseConfigurado(),
+  });
+  const tapado = capa !== null;
 
   return (
     <>
@@ -78,8 +83,10 @@ export default async function LayoutApp({
         <AvisoPresente materias={materiasAvisables(materias)} />
       </div>
       {modal}
-      {faltaConsentir ? <Consentimiento /> : null}
-      {faltaOnboarding ? <Onboarding /> : null}
+      {capa === 'consentimiento' ? <Consentimiento /> : null}
+      {capa === 'onboarding' || capa === 'onboarding-sin-loader' ? (
+        <Onboarding sinLoader={capa === 'onboarding-sin-loader'} />
+      ) : null}
     </>
   );
 }
