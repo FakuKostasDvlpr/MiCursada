@@ -16,10 +16,10 @@
 // y no haya ciclo de imports.
 
 import { useEffect, useRef, useState } from 'react';
-import { Bell, X } from 'lucide-react';
+import { ArrowUpRight, Bell, X } from 'lucide-react';
 import type { BloquePatch } from '@/app/actions';
 import { Modal } from '@/components/modal';
-import { type ItemRef, buscarRefs, mencionEnCursor } from '@/lib/referencias';
+import { type ItemRef, buscarRefs, mencionEnCursor, ofrecibles } from '@/lib/referencias';
 import { lanzarToast } from '@/lib/toast';
 import {
   COLOR_REF,
@@ -137,6 +137,47 @@ export function verRef(ref: RefBloque, catalogo: ItemRef[]): { nombre: string; c
   return { nombre: item?.nombre ?? ref.id, color: item?.color ?? COLOR_REF[ref.tipo] };
 }
 
+// ---------------------------------------------------------------------------
+// El select de Referencia
+//
+// Antes era una lista plana de títulos: veinte nombres sueltos donde no se
+// distinguía una unidad de un módulo, y los ARCHIVOS ni aparecían. Ahora sigue
+// la jerarquía del aula virtual — unidad › módulo › archivo — con un
+// `<optgroup>` por unidad, que es la forma nativa (y accesible) de agrupar.
+// ---------------------------------------------------------------------------
+
+/** Sangría de las opciones. Espacios duros: el select come los normales. */
+const NBSP = ' ';
+
+/** La unidad bajo la que va cada ítem en el select. */
+function grupoDe(r: ItemRef): string {
+  if (r.ref.tipo === 'aviso') return 'Avisos de la materia';
+  // Una unidad es su propio grupo; lo de adentro cuelga del primer tramo del
+  // contexto ("Unidad 2 › Guía de ejercicios" → "Unidad 2").
+  if (r.kind === 'Unidad') return r.nombre;
+  return r.contexto.split(' › ')[0] || 'Del aula virtual';
+}
+
+/** Lo ofrecible, agrupado por unidad y en el orden del aula virtual. */
+export function agruparRefs(catalogo: ItemRef[]): { titulo: string; items: ItemRef[] }[] {
+  const grupos: { titulo: string; items: ItemRef[] }[] = [];
+  for (const r of ofrecibles(catalogo)) {
+    const titulo = grupoDe(r);
+    const ultimo = grupos.at(-1);
+    if (ultimo?.titulo === titulo) ultimo.items.push(r);
+    else grupos.push({ titulo, items: [r] });
+  }
+  return grupos;
+}
+
+/** El texto de una opción, sangrado según qué tan adentro está. */
+export function etiquetaOpcion(r: ItemRef): string {
+  if (r.ref.tipo === 'archivo') return `${NBSP.repeat(4)}↳ ${r.nombre} · ${r.kind}`;
+  if (r.ref.tipo === 'aviso') return `! ${r.nombre}`;
+  if (r.kind === 'Unidad') return `▤ ${r.nombre}`;
+  return `${NBSP.repeat(2)}📄 ${r.nombre} · ${r.kind}`;
+}
+
 /** Pill con dot que cuelga del bloque y de su card. */
 export function ChipRef({
   cita,
@@ -148,19 +189,41 @@ export function ChipRef({
   chico?: boolean;
 }) {
   const { nombre, color } = verRef(cita, catalogo);
-  return (
-    <span
-      className={`mt-[6px] inline-flex max-w-full items-center gap-[6px] rounded-full border border-bor bg-sup px-[10px] py-1 font-mono ${
-        chico ? 'text-[10.5px]' : 'text-[11px]'
-      }`}
-      style={{ color }}
-    >
+  const clases = `mt-[6px] inline-flex max-w-full items-center gap-[6px] rounded-full border border-bor bg-sup px-[10px] py-1 font-mono ${
+    chico ? 'text-[10.5px]' : 'text-[11px]'
+  }`;
+  const contenido = (
+    <>
       <span
         aria-hidden
         className="h-[6px] w-[6px] shrink-0 rounded-full"
         style={{ background: color }}
       />
       <span className="truncate">{nombre}</span>
+    </>
+  );
+
+  // Un archivo citado se abre en pestaña nueva (handoff del 17/08), siempre por
+  // el proxy: la URL real del aula virtual y el token no salen del server.
+  if (cita.tipo === 'archivo') {
+    return (
+      <a
+        href={`/api/archivo?ref=${encodeURIComponent(cita.id)}`}
+        target="_blank"
+        rel="noopener"
+        title={`Abrir ${nombre}`}
+        className={`${clases} hover:border-acc`}
+        style={{ color }}
+      >
+        {contenido}
+        <ArrowUpRight size={11} strokeWidth={2.5} aria-hidden className="shrink-0" />
+      </a>
+    );
+  }
+
+  return (
+    <span className={clases} style={{ color }}>
+      {contenido}
     </span>
   );
 }
@@ -420,10 +483,15 @@ export function ModalCard({
                   className="h-2 w-2 shrink-0 rounded-full"
                   style={{ background: r.color }}
                 />
-                <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">
-                  {r.nombre}
+                <span className="block min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-semibold">{r.nombre}</span>
+                  {r.contexto && (
+                    <span className="mt-[2px] block truncate font-mono text-[10.5px] text-tx4">
+                      {r.contexto}
+                    </span>
+                  )}
                 </span>
-                <span className="font-mono text-[10px] tracking-[0.1em] text-tx4 uppercase">
+                <span className="shrink-0 font-mono text-[10px] tracking-[0.1em] text-tx4 uppercase">
                   {r.kind}
                 </span>
               </button>
@@ -515,11 +583,14 @@ export function ModalCard({
           className={`${caja} px-3`}
         >
           <option value="">Sin referencia</option>
-          {catalogo.map((r) => (
-            <option key={`${r.ref.tipo}:${r.ref.id}`} value={`${r.ref.tipo}:${r.ref.id}`}>
-              {r.ref.tipo === 'modulo' ? '📄 ' : r.ref.tipo === 'materia' ? '▣ ' : '! '}
-              {r.nombre}
-            </option>
+          {agruparRefs(catalogo).map((g) => (
+            <optgroup key={g.titulo} label={g.titulo}>
+              {g.items.map((r) => (
+                <option key={`${r.ref.tipo}:${r.ref.id}`} value={`${r.ref.tipo}:${r.ref.id}`}>
+                  {etiquetaOpcion(r)}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>

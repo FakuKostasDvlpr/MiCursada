@@ -224,36 +224,87 @@ export function mencionEnCursor(
 export type ItemRef = {
   ref: RefBloque;
   nombre: string;
-  /** Lo que se lee en mono a la derecha ("Tarea", "materia", "aviso"). */
+  /** Lo que se lee en mono a la derecha ("PDF", "Tarea", "materia", "aviso"). */
   kind: string;
   color: string;
+  /**
+   * Dónde vive, para no mostrar veinte nombres sueltos sin jerarquía:
+   * "Unidad 2 › Guía de ejercicios" para un archivo, "Unidad 2" para un módulo.
+   * Vacío para lo que no cuelga de ninguna unidad.
+   */
+  contexto: string;
+  /**
+   * ¿Se OFRECE en el menú `@` y en el select de Referencia?
+   *
+   * El catálogo cumple dos funciones distintas y hay ítems que sirven para una
+   * sola: resolver el chip de una nota ya escrita (`verRef` busca acá) y ofrecer
+   * qué citar. Las otras materias y los avisos ajenos ya NO se ofrecen — desde
+   * una materia se cita lo de esa materia — pero tienen que seguir resolviendo,
+   * o una nota vieja pasaría a mostrar "curso:2756" en crudo.
+   */
+  ofrecer: boolean;
 };
 
+/** La unidad de un archivo o módulo, para el `contexto`. */
+const SEP = ' › ';
+
 export type EntradaCatalogo = {
-  /** Unidades y módulos de la materia que se está editando. */
+  /** Unidades, módulos y archivos de la materia que se está editando. */
   secciones?: Seccion[];
-  /** Todas las materias de la cursada (la actual se excluye sola). */
+  /** Materias de la cursada: solo para resolver citas viejas, no se ofrecen. */
   materias: { id: string; nombre: string; color: string }[];
   materiaActualId: string;
-  /** Todos los avisos; los hechos no se ofrecen. */
-  avisos: { id: string; titulo: string; hecho: boolean }[];
+  /** Todos los avisos: solo se ofrecen los de esta materia que siguen pendientes. */
+  avisos: { id: string; titulo: string; hecho: boolean; materiaId?: string | null }[];
 };
 
 /**
- * Lo citable con `@`, en el orden del prototipo: primero el curso, después las
- * otras materias, y al final los avisos que siguen pendientes.
+ * Lo citable desde una nota de ESTA materia: sus archivos (el "TP2.pdf" del
+ * aula), sus unidades y módulos, y sus avisos pendientes. Nada de otras
+ * materias: si estás tomando nota en Matemáticas, el menú es de Matemáticas.
+ *
+ * Los ítems de otras materias igual entran al catálogo con `ofrecer: false`,
+ * porque el catálogo es también lo que resuelve los chips ya guardados.
  */
 export function catalogoRefs(entrada: EntradaCatalogo): ItemRef[] {
   const items: ItemRef[] = [];
+  const secciones = entrada.secciones ?? [];
 
-  for (const c of catalogoCurso(entrada.secciones ?? [])) {
+  // El curso, en el orden en que está armado en el aula virtual: cada unidad,
+  // sus módulos, y los archivos colgando del módulo que los contiene.
+  secciones.forEach((s, i) => {
+    const unidad = s.nombre || 'Sin título';
     items.push({
-      ref: { tipo: 'modulo', id: c.id },
-      nombre: c.nombre,
-      kind: c.etiqueta,
+      ref: { tipo: 'modulo', id: `sec:${i}` },
+      nombre: unidad,
+      kind: 'Unidad',
       color: COLOR_REF.modulo,
+      contexto: '',
+      ofrecer: true,
     });
-  }
+
+    for (const m of s.modulos) {
+      items.push({
+        ref: { tipo: 'modulo', id: m.id },
+        nombre: m.nombre,
+        kind: etiquetaModulo(m.tipo),
+        color: COLOR_REF.modulo,
+        contexto: unidad,
+        ofrecer: true,
+      });
+
+      for (const a of m.archivos ?? []) {
+        items.push({
+          ref: { tipo: 'archivo', id: a.ref },
+          nombre: a.nombre,
+          kind: kindArchivo(a.nombre, a.mime),
+          color: COLOR_REF.archivo,
+          contexto: `${unidad}${SEP}${m.nombre}`,
+          ofrecer: true,
+        });
+      }
+    }
+  });
 
   for (const m of entrada.materias) {
     if (m.id === entrada.materiaActualId) continue;
@@ -263,28 +314,51 @@ export function catalogoRefs(entrada: EntradaCatalogo): ItemRef[] {
       kind: 'materia',
       // El chip toma el color de esa materia, no el genérico del tipo.
       color: m.color || COLOR_REF.materia,
+      contexto: '',
+      ofrecer: false,
     });
   }
 
   for (const a of entrada.avisos) {
-    if (a.hecho) continue;
     items.push({
       ref: { tipo: 'aviso', id: a.id },
       nombre: a.titulo,
       kind: 'aviso',
       color: COLOR_REF.aviso,
+      contexto: '',
+      // Un aviso hecho no se ofrece (ya no hay nada que citar), y uno de otra
+      // materia tampoco: entra solo para resolver.
+      ofrecer: !a.hecho && a.materiaId === entrada.materiaActualId,
     });
   }
 
   return items;
 }
 
-/** Filtra el catálogo del `@` y corta en `limite` (7 en el composer, 5 en el modal). */
+/** "PDF" / "ZIP" / "DOCX" a partir del nombre, cayendo al mime si no hay extensión. */
+export function kindArchivo(nombre: string, mime: string): string {
+  const ext = nombre.includes('.') ? (nombre.split('.').pop() ?? '') : '';
+  if (ext && ext.length <= 5) return ext.toUpperCase();
+  const cola = mime.split('/').pop() ?? '';
+  return cola ? cola.toUpperCase().slice(0, 5) : 'Archivo';
+}
+
+/** Solo lo que el menú y el select tienen que ofrecer. */
+export function ofrecibles(catalogo: ItemRef[]): ItemRef[] {
+  return catalogo.filter((c) => c.ofrecer);
+}
+
+/**
+ * Filtra lo ofrecible del catálogo y corta en `limite` (7 en el composer, 5 en
+ * el modal). La búsqueda mira también el contexto, así "unidad 2" trae todo lo
+ * de esa unidad.
+ */
 export function buscarRefs(catalogo: ItemRef[], consulta: string, limite: number): ItemRef[] {
   const q = plano(consulta.trim());
+  const base = ofrecibles(catalogo);
   const filtrados = q
-    ? catalogo.filter((c) => plano(`${c.nombre} ${c.kind}`).includes(q))
-    : catalogo;
+    ? base.filter((c) => plano(`${c.nombre} ${c.kind} ${c.contexto}`).includes(q))
+    : base;
   return filtrados.slice(0, limite);
 }
 

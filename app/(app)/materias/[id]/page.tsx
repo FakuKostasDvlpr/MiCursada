@@ -24,9 +24,10 @@ export default async function PaginaDetalleMateria({
 
   const avisos = todosLosAvisos.filter((a) => a.materiaId === materia.id);
 
-  // Lo citable con `@` desde una nota: además del curso, las OTRAS materias y
-  // los avisos de toda la cursada. El filtrado de "otras" y de "pendientes" lo
-  // hace `catalogoRefs`.
+  // Desde una nota se cita LO DE ESTA MATERIA: sus archivos, sus unidades y
+  // módulos, y sus avisos pendientes. Las otras materias y los avisos ajenos
+  // igual se le pasan porque el catálogo es también lo que resuelve los chips
+  // ya guardados — `catalogoRefs` los marca como "no ofrecibles".
   const materiasRef = todasLasMaterias.map((m) => ({
     id: m.id,
     nombre: m.nombre,

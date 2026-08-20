@@ -672,10 +672,19 @@ export function NotasEditor({
                     className="h-2 w-2 shrink-0 rounded-full"
                     style={{ background: r.color }}
                   />
-                  <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-tx">
-                    {r.nombre}
+                  <span className="block min-w-0 flex-1">
+                    <span className="block truncate text-[14px] font-semibold text-tx">
+                      {r.nombre}
+                    </span>
+                    {/* De dónde sale: "Unidad 2 › Guía de ejercicios". Sin esto,
+                        veinte nombres sueltos no dicen dónde vive cada uno. */}
+                    {r.contexto && (
+                      <span className="mt-[2px] block truncate font-mono text-[10.5px] text-tx4">
+                        {r.contexto}
+                      </span>
+                    )}
                   </span>
-                  <span className="font-mono text-[10px] tracking-[0.1em] text-tx4 uppercase">
+                  <span className="shrink-0 font-mono text-[10px] tracking-[0.1em] text-tx4 uppercase">
                     {r.kind}
                   </span>
                 </button>

@@ -7,7 +7,9 @@ import {
   etiquetaModulo,
   insertarMencion,
   marcador,
+  kindArchivo,
   mencionEnCursor,
+  ofrecibles,
   partir,
   refUnica,
   resolverRef,
@@ -227,9 +229,26 @@ describe('insertarMencion', () => {
 });
 
 describe('catalogoRefs', () => {
+  // Una unidad con un módulo que tiene dos archivos adjuntos: la forma real de
+  // "Unidad 2 › Guía de ejercicios › TP2.pdf".
   const entrada = {
     secciones: [
-      { nombre: 'Unidad 1', modulos: [{ id: 'mod:10', nombre: 'TP Nº 1', tipo: 'assign', url: 'u' }] },
+      {
+        nombre: 'Unidad 1',
+        modulos: [
+          {
+            id: 'mod:10',
+            nombre: 'Guía de ejercicios',
+            tipo: 'resource',
+            url: 'u',
+            archivos: [
+              { nombre: 'TP2.pdf', mime: 'application/pdf', tamano: 472000, ref: '10:0' },
+              { nombre: 'anexo', mime: 'application/zip', tamano: 10, ref: '10:1' },
+            ],
+          },
+          { id: 'mod:11', nombre: 'TP Nº 1', tipo: 'assign', url: 'u' },
+        ],
+      },
     ],
     materias: [
       { id: 'curso:1', nombre: 'Matemáticas', color: '#38bdf8' },
@@ -237,22 +256,67 @@ describe('catalogoRefs', () => {
     ],
     materiaActualId: 'curso:1',
     avisos: [
-      { id: 'assign:99', titulo: 'Entregar el TP', hecho: false },
-      { id: 'manual:1', titulo: 'Ya lo hice', hecho: true },
+      { id: 'assign:99', titulo: 'Entregar el TP', hecho: false, materiaId: 'curso:1' },
+      { id: 'manual:1', titulo: 'Ya lo hice', hecho: true, materiaId: 'curso:1' },
+      { id: 'manual:2', titulo: 'De Inglés', hecho: false, materiaId: 'curso:2' },
+      { id: 'manual:3', titulo: 'General', hecho: false, materiaId: null },
     ],
   };
 
-  it('ordena curso, otras materias y avisos pendientes', () => {
+  it('sigue la jerarquía del aula: unidad, módulo, y sus archivos abajo', () => {
+    const c = ofrecibles(catalogoRefs(entrada));
+    expect(c.map((x) => x.nombre)).toEqual([
+      'Unidad 1',
+      'Guía de ejercicios',
+      'TP2.pdf',
+      'anexo',
+      'TP Nº 1',
+      'Entregar el TP',
+    ]);
+  });
+
+  it('ofrece los ARCHIVOS del aula, no solo los módulos', () => {
+    const tp2 = catalogoRefs(entrada).find((x) => x.nombre === 'TP2.pdf');
+    expect(tp2?.ref).toEqual({ tipo: 'archivo', id: '10:0' });
+    expect(tp2?.kind).toBe('PDF');
+  });
+
+  it('el contexto de un archivo dice unidad y módulo', () => {
+    const tp2 = catalogoRefs(entrada).find((x) => x.nombre === 'TP2.pdf');
+    expect(tp2?.contexto).toBe('Unidad 1 › Guía de ejercicios');
+  });
+
+  it('el contexto de un módulo es su unidad, y una unidad no tiene contexto', () => {
     const c = catalogoRefs(entrada);
-    expect(c.map((x) => x.ref.tipo)).toEqual(['modulo', 'modulo', 'materia', 'aviso']);
+    expect(c.find((x) => x.nombre === 'TP Nº 1')?.contexto).toBe('Unidad 1');
+    expect(c.find((x) => x.nombre === 'Unidad 1')?.contexto).toBe('');
+  });
+
+  it('un archivo sin extensión cae al mime', () => {
+    expect(catalogoRefs(entrada).find((x) => x.nombre === 'anexo')?.kind).toBe('ZIP');
+  });
+
+  it('NO ofrece otras materias, pero las deja para resolver chips viejos', () => {
+    const ingles = catalogoRefs(entrada).find((x) => x.ref.id === 'curso:2');
+    expect(ingles).toBeDefined();
+    expect(ingles?.ofrecer).toBe(false);
+    expect(ofrecibles(catalogoRefs(entrada)).some((x) => x.ref.tipo === 'materia')).toBe(false);
   });
 
   it('no ofrece la materia que se está editando', () => {
     expect(catalogoRefs(entrada).some((x) => x.ref.id === 'curso:1')).toBe(false);
   });
 
-  it('no ofrece avisos ya hechos', () => {
-    expect(catalogoRefs(entrada).some((x) => x.ref.id === 'manual:1')).toBe(false);
+  it('solo ofrece los avisos pendientes DE ESTA materia', () => {
+    const ofrecidos = ofrecibles(catalogoRefs(entrada)).filter((x) => x.ref.tipo === 'aviso');
+    expect(ofrecidos.map((x) => x.ref.id)).toEqual(['assign:99']);
+  });
+
+  it('los avisos ajenos y los hechos siguen resolviendo', () => {
+    const c = catalogoRefs(entrada);
+    for (const id of ['manual:1', 'manual:2', 'manual:3']) {
+      expect(c.find((x) => x.ref.id === id)?.ofrecer).toBe(false);
+    }
   });
 
   it('el chip de una materia usa el color de esa materia', () => {
@@ -260,26 +324,80 @@ describe('catalogoRefs', () => {
     expect(ingles?.color).toBe('#a78bfa');
   });
 
-  it('el aviso va en rosa y el módulo en ámbar', () => {
+  it('el aviso va en rosa, y el módulo y el archivo en ámbar', () => {
     const c = catalogoRefs(entrada);
     expect(c.find((x) => x.ref.tipo === 'aviso')?.color).toBe('#fb7185');
     expect(c.find((x) => x.ref.tipo === 'modulo')?.color).toBe('#fbbf24');
+    expect(c.find((x) => x.ref.tipo === 'archivo')?.color).toBe('#fbbf24');
+  });
+
+  it('sin secciones no explota', () => {
+    expect(() => catalogoRefs({ ...entrada, secciones: undefined })).not.toThrow();
+  });
+});
+
+describe('kindArchivo', () => {
+  it('usa la extensión del nombre', () => {
+    expect(kindArchivo('TP2.pdf', 'application/pdf')).toBe('PDF');
+    expect(kindArchivo('Resolución final.docx', 'application/msword')).toBe('DOCX');
+  });
+
+  it('sin extensión cae a la cola del mime', () => {
+    expect(kindArchivo('anexo', 'application/zip')).toBe('ZIP');
+  });
+
+  it('una "extensión" larguísima no es una extensión: gana el mime', () => {
+    // "Clase 1. Sistemas de numeración" tiene un punto pero no termina en un
+    // tipo de archivo, así que el tramo tras el punto se descarta.
+    expect(kindArchivo('Clase 1. Sistemas de numeracion', 'application/zip')).toBe('ZIP');
+  });
+
+  it('un mime raro y larguísimo se corta, no se muestra entero', () => {
+    const kind = kindArchivo('presentacion', 'application/vnd.oasis.opendocument.presentation');
+    expect(kind.length).toBeLessThanOrEqual(5);
+  });
+
+  it('sin nada usable no devuelve vacío', () => {
+    expect(kindArchivo('archivo raro', '')).toBe('Archivo');
   });
 });
 
 describe('buscarRefs', () => {
+  const item = (
+    tipo: 'archivo' | 'modulo' | 'materia' | 'aviso',
+    id: string,
+    nombre: string,
+    kind: string,
+    color: string,
+    contexto = '',
+    ofrecer = true
+  ) => ({ ref: { tipo, id }, nombre, kind, color, contexto, ofrecer });
+
   const catalogo = [
-    { ref: { tipo: 'modulo' as const, id: 'mod:1' }, nombre: 'Trabajo Práctico', kind: 'Tarea', color: '#fbbf24' },
-    { ref: { tipo: 'materia' as const, id: 'curso:2' }, nombre: 'Inglés', kind: 'materia', color: '#a78bfa' },
-    { ref: { tipo: 'aviso' as const, id: 'a:1' }, nombre: 'Parcial', kind: 'aviso', color: '#fb7185' },
+    item('modulo', 'mod:1', 'Trabajo Práctico', 'Tarea', '#fbbf24', 'Unidad 2'),
+    item('archivo', '1:0', 'TP2.pdf', 'PDF', '#fbbf24', 'Unidad 2 › Guía de ejercicios'),
+    item('materia', 'curso:2', 'Inglés', 'materia', '#a78bfa', '', false),
+    item('aviso', 'a:1', 'Parcial', 'aviso', '#fb7185'),
   ];
 
+  it('no ofrece lo que está marcado como no ofrecible', () => {
+    expect(buscarRefs(catalogo, 'INGLES', 7)).toEqual([]);
+    expect(buscarRefs(catalogo, '', 7).some((x) => x.ref.tipo === 'materia')).toBe(false);
+  });
+
   it('filtra sin acentos ni mayúsculas', () => {
-    expect(buscarRefs(catalogo, 'INGLES', 7).map((x) => x.nombre)).toEqual(['Inglés']);
+    expect(buscarRefs(catalogo, 'PRACTICO', 7).map((x) => x.nombre)).toEqual(['Trabajo Práctico']);
   });
 
   it('también busca por el tipo', () => {
     expect(buscarRefs(catalogo, 'aviso', 7).map((x) => x.nombre)).toEqual(['Parcial']);
+  });
+
+  it('busca por el contexto: "unidad 2" trae todo lo de esa unidad', () => {
+    expect(buscarRefs(catalogo, 'unidad 2', 7).map((x) => x.nombre)).toEqual([
+      'Trabajo Práctico',
+      'TP2.pdf',
+    ]);
   });
 
   it('corta en el límite', () => {

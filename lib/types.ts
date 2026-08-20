@@ -38,14 +38,24 @@ export type Horario = {
 };
 
 /**
- * Qué se puede citar desde una nota. `modulo` es un ítem del aula virtual (lo
- * que el prototipo llama "archivo"); los otros dos son cosas de la propia app.
+ * Qué se puede citar desde una nota.
+ *
+ * - `archivo`: un adjunto concreto del aula virtual ("TP2.pdf"). Es el
+ *   "archivos de la materia" del handoff. El id es la `ref` OPACA del proxy.
+ * - `modulo`: el ítem que lo contiene ("Guía de ejercicios") o una unidad.
+ * - `materia` y `aviso`: cosas de la propia app.
+ *
+ * `materia` sigue acá aunque el menú ya no lo ofrezca (ver `catalogoRefs`): las
+ * notas viejas que citan otra materia tienen que seguir resolviéndose.
  */
-export const TIPOS_REF = ['modulo', 'materia', 'aviso'] as const;
+export const TIPOS_REF = ['archivo', 'modulo', 'materia', 'aviso'] as const;
 export type TipoRef = (typeof TIPOS_REF)[number];
 
 /** Color del chip de cada tipo de referencia (`REFCOL` del prototipo). */
 export const COLOR_REF: Record<TipoRef, string> = {
+  // Un archivo es contenido del aula igual que su módulo: mismo ámbar. Lo que
+  // los distingue es el `kind` ("PDF" vs "Tarea") y el contexto.
+  archivo: '#fbbf24',
   modulo: '#fbbf24',
   materia: '#a78bfa',
   aviso: '#fb7185',
