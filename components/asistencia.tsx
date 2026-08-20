@@ -2,6 +2,7 @@
 
 import { ArrowUpRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { BotonAvisoPresente } from '@/components/aviso-presente';
 import { clasesDeHoy, estadoAsistencia, type EstadoAsistencia } from '@/lib/cursada';
 import type { Materia } from '@/lib/types';
 
@@ -135,7 +136,10 @@ export function TileAsistencia({ materias, ahora }: { materias: Materia[]; ahora
       data-test="tile-asistencia"
       className="col-span-full rounded-2xl border border-bor bg-sup p-[14px] min-[641px]:col-[1/-1]"
     >
-      <div className="kicker mb-[10px] tracking-[0.16em]">Asistencia</div>
+      <div className="mb-[10px] flex items-center justify-between gap-3">
+        <div className="kicker tracking-[0.16em]">Asistencia</div>
+        <BotonAvisoPresente />
+      </div>
       <div className="flex flex-col gap-[6px]">
         {clases.map((c) => (
           <FilaAsistencia

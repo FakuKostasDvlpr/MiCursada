@@ -1,9 +1,11 @@
+import { AvisoPresente } from '@/components/aviso-presente';
 import { BottomNav } from '@/components/bottom-nav';
 import { Consentimiento } from '@/components/consentimiento';
 import { Contenedor } from '@/components/contenedor';
 import { Logro } from '@/components/logro';
 import { Sidebar } from '@/components/sidebar';
 import { Toast } from '@/components/toast';
+import { materiasAvisables } from '@/lib/aviso-presente';
 import { iniciales, turnoDesdeMaterias } from '@/lib/cursada';
 import { getMaterias, getPerfil } from '@/lib/queries';
 import { exigirSesion } from '@/lib/sesion-actual';
@@ -64,6 +66,9 @@ export default async function LayoutApp({
         <BottomNav />
         <Logro totalNotas={totalNotas} />
         <Toast />
+        {/* Vive en el layout y no en el tile de Hoy: así el aviso de los 10
+            minutos también sale estando en /avisos, /semana o una materia. */}
+        <AvisoPresente materias={materiasAvisables(materias)} />
       </div>
       {modal}
       {faltaConsentir ? <Consentimiento /> : null}

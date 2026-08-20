@@ -53,9 +53,18 @@ export function nombreDia(dia: number): string {
   return DIAS[dia] ?? '';
 }
 
-/** Todas las clases de un día dado, ordenadas por inicio. */
-function clasesDeDia(materias: Materia[], dia: number): { materia: Materia; horario: Horario }[] {
-  const out: { materia: Materia; horario: Horario }[] = [];
+/**
+ * Todas las clases de un día dado, ordenadas por inicio.
+ *
+ * Genérica sobre la materia: solo necesita `horarios`, así que también sirve
+ * para la versión flaca que el layout manda al cliente (`MateriaAvisable` en
+ * `lib/aviso-presente.ts`) sin arrastrar bloques ni archivos.
+ */
+function clasesDeDia<M extends { horarios: Horario[] }>(
+  materias: M[],
+  dia: number
+): { materia: M; horario: Horario }[] {
+  const out: { materia: M; horario: Horario }[] = [];
   for (const materia of materias) {
     for (const horario of materia.horarios) {
       if (horario.dia === dia) out.push({ materia, horario });
@@ -147,8 +156,8 @@ export function badgeLlegada(prox: ProximaClase, ahora: Date): BadgeLlegada | nu
   return { tono: 'tranqui', texto: 'Llegá cuando quieras' };
 }
 
-export type ClaseHoy = {
-  materia: Materia;
+export type ClaseHoy<M = Materia> = {
+  materia: M;
   horario: Horario;
   /** fin <= ahora */
   pasada: boolean;
@@ -157,7 +166,10 @@ export type ClaseHoy = {
 };
 
 /** Clases del día actual (BA) ordenadas por inicio, con flags de estado. Domingo: []. */
-export function clasesDeHoy(materias: Materia[], ahora: Date): ClaseHoy[] {
+export function clasesDeHoy<M extends { horarios: Horario[] }>(
+  materias: M[],
+  ahora: Date
+): ClaseHoy<M>[] {
   const local = enBA(ahora);
   const hoyDia = local.getDay();
   if (hoyDia < 1 || hoyDia > 6) return [];
@@ -181,6 +193,12 @@ export type EstadoAsistencia = {
   activa: boolean;
   /** Línea mono chica: "Ahora" / "En 8 min" / "Empieza 19:00" / "Terminó 23:00". */
   texto: string;
+  /**
+   * Minutos hasta el inicio de la clase; 0 o negativo si ya empezó. Lo usa el
+   * aviso de "dar el presente" para no sonar en una clase en curso, sin tener
+   * que parsear `texto`.
+   */
+  faltan: number;
 };
 
 /**
@@ -197,19 +215,20 @@ export function estadoAsistencia(horario: Horario, ahora: Date): EstadoAsistenci
   const nowMin = local.getHours() * 60 + local.getMinutes();
   const inicio = aMin(horario.inicio);
   const fin = aMin(horario.fin);
+  const faltan = inicio - nowMin;
 
   if (nowMin >= fin) {
-    return { fase: 'terminada', activa: false, texto: `Terminó ${horario.fin}` };
+    return { fase: 'terminada', activa: false, texto: `Terminó ${horario.fin}`, faltan };
   }
   if (nowMin >= inicio - MIN_ANTES_ASISTENCIA) {
-    const faltan = inicio - nowMin;
     return {
       fase: 'activa',
       activa: true,
       texto: faltan <= 0 ? 'Ahora' : `En ${faltan} min`,
+      faltan,
     };
   }
-  return { fase: 'antes', activa: false, texto: `Empieza ${horario.inicio}` };
+  return { fase: 'antes', activa: false, texto: `Empieza ${horario.inicio}`, faltan };
 }
 
 export type StatsBento = {

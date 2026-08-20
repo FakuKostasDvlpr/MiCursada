@@ -365,6 +365,7 @@ describe('estadoAsistencia', () => {
       fase: 'antes',
       activa: false,
       texto: 'Empieza 19:10',
+      faltan: 70,
     });
     // 19:00 es el borde: 11 min antes todavía es "antes".
     expect(estadoAsistencia(h, ba(`${JUEVES} 18:59`)).fase).toBe('antes');
@@ -375,6 +376,7 @@ describe('estadoAsistencia', () => {
       fase: 'activa',
       activa: true,
       texto: 'En 10 min',
+      faltan: 10,
     });
     expect(estadoAsistencia(h, ba(`${JUEVES} 19:02`)).texto).toBe('En 8 min');
   });
@@ -384,6 +386,7 @@ describe('estadoAsistencia', () => {
       fase: 'activa',
       activa: true,
       texto: 'Ahora',
+      faltan: 0,
     });
     expect(estadoAsistencia(h, ba(`${JUEVES} 22:59`)).texto).toBe('Ahora');
   });
@@ -393,6 +396,7 @@ describe('estadoAsistencia', () => {
       fase: 'terminada',
       activa: false,
       texto: 'Terminó 23:00',
+      faltan: -230,
     });
     expect(estadoAsistencia(h, ba(`${JUEVES} 23:30`)).fase).toBe('terminada');
   });
