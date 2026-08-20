@@ -19,14 +19,15 @@ lo crea debajo del input y pida rellenar, no es intuitivo, mejorar esto. Al  apr
 ## /admin#Usuarios
 - no se puede ver foto o logo de los usuarios. registrados
 - Agregar boton de refresh para ver los nuevos que se sumen, mas una notificacion de que se unio alguien.
- 
+- Agregar redireccion en Sidebar (siempre cuando loguee con el usuario de 447999555, facundo costas), y que se monte dentro de /../live-panel
+- Generar notificacion con sonido al unirse un nuevo usuario.
 
 ## Profile avatar
 -  no se puede cargar uno aleatorio. como un gif.
 eliminar subir como y poner un ovalo con signo mas para seleccionar imagen y que al pickearlo se marque como la primera imagen y al guardar. que ese logo/sticker permanezca guardado para el usuario sin que lo vuelva a subir, ya que quedara en su biblioteca.
 
 ## Usar docker local. con mejoras locales.
-- ANalizar que podria ser local
+- ANalizar que podria ser local...
 
 ## Creacion de grupos para trabajos.
 - https://kokonutui.com/docs/inputs/team-selector.
@@ -39,13 +40,11 @@ eliminar subir como y poner un ovalo con signo mas para seleccionar imagen y que
 - [URL] > [https://kokonutui.com/docs/inputs/loader]  
 - [Instalacion] > [bunx --bun shadcn@latest add @kokonutui/loader]
 
-## Users
-- Banner, estamos trabajando en algunas mejoras para todos ustedes.Pronto verán sus materias cargadas.
-- Generar página de total de users con countdown, como YouTube con suscriptores
+## notificacion al crear una nota
+- Mostrarlo posteriormente al crear la nota.
 
-## Interfaz 
-- Aplicar /impeccable en toda la web 
+## Notas
+- Mejorar notas. no funciona como deberian las funciones especiales como ( /to-do etc)
 
-## Manual de uso
-- Página de /manual de uso.
-Donde explique funcionalidades y capacidades del sistema
+## Post login
+- Mostrar [Loader] > [Instalacion] > [pnpm dlx shadcn@latest add @kokonutui/loader]
